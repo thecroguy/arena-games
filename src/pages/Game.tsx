@@ -69,6 +69,15 @@ function makeGridQ(round: number): Question {
   return { round, total: TOTAL_BOT_ROUNDS, target: Math.floor(Math.random() * 16), gridSize: 16, type: 'grid', timeMs: 8000 }
 }
 
+function makeSealedQ(round: number, gm: string): Question {
+  const max = gm === 'number-rush' ? 50 : 20
+  return { round, total: TOTAL_BOT_ROUNDS, min: 1, max, type: 'sealed', gameMode: gm, timeMs: 20000 }
+}
+
+const SEALED_GAMES = ['highest-unique', 'lowest-unique', 'number-rush']
+
+const REACTION_EMOJIS = ['😭','💀','🔥','😂','🤯','👀','🫡','😤']
+
 // ── Game help text ─────────────────────────────────────────────────────────
 const GAME_HELP: Record<string, { title: string; rules: string[] }> = {
   'math-arena':     { title: 'Math Arena',     rules: ['A math equation appears each round.', 'Type the correct answer and press Enter or GO.', 'First player to answer correctly scores a point.', '10 rounds — most points wins the pot.'] },
@@ -116,6 +125,16 @@ export default function Game() {
   const [botThinking, setBotThinking] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [abandonReason, setAbandonReason] = useState('')
+  // emoji reactions
+  const [floatingReactions, setFloatingReactions] = useState<Array<{id: number; emoji: string; name: string; x: number}>>([])
+  const reactionIdRef = useRef(0)
+  // queue chat
+  const [chatMessages, setChatMessages] = useState<Array<{address: string; text: string; ts: number}>>([])
+  const [chatInput, setChatInput] = useState('')
+  const chatEndRef = useRef<HTMLDivElement>(null)
+  // sealed bot
+  const botSealedPickRef = useRef<number | null>(null)
+  const playerSealedPickRef = useRef<number | null>(null)
 
   const inputRef  = useRef<HTMLInputElement>(null)
   const timerRef  = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -124,7 +143,10 @@ export default function Game() {
 
   useEffect(() => { scoresRef.current = players }, [players])
 
-  // ── Bot mode (math-arena only) ─────────────────────────────────────────
+  // ── Auto-scroll chat ───────────────────────────────────────────────────
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chatMessages])
+
+  // ── Bot mode ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isBotMode) return
     let n = 3; setCountdown(n)
@@ -144,6 +166,43 @@ export default function Game() {
 
   function startBotRound(round: number) {
     const gm = gameMode || gameModeLS
+
+    // ── Sealed game handling ──
+    if (SEALED_GAMES.includes(gm)) {
+      const q = makeSealedQ(round, gm)
+      setQuestion(q)
+      setPhase('playing')
+      setInput('')
+      setSealedCount(0)
+      setSealedResult(null)
+      setTimeLeft(20)
+      botSealedPickRef.current = null
+      playerSealedPickRef.current = null
+      setPlayers(prev => prev.map(p => ({ ...p, answered: false, correct: null })))
+
+      if (timerRef.current) clearInterval(timerRef.current)
+      timerRef.current = setInterval(() => {
+        setTimeLeft(t => {
+          if (t <= 1) { clearInterval(timerRef.current!); endBotSealedRound(q); return 0 }
+          return t - 1
+        })
+      }, 1000)
+
+      // Bot picks after 5000 + random*10000ms
+      const botDelay = 5000 + Math.random() * 10000
+      botRef.current = setTimeout(() => {
+        const botPick = Math.floor(Math.random() * (q.max! - q.min! + 1)) + q.min!
+        botSealedPickRef.current = botPick
+        if (playerSealedPickRef.current !== null) {
+          endBotSealedRound(q)
+        }
+      }, botDelay)
+
+      setTimeout(() => inputRef.current?.focus(), 50)
+      return
+    }
+
+    // ── Speed game handling (original) ──
     const q = gm === 'word-blitz' ? makeWordQ(round)
             : gm === 'reaction-grid' ? makeGridQ(round)
             : makeMathQ(round)
@@ -196,6 +255,64 @@ export default function Game() {
     }, 2000)
   }
 
+  function endBotSealedRound(q: Question) {
+    clearBotTimer()
+
+    const playerPick = playerSealedPickRef.current
+    const botPick    = botSealedPickRef.current
+    const gm = q.gameMode ?? gameModeLS
+
+    let winnerAddress: string | null = null
+    const picks: { address: string; pick: number }[] = []
+
+    if (playerPick !== null) picks.push({ address: myAddr, pick: playerPick })
+    if (botPick !== null)    picks.push({ address: BOT_ADDR, pick: botPick })
+
+    if (playerPick !== null && botPick !== null) {
+      if (playerPick === botPick) {
+        // same → no winner
+        winnerAddress = null
+      } else if (gm === 'highest-unique') {
+        winnerAddress = playerPick > botPick ? myAddr : BOT_ADDR
+      } else if (gm === 'lowest-unique') {
+        winnerAddress = playerPick < botPick ? myAddr : BOT_ADDR
+      } else {
+        // number-rush: lower pick wins (both unique, tiebreak lowest)
+        winnerAddress = playerPick < botPick ? myAddr : BOT_ADDR
+      }
+    } else if (playerPick !== null && botPick === null) {
+      winnerAddress = myAddr
+      picks.push({ address: BOT_ADDR, pick: -1 })
+    } else if (botPick !== null && playerPick === null) {
+      winnerAddress = BOT_ADDR
+      picks.push({ address: myAddr, pick: -1 })
+    }
+
+    const result: SealedResult = { winnerAddress, picks }
+    setSealedResult(result)
+    setPhase('round_end')
+
+    // Update scores
+    if (winnerAddress) {
+      setPlayers(prev => {
+        const updated = prev.map(p =>
+          p.address === winnerAddress ? { ...p, score: p.score + 1 } : p
+        )
+        scoresRef.current = updated
+        return updated
+      })
+    }
+
+    botSealedPickRef.current = null
+    playerSealedPickRef.current = null
+
+    setTimeout(() => {
+      const cur = scoresRef.current
+      if (q.round >= q.total) finishBotGame(cur)
+      else startBotRound(q.round + 1)
+    }, 2500)
+  }
+
   function finishBotGame(finalPlayers: PlayerState[]) {
     const sorted = [...finalPlayers].sort((a, b) => b.score - a.score)
     setPhase('finished')
@@ -226,6 +343,32 @@ export default function Game() {
     })
     const botDone = scoresRef.current.find(p => p.address === BOT_ADDR)?.answered
     if (botDone) endBotRound(question)
+  }
+
+  // ── Reaction helpers ───────────────────────────────────────────────────
+  function spawnReaction(emoji: string, name: string) {
+    const id = reactionIdRef.current++
+    const x = 10 + Math.random() * 80
+    setFloatingReactions(prev => [...prev, { id, emoji, name, x }])
+    setTimeout(() => {
+      setFloatingReactions(prev => prev.filter(r => r.id !== id))
+    }, 3000)
+  }
+
+  function sendReaction(emoji: string) {
+    if (isBotMode) {
+      spawnReaction(emoji, 'You')
+    } else {
+      connectSocket().emit('reaction:send', { code: roomCode, emoji })
+    }
+  }
+
+  // ── Chat helper ────────────────────────────────────────────────────────
+  function sendChat() {
+    const text = chatInput.trim()
+    if (!text) return
+    connectSocket().emit('chat:send', { code: roomCode, text })
+    setChatInput('')
   }
 
   // ── Multiplayer socket setup ──────────────────────────────────────────
@@ -286,6 +429,12 @@ export default function Game() {
       setAbandonReason(data.reason)
       setPhase('abandoned')
     })
+    socket.on('reaction:message', ({ address, emoji }: { address: string; emoji: string }) => {
+      spawnReaction(emoji, displayName(address))
+    })
+    socket.on('chat:message', (msg: { address: string; text: string; ts: number }) => {
+      setChatMessages(prev => [...prev.slice(-49), msg])
+    })
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
@@ -293,6 +442,8 @@ export default function Game() {
       socket.off('game:player_answered'); socket.off('game:sealed_submitted')
       socket.off('game:round_end'); socket.off('game:over')
       socket.off('game:player_left'); socket.off('game:abandoned')
+      socket.off('reaction:message')
+      socket.off('chat:message')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode, myAddr])
@@ -345,6 +496,17 @@ export default function Game() {
     const min = question?.min ?? 1
     const max = question?.max ?? 100
     if (val < min || val > max) return
+
+    if (isBotMode) {
+      playerSealedPickRef.current = val
+      setPlayers(prev => prev.map(p => p.address === myAddr ? { ...p, answered: true } : p))
+      if (botSealedPickRef.current !== null && question) {
+        endBotSealedRound(question)
+      }
+      // else: bot will trigger endBotSealedRound when it picks
+      return
+    }
+
     submitAnswer(String(val))
   }
 
@@ -353,6 +515,19 @@ export default function Game() {
   const myPlayer      = players.find(p => p.address === myAddr)
   const roundTimeS    = question ? Math.round(question.timeMs / 1000) : ROUND_TIME_S
   const help          = GAME_HELP[gameMode] ?? GAME_HELP['math-arena']
+
+  // ── Emoji bar (shown during playing/round_end) ─────────────────────────
+  const showEmojiBar = phase === 'playing' || phase === 'round_end'
+  const emojiBar = showEmojiBar ? (
+    <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginTop: 12 }}>
+      {REACTION_EMOJIS.map(emoji => (
+        <button key={emoji} onClick={() => sendReaction(emoji)}
+          style={{ padding: '6px', fontSize: '1.3rem', background: 'transparent', border: '1px solid #1e1e30', borderRadius: '8px', cursor: 'pointer' }}>
+          {emoji}
+        </button>
+      ))}
+    </div>
+  ) : null
 
   // ── Abandoned phase ───────────────────────────────────────────────────
   if (phase === 'abandoned') return (
@@ -397,6 +572,35 @@ export default function Game() {
           </button>
         )}
         {isHost && !canStart && <p style={{ color: '#f59e0b', fontSize: '0.85rem' }}>Need at least 2 players to start</p>}
+
+        {/* Queue chat */}
+        <div style={{ maxHeight: 180, overflowY: 'auto', background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: 10, padding: 10, marginTop: 12, textAlign: 'left' }}>
+          {chatMessages.length === 0 && (
+            <p style={{ color: '#475569', fontSize: '0.78rem', margin: 0, textAlign: 'center' }}>No messages yet — say hi!</p>
+          )}
+          {chatMessages.map((msg, i) => (
+            <div key={i} style={{ fontSize: '0.82rem', color: '#94a3b8', marginBottom: 4, wordBreak: 'break-word' }}>
+              <span style={{ color: msg.address === myAddr ? '#a78bfa' : '#64748b', fontWeight: 600 }}>{displayName(msg.address)}</span>: {msg.text}
+            </div>
+          ))}
+          <div ref={chatEndRef} />
+        </div>
+        <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+          <input
+            type="text"
+            value={chatInput}
+            onChange={e => setChatInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && sendChat()}
+            placeholder="Type a message…"
+            maxLength={200}
+            style={{ flex: 1, background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: 8, padding: '8px 12px', color: '#e2e8f0', fontSize: '0.85rem', outline: 'none' }}
+          />
+          <button onClick={sendChat}
+            style={{ background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: 8, padding: '8px 14px', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem' }}>
+            Send
+          </button>
+        </div>
+
         <Spinner />
       </div>
     </Center>
@@ -470,6 +674,19 @@ export default function Game() {
 
   return (
     <div style={{ maxWidth: '720px', margin: '0 auto', padding: '20px 16px' }}>
+
+      {/* floatUp keyframe */}
+      <style>{`@keyframes floatUp { 0%{transform:translateY(0);opacity:1} 100%{transform:translateY(-200px);opacity:0} }`}</style>
+
+      {/* Floating reactions */}
+      <div style={{ position: 'fixed', bottom: 80, left: 0, right: 0, pointerEvents: 'none', zIndex: 50 }}>
+        {floatingReactions.map(r => (
+          <div key={r.id} style={{ position: 'absolute', left: `${r.x}%`, animation: 'floatUp 3s ease-out forwards', fontSize: '1.6rem', userSelect: 'none' }}>
+            <div>{r.emoji}</div>
+            <div style={{ fontSize: '0.65rem', color: '#94a3b8', textAlign: 'center', marginTop: 2 }}>{r.name}</div>
+          </div>
+        ))}
+      </div>
 
       {isBotMode && (
         <div style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: '8px', padding: '6px 14px', marginBottom: '16px', fontSize: '0.8rem', color: '#a78bfa', textAlign: 'center', fontWeight: 600 }}>
@@ -704,6 +921,9 @@ export default function Game() {
           </div>
         ))}
       </div>
+
+      {/* Emoji bar */}
+      {emojiBar}
 
       {!isSealedGame && !isGridGame && (
         <p style={{ textAlign: 'center', color: '#475569', fontSize: '0.78rem', marginTop: '10px' }}>

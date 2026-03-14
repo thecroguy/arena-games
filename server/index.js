@@ -444,6 +444,26 @@ io.on('connection', (socket) => {
     }
   })
 
+  // Chat (lobby/queue only)
+  socket.on('chat:send', ({ code, text }) => {
+    if (!rateLimit(socket.id, 3)) return
+    const room = rooms.get(code)
+    if (!room) return
+    const clean = String(text || '').replace(/[<>]/g, '').slice(0, 120).trim()
+    if (!clean) return
+    io.to(code).emit('chat:message', { address: socket.data.address, text: clean, ts: Date.now() })
+  })
+
+  // Emoji reactions (in-game)
+  const VALID_EMOJIS = new Set(['😭','💀','🔥','😂','🤯','👀','🫡','😤'])
+  socket.on('reaction:send', ({ code, emoji }) => {
+    if (!rateLimit(socket.id, 8)) return
+    const room = rooms.get(code)
+    if (!room) return
+    if (!VALID_EMOJIS.has(emoji)) return
+    io.to(code).emit('reaction:message', { address: socket.data.address, emoji })
+  })
+
   // Disconnect handling
   socket.on('disconnect', () => {
     const code = socket.data.roomCode
