@@ -77,3 +77,26 @@ grant select on leaderboard_alltime to anon;
 grant select on leaderboard_weekly  to anon;
 grant select on leaderboard_daily   to anon;
 grant select on game_history        to anon;
+
+-- ── Player profiles ────────────────────────────────────────────────────────
+create table if not exists player_profiles (
+  address           text primary key,                        -- wallet address (lowercase)
+  username          text,
+  avatar_style      text not null default 'adventurer',
+  purchased_styles  text[] not null default '{"adventurer"}',
+  updated_at        timestamptz not null default now()
+);
+
+alter table player_profiles enable row level security;
+
+-- Anyone can read profiles (for showing usernames/avatars in game)
+drop policy if exists "Public read profiles" on player_profiles;
+create policy "Public read profiles"
+  on player_profiles for select using (true);
+
+-- Anyone can upsert their own profile (frontend uses anon key + address check)
+drop policy if exists "Owner upsert profile" on player_profiles;
+create policy "Owner upsert profile"
+  on player_profiles for all using (true) with check (true);
+
+grant select, insert, update on player_profiles to anon;

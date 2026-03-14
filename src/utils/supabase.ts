@@ -56,6 +56,36 @@ export async function fetchPlayerHistory(address: string): Promise<GameHistory[]
   return data ?? []
 }
 
+// ── Player profiles ────────────────────────────────────────────────────────
+export type PlayerProfile = {
+  address: string
+  username: string | null
+  avatar_style: string
+  purchased_styles: string[]
+}
+
+export async function fetchProfile(address: string): Promise<PlayerProfile | null> {
+  const { data } = await supabase
+    .from('player_profiles')
+    .select('*')
+    .eq('address', address.toLowerCase())
+    .maybeSingle()
+  return data ?? null
+}
+
+export async function upsertProfile(address: string, updates: Partial<Omit<PlayerProfile, 'address'>>) {
+  const { error } = await supabase
+    .from('player_profiles')
+    .upsert({ address: address.toLowerCase(), ...updates, updated_at: new Date().toISOString() }, { onConflict: 'address' })
+  if (error) throw error
+}
+
+export async function unlockAvatarStyle(address: string, style: string, currentStyles: string[]) {
+  const merged = Array.from(new Set([...currentStyles, style]))
+  await upsertProfile(address, { purchased_styles: merged, avatar_style: style })
+}
+
+// ── Player stats ────────────────────────────────────────────────────────────
 export async function fetchPlayerStats(address: string) {
   const { data, error } = await supabase
     .from('game_history')
