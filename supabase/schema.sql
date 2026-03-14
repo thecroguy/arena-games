@@ -82,8 +82,8 @@ grant select on game_history        to anon;
 create table if not exists player_profiles (
   address           text primary key,                        -- wallet address (lowercase)
   username          text,
-  avatar_style      text not null default 'adventurer',
-  purchased_styles  text[] not null default '{"adventurer"}',
+  avatar_style      text not null default 'bottts',
+  purchased_styles  text[] not null default '{"bottts"}',
   updated_at        timestamptz not null default now()
 );
 

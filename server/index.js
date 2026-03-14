@@ -7,10 +7,7 @@ const { createClient } = require('@supabase/supabase-js')
 
 // ── Config ─────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001
-const TOTAL_ROUNDS = 10
-const ROUND_TIME_MS = 12000
 
-// Allow comma-separated origins + all *.vercel.app preview URLs
 const configuredOrigins = (process.env.CLIENT_URL || '')
   .split(',').map(o => o.trim()).filter(Boolean)
 
@@ -18,8 +15,8 @@ function isAllowedOrigin(origin) {
   if (!origin) return true
   if (configuredOrigins.length === 0) return true
   if (configuredOrigins.includes(origin)) return true
-  // Allow all Vercel preview deployments
   if (/^https:\/\/[a-z0-9-]+(\.vercel\.app)$/.test(origin)) return true
+  if (origin === 'https://joinarena.space' || origin === 'https://www.joinarena.space') return true
   return false
 }
 
@@ -31,7 +28,21 @@ const corsOptions = {
   methods: ['GET', 'POST'],
 }
 
-// ── Express + Socket.io ────────────────────────────────────────────────────
+// ── Game mode config ───────────────────────────────────────────────────────
+const GAME_MODES = {
+  'math-arena':     { type: 'speed',  rounds: 10, roundMs: 12000, minP: 2, maxP: 10 },
+  'word-blitz':     { type: 'speed',  rounds: 10, roundMs: 15000, minP: 2, maxP: 10 },
+  'reaction-grid':  { type: 'speed',  rounds: 15, roundMs: 5000,  minP: 2, maxP: 10 },
+  'highest-unique': { type: 'sealed', rounds: 8,  roundMs: 20000, minP: 2, maxP: 20, min: 1, max: 100 },
+  'lowest-unique':  { type: 'sealed', rounds: 8,  roundMs: 20000, minP: 2, maxP: 20, min: 1, max: 50  },
+  'number-rush':    { type: 'sealed', rounds: 8,  roundMs: 20000, minP: 2, maxP: 30, min: 1, max: 50  },
+}
+
+const VALID_FEES     = new Set([0.5, 1, 2, 5, 10, 25, 50])
+const VALID_ADDRESS  = /^0x[0-9a-fA-F]{40}$/
+const VALID_TX_HASH  = /^0x[0-9a-fA-F]{64}$/
+
+// ── Express + Socket.io ───────────────────────────────────────────────────
 const app = express()
 app.use(cors(corsOptions))
 app.use(express.json())
@@ -39,51 +50,157 @@ app.use(express.json())
 const server = http.createServer(app)
 const io = new Server(server, { cors: corsOptions })
 
-// ── Supabase (optional — only if env vars are set) ─────────────────────────
+// ── Supabase ──────────────────────────────────────────────────────────────
 let supabase = null
 if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
   supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
   console.log('Supabase connected')
 }
 
-// ── In-memory room store ───────────────────────────────────────────────────
-// roomCode → Room
+// ── In-memory room store ──────────────────────────────────────────────────
 const rooms = new Map()
+
+// ── Simple per-socket rate limiter ────────────────────────────────────────
+const rateLimits = new Map()
+function rateLimit(socketId, maxPerSec = 5) {
+  const now = Date.now()
+  const entry = rateLimits.get(socketId) || { count: 0, reset: now + 1000 }
+  if (now > entry.reset) { entry.count = 0; entry.reset = now + 1000 }
+  entry.count++
+  rateLimits.set(socketId, entry)
+  return entry.count <= maxPerSec
+}
+
+// ── Word list for Word Blitz ───────────────────────────────────────────────
+const WORDS = [
+  'apple','house','brain','chair','cloud','dance','earth','flame',
+  'grace','heart','image','judge','knife','light','magic','night',
+  'ocean','peace','queen','river','smile','tiger','voice','water',
+  'watch','youth','blood','candy','drink','entry','faith','giant',
+  'hotel','jewel','karma','laser','money','nerve','orbit','pilot',
+  'quote','radar','solar','storm','truth','vapor','beach','crown',
+  'death','elite','fence','ghost','index','joint','level','motor',
+  'ninja','onion','pride','quick','robot','sharp','toxic','ultra',
+  'vivid','waste','yield','azure','blaze','cycle','error','flare',
+  'green','hound','inner','jelly','kitty','lunar','maple','novel',
+  'opera','piano','relay','spell','titan','upper','venom','arrow',
+  'boost','comet','delta','exile','forge','grind','hover','joust',
+  'kudos','lemon','merit','nylon','proxy','quill','risky','suite',
+  'thorn','unite','verse','weave','pluck','sword','brave','frost',
+  'globe','honey','ivory','joker','knack','mango','ozone','plant',
+  'rocky','umbra','vocal','angel','blast','crane','depot','eagle',
+  'flint','grape','haunt','input','raven','speed','trove','urban',
+  'zonal','stomp','swirl','thump','pixel','niche','quirk','blunt',
+]
+
+function scramble(word) {
+  const a = word.split('')
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  const result = a.join('')
+  return result === word ? scramble(word) : result
+}
+
+// ── Question generators ───────────────────────────────────────────────────
+function makeQuestion(gameMode) {
+  switch (gameMode) {
+    case 'math-arena': {
+      const ops = ['+', '-', '×']
+      const op  = ops[Math.floor(Math.random() * ops.length)]
+      let a = Math.floor(Math.random() * 50) + 1
+      let b = Math.floor(Math.random() * 20) + 1
+      if (op === '-' && b > a) [a, b] = [b, a]
+      const answer = op === '+' ? a + b : op === '-' ? a - b : a * b
+      return { type: 'math', a, b, op, answer }
+    }
+    case 'word-blitz': {
+      const word     = WORDS[Math.floor(Math.random() * WORDS.length)]
+      const scrambled = scramble(word)
+      return { type: 'word', scrambled: scrambled.toUpperCase(), answer: word }
+    }
+    case 'reaction-grid': {
+      const target = Math.floor(Math.random() * 16)
+      return { type: 'grid', target, answer: String(target) }
+    }
+    case 'highest-unique':
+    case 'lowest-unique':
+    case 'number-rush': {
+      const cfg = GAME_MODES[gameMode]
+      return { type: 'sealed', min: cfg.min, max: cfg.max, answer: null }
+    }
+    default:
+      return makeQuestion('math-arena')
+  }
+}
+
+// Check answer for speed games (math, word, grid)
+function checkAnswer(gameMode, question, rawAnswer) {
+  if (!rawAnswer || typeof rawAnswer !== 'string') return false
+  if (rawAnswer.length > 32) return false  // Reject unreasonably long answers
+  if (question.type === 'math') {
+    const n = parseInt(rawAnswer, 10)
+    return !isNaN(n) && isFinite(n) && n === question.answer
+  }
+  if (question.type === 'word') {
+    return rawAnswer.trim().toLowerCase() === question.answer
+  }
+  if (question.type === 'grid') {
+    return rawAnswer === question.answer
+  }
+  return false
+}
+
+// Evaluate sealed bids at round end
+function evaluateSealed(gameMode, picks) {
+  if (!picks.length) return { winnerAddress: null, reason: 'No picks' }
+  const freq = {}
+  picks.forEach(({ pick }) => { freq[pick] = (freq[pick] || 0) + 1 })
+  const unique = picks.filter(p => freq[p.pick] === 1)
+
+  if (gameMode === 'highest-unique') {
+    if (!unique.length) return { winnerAddress: null, reason: 'No unique bids — no points this round' }
+    const winner = unique.reduce((a, b) => a.pick > b.pick ? a : b)
+    return { winnerAddress: winner.address }
+  }
+  if (gameMode === 'lowest-unique') {
+    if (!unique.length) return { winnerAddress: null, reason: 'No unique bids — no points this round' }
+    const winner = unique.reduce((a, b) => a.pick < b.pick ? a : b)
+    return { winnerAddress: winner.address }
+  }
+  if (gameMode === 'number-rush') {
+    const minFreq = Math.min(...picks.map(p => freq[p.pick]))
+    const rarest  = picks.filter(p => freq[p.pick] === minFreq)
+    const winner  = rarest.reduce((a, b) => a.pick < b.pick ? a : b)
+    return { winnerAddress: winner.address }
+  }
+  return { winnerAddress: null }
+}
+
+// ── Helper: public room shape ─────────────────────────────────────────────
+function roomPublic(room) {
+  return {
+    code:       room.code,
+    gameMode:   room.gameMode,
+    host:       room.host,
+    entryFee:   room.entryFee,
+    maxPlayers: room.maxPlayers,
+    status:     room.status,
+    players:    room.players.map(p => ({ address: p.address, score: p.score })),
+  }
+}
 
 function generateCode() {
   return Math.random().toString(36).substring(2, 6).toUpperCase()
 }
 
-function makeQuestion() {
-  const ops = ['+', '-', '×']
-  const op = ops[Math.floor(Math.random() * ops.length)]
-  let a = Math.floor(Math.random() * 50) + 1
-  let b = Math.floor(Math.random() * 20) + 1
-  if (op === '-' && b > a) [a, b] = [b, a]
-  const answer = op === '+' ? a + b : op === '-' ? a - b : a * b
-  return { a, b, op, answer }
-}
-
-function roomPublic(room) {
-  return {
-    code: room.code,
-    gameMode: room.gameMode,
-    host: room.host,
-    entryFee: room.entryFee,
-    maxPlayers: room.maxPlayers,
-    status: room.status,
-    players: room.players.map(p => ({ address: p.address, score: p.score })),
-  }
-}
-
-// ── Game flow ──────────────────────────────────────────────────────────────
+// ── Game flow ─────────────────────────────────────────────────────────────
 function startCountdown(room) {
   room.status = 'countdown'
   io.to(room.code).emit('room:update', roomPublic(room))
-
   let count = 3
   io.to(room.code).emit('game:countdown', count)
-
   const interval = setInterval(() => {
     count--
     if (count > 0) {
@@ -97,36 +214,56 @@ function startCountdown(room) {
 }
 
 function startRound(room) {
+  const cfg = GAME_MODES[room.gameMode] || GAME_MODES['math-arena']
   room.round++
-  room.question = makeQuestion()
-  room.status = 'playing'
+  room.question   = makeQuestion(room.gameMode)
+  room.status     = 'playing'
   room.roundStartAt = Date.now()
-  room.players.forEach(p => { p.answered = false; p.correct = null })
+  room.players.forEach(p => { p.answered = false; p.correct = null; p.sealedPick = null })
 
-  // Send question WITHOUT the answer
+  // Client payload: exclude server-only 'answer' field
+  const { answer: _a, ...publicQuestion } = room.question
   io.to(room.code).emit('game:question', {
     round: room.round,
-    total: TOTAL_ROUNDS,
-    a: room.question.a,
-    b: room.question.b,
-    op: room.question.op,
-    timeMs: ROUND_TIME_MS,
+    total: cfg.rounds,
+    timeMs: cfg.roundMs,
+    ...publicQuestion,
   })
 
-  room.roundTimer = setTimeout(() => endRound(room), ROUND_TIME_MS)
+  room.roundTimer = setTimeout(() => endRound(room), cfg.roundMs)
 }
 
 function endRound(room) {
   clearTimeout(room.roundTimer)
+  const cfg = GAME_MODES[room.gameMode] || GAME_MODES['math-arena']
+  const isSealed = room.question.type === 'sealed'
+
+  let sealedResult = null
+
+  if (isSealed) {
+    // Evaluate sealed bids
+    const picks = room.players
+      .filter(p => p.sealedPick !== null && p.sealedPick !== undefined)
+      .map(p => ({ address: p.address, pick: p.sealedPick }))
+    sealedResult = evaluateSealed(room.gameMode, picks)
+    // Award point to winner
+    if (sealedResult.winnerAddress) {
+      const winner = room.players.find(p => p.address === sealedResult.winnerAddress)
+      if (winner) winner.score++
+    }
+    sealedResult.picks = picks
+  }
+
   io.to(room.code).emit('game:round_end', {
-    answer: room.question.answer,
-    scores: room.players.map(p => ({ address: p.address, score: p.score })),
+    answer:       isSealed ? null : String(room.question.answer),
+    scores:       room.players.map(p => ({ address: p.address, score: p.score })),
+    sealedResult: sealedResult,
   })
 
-  if (room.round >= TOTAL_ROUNDS) {
+  if (room.round >= cfg.rounds) {
     setTimeout(() => endGame(room), 1500)
   } else {
-    setTimeout(() => startRound(room), 2000)
+    setTimeout(() => startRound(room), 2500)
   }
 }
 
@@ -134,7 +271,7 @@ async function endGame(room) {
   room.status = 'finished'
   const sorted = [...room.players].sort((a, b) => b.score - a.score)
   const winner = sorted[0]
-  const pot = (room.entryFee * room.players.length * 0.85).toFixed(2)
+  const pot    = (room.entryFee * room.players.length * 0.85).toFixed(2)
 
   io.to(room.code).emit('game:over', {
     winner: winner.address,
@@ -142,21 +279,19 @@ async function endGame(room) {
     scores: sorted.map((p, i) => ({ address: p.address, score: p.score, rank: i + 1 })),
   })
 
-  // Persist to Supabase
   if (supabase) {
     try {
-      const rows = room.players.map(p => ({
-        room_code: room.code,
-        game_mode: room.gameMode,
+      const cfg   = GAME_MODES[room.gameMode] || GAME_MODES['math-arena']
+      const rows  = room.players.map(p => ({
+        room_code:      room.code,
+        game_mode:      room.gameMode,
         player_address: p.address.toLowerCase(),
-        score: p.score,
-        total_rounds: TOTAL_ROUNDS,
-        result: p.address === winner.address ? 'win' : 'loss',
-        entry_fee: room.entryFee,
-        earned: p.address === winner.address
-          ? parseFloat(pot)
-          : -room.entryFee,
-        players_count: room.players.length,
+        score:          p.score,
+        total_rounds:   cfg.rounds,
+        result:         p.address === winner.address ? 'win' : 'loss',
+        entry_fee:      room.entryFee,
+        earned:         p.address === winner.address ? parseFloat(pot) : -room.entryFee,
+        players_count:  room.players.length,
       }))
       await supabase.from('game_history').insert(rows)
     } catch (e) {
@@ -164,25 +299,25 @@ async function endGame(room) {
     }
   }
 
-  // Clean up room after 60s
   setTimeout(() => rooms.delete(room.code), 60_000)
 }
 
-// ── Socket events ──────────────────────────────────────────────────────────
+// ── Socket events ─────────────────────────────────────────────────────────
 io.on('connection', (socket) => {
   console.log('+ connect', socket.id)
 
-  // List open rooms for a game mode
   socket.on('rooms:list', (gameMode, cb) => {
+    if (typeof cb !== 'function') return
+    if (!GAME_MODES[gameMode]) return cb([])
     const list = []
     for (const [, room] of rooms) {
       if (room.gameMode === gameMode && room.status === 'waiting') {
         list.push({
-          code: room.code,
-          host: room.host,
+          code:   room.code,
+          host:   room.host,
           players: room.players.length,
-          max: room.maxPlayers,
-          entry: room.entryFee,
+          max:    room.maxPlayers,
+          entry:  room.entryFee,
           status: room.players.length >= room.maxPlayers ? 'full' : 'waiting',
         })
       }
@@ -190,104 +325,152 @@ io.on('connection', (socket) => {
     cb(list)
   })
 
-  // Create a new room
-  socket.on('room:create', ({ gameMode, entryFee, maxPlayers, address }, cb) => {
+  socket.on('room:create', ({ gameMode, entryFee, maxPlayers, address, txHash }, cb) => {
+    if (typeof cb !== 'function') return
+    if (!rateLimit(socket.id)) return cb({ error: 'Too many requests' })
+
+    // Validate inputs
+    if (!GAME_MODES[gameMode])         return cb({ error: 'Invalid game mode' })
+    if (!VALID_FEES.has(entryFee))     return cb({ error: 'Invalid entry fee' })
+    if (!VALID_ADDRESS.test(address))  return cb({ error: 'Invalid wallet address' })
+    if (txHash && !VALID_TX_HASH.test(txHash)) return cb({ error: 'Invalid transaction hash' })
+
+    const cfg = GAME_MODES[gameMode]
+    const clampedMax = Math.min(Math.max(maxPlayers || cfg.maxP, cfg.minP), cfg.maxP)
+
     const code = generateCode()
     const room = {
-      code,
-      gameMode,
-      entryFee,
-      maxPlayers,
+      code, gameMode, entryFee,
+      maxPlayers: clampedMax,
       host: address,
-      players: [{ id: socket.id, address, score: 0, answered: false, correct: null }],
+      players: [{ id: socket.id, address, score: 0, answered: false, correct: null, sealedPick: null }],
       status: 'waiting',
-      round: 0,
-      question: null,
-      roundTimer: null,
-      roundStartAt: null,
+      round: 0, question: null, roundTimer: null, roundStartAt: null,
     }
     rooms.set(code, room)
     socket.join(code)
     socket.data.roomCode = code
-    socket.data.address = address
+    socket.data.address  = address
     cb({ code })
-    console.log(`Room ${code} created by ${address}`)
+    console.log(`Room ${code} [${gameMode}] created by ${address.slice(0, 8)}`)
   })
 
-  // Join an existing room by code
-  socket.on('room:join', ({ code, address }, cb) => {
-    const room = rooms.get(code.toUpperCase())
-    if (!room) return cb({ error: 'Room not found' })
-    if (room.status !== 'waiting') return cb({ error: 'Game already started' })
+  socket.on('room:join', ({ code, address, txHash }, cb) => {
+    if (typeof cb !== 'function') return
+    if (!rateLimit(socket.id)) return cb({ error: 'Too many requests' })
+
+    if (!VALID_ADDRESS.test(address))   return cb({ error: 'Invalid wallet address' })
+    if (txHash && !VALID_TX_HASH.test(txHash)) return cb({ error: 'Invalid transaction hash' })
+
+    const room = rooms.get((code || '').toUpperCase())
+    if (!room)                            return cb({ error: 'Room not found' })
+    if (room.status !== 'waiting')        return cb({ error: 'Game already started' })
     if (room.players.length >= room.maxPlayers) return cb({ error: 'Room is full' })
     if (room.players.find(p => p.address === address)) return cb({ error: 'Already in room' })
 
-    room.players.push({ id: socket.id, address, score: 0, answered: false, correct: null })
+    room.players.push({ id: socket.id, address, score: 0, answered: false, correct: null, sealedPick: null })
     socket.join(code)
     socket.data.roomCode = code
-    socket.data.address = address
+    socket.data.address  = address
 
     io.to(code).emit('room:update', roomPublic(room))
     cb({ ok: true, room: roomPublic(room) })
 
-    // Auto-start when room is full
     if (room.players.length >= room.maxPlayers) {
       setTimeout(() => startCountdown(room), 500)
     }
   })
 
-  // Host manually starts the game
   socket.on('room:start', ({ code }) => {
     const room = rooms.get(code)
     if (!room) return
-    if (room.host !== socket.data.address) return socket.emit('error', 'Not the host')
-    if (room.players.length < 2) return socket.emit('error', 'Need at least 2 players')
-    if (room.status !== 'waiting') return
+    if (room.host !== socket.data.address)   return socket.emit('error', 'Not the host')
+    if (room.players.length < 2)             return socket.emit('error', 'Need at least 2 players')
+    if (room.status !== 'waiting')           return
     startCountdown(room)
   })
 
   // Player submits an answer
   socket.on('game:answer', ({ code, answer }) => {
+    if (!rateLimit(socket.id, 10)) return
     const room = rooms.get(code)
     if (!room || room.status !== 'playing') return
 
     const player = room.players.find(p => p.id === socket.id)
     if (!player || player.answered) return
 
-    player.answered = true
-    const correct = Number(answer) === room.question.answer
-    player.correct = correct
-    if (correct) player.score++
+    // Sanitize answer
+    const raw = String(answer || '').slice(0, 64).trim()
 
-    io.to(code).emit('game:player_answered', {
-      address: player.address,
-      correct,
-      scores: room.players.map(p => ({ address: p.address, score: p.score })),
-    })
+    if (room.question.type === 'sealed') {
+      // Sealed bid: just store the pick, don't reveal
+      const cfg = GAME_MODES[room.gameMode]
+      const pick = parseInt(raw, 10)
+      if (isNaN(pick) || pick < cfg.min || pick > cfg.max) return
 
-    // If everyone answered, end round early
-    if (room.players.every(p => p.answered)) {
-      clearTimeout(room.roundTimer)
-      endRound(room)
+      player.answered   = true
+      player.sealedPick = pick
+
+      // Notify all players that someone submitted (no pick value revealed)
+      const submitted = room.players.filter(p => p.answered).length
+      io.to(code).emit('game:sealed_submitted', {
+        address: player.address,
+        submitted,
+        total: room.players.length,
+      })
+
+      // If all submitted, end round early
+      if (room.players.every(p => p.answered)) {
+        clearTimeout(room.roundTimer)
+        endRound(room)
+      }
+    } else {
+      // Speed game: check immediately
+      player.answered = true
+      const correct   = checkAnswer(room.gameMode, room.question, raw)
+      player.correct  = correct
+      if (correct) player.score++
+
+      io.to(code).emit('game:player_answered', {
+        address: player.address,
+        correct,
+        scores: room.players.map(p => ({ address: p.address, score: p.score })),
+      })
+
+      if (room.players.every(p => p.answered)) {
+        clearTimeout(room.roundTimer)
+        endRound(room)
+      }
     }
   })
 
-  // Disconnect cleanup
+  // Disconnect handling
   socket.on('disconnect', () => {
     const code = socket.data.roomCode
     if (!code) return
     const room = rooms.get(code)
     if (!room) return
 
+    const wasActive = room.status === 'playing' || room.status === 'countdown'
     room.players = room.players.filter(p => p.id !== socket.id)
-    console.log(`- ${socket.data.address} left ${code} (${room.players.length} left)`)
+    console.log(`- ${socket.data.address} left ${code} (${room.players.length} remaining, was ${room.status})`)
 
     if (room.players.length === 0) {
       clearTimeout(room.roundTimer)
       rooms.delete(code)
+      return
+    }
+
+    if (wasActive) {
+      // Game was in progress → abandon
+      clearTimeout(room.roundTimer)
+      io.to(code).emit('game:abandoned', {
+        address: socket.data.address,
+        reason:  'A player disconnected — game abandoned',
+      })
+      rooms.delete(code)
     } else {
-      // Reassign host if host left
-      if (room.host === socket.data.address && room.status === 'waiting') {
+      if (room.host === socket.data.address) {
         room.host = room.players[0].address
       }
       io.to(code).emit('room:update', roomPublic(room))
@@ -296,28 +479,24 @@ io.on('connection', (socket) => {
   })
 })
 
-// ── REST endpoints ─────────────────────────────────────────────────────────
+// ── REST endpoints ────────────────────────────────────────────────────────
 app.get('/health', (_, res) => {
-  res.json({ ok: true, rooms: rooms.size, uptime: process.uptime() })
+  res.json({ ok: true, rooms: rooms.size, uptime: Math.round(process.uptime()) })
 })
 
 app.get('/rooms/:gameMode', (req, res) => {
   const { gameMode } = req.params
+  if (!GAME_MODES[gameMode]) return res.status(400).json({ error: 'Invalid game mode' })
   const list = []
   for (const [, room] of rooms) {
     if (room.gameMode === gameMode && room.status === 'waiting') {
-      list.push({
-        code: room.code,
-        players: room.players.length,
-        max: room.maxPlayers,
-        entry: room.entryFee,
-      })
+      list.push({ code: room.code, players: room.players.length, max: room.maxPlayers, entry: room.entryFee })
     }
   }
   res.json(list)
 })
 
-// ── Start ──────────────────────────────────────────────────────────────────
+// ── Start ─────────────────────────────────────────────────────────────────
 server.listen(PORT, () => {
-  console.log(`Arena Games server running on port ${PORT}`)
+  console.log(`Join Arena server running on port ${PORT}`)
 })

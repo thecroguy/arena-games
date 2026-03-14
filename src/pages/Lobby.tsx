@@ -10,11 +10,12 @@ const HOUSE_WALLET = (import.meta.env.VITE_HOUSE_WALLET || '0x000000000000000000
 const ACTIVE_ROOM_KEY = 'ag_active_room'
 
 const GAME_META: Record<string, { title: string; emoji: string; desc: string; minPlayers: number; maxPlayers: number }> = {
-  'math-arena': {
-    title: 'Math Arena', emoji: '🧮',
-    desc: 'Speed math quiz — first correct answer scores. 100% skill, zero luck.',
-    minPlayers: 2, maxPlayers: 10,
-  },
+  'math-arena':     { title: 'Math Arena',     emoji: '✚', desc: 'Speed math quiz — first correct answer scores. 100% skill, zero luck.',          minPlayers: 2, maxPlayers: 10 },
+  'word-blitz':     { title: 'Word Blitz',     emoji: 'Aa', desc: 'Unscramble the word fastest to score. Vocabulary meets reaction speed.',          minPlayers: 2, maxPlayers: 10 },
+  'reaction-grid':  { title: 'Reaction Grid',  emoji: '⊞', desc: 'A cell lights up — click it before anyone else. Pure reaction speed.',            minPlayers: 2, maxPlayers: 10 },
+  'highest-unique': { title: 'Highest Unique', emoji: '↑', desc: 'Pick the highest number nobody else picks. Read the crowd and outsmart them.',     minPlayers: 2, maxPlayers: 20 },
+  'lowest-unique':  { title: 'Lowest Unique',  emoji: '↓', desc: 'Pick the lowest number nobody else picks. Contrarian thinking wins.',              minPlayers: 2, maxPlayers: 20 },
+  'number-rush':    { title: 'Number Rush',    emoji: '#', desc: 'Pick the rarest number 1–50. Most contrarian pick takes the pot.',                 minPlayers: 2, maxPlayers: 30 },
 }
 
 const ENTRY_FEES = [0.5, 1, 2, 5, 10, 25, 50]
@@ -134,7 +135,7 @@ export default function Lobby() {
         if (res.error) { showError(res.error); return }
         localStorage.setItem(ACTIVE_ROOM_KEY, res.code!)
         setActiveRoom(res.code!)
-        navigate(`/game/${res.code}`, { state: { host: true, entry: selectedFee, maxPlayers } })
+        navigate(`/game/${res.code}`, { state: { host: true, entry: selectedFee, maxPlayers, gameMode } })
       }
     )
   }
@@ -156,7 +157,7 @@ export default function Lobby() {
         if (res.error) { showError(res.error); return }
         localStorage.setItem(ACTIVE_ROOM_KEY, code)
         setActiveRoom(code)
-        navigate(`/game/${code}`)
+        navigate(`/game/${code}`, { state: { gameMode } })
       }
     )
   }

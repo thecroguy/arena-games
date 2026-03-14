@@ -1,84 +1,161 @@
 import { Link, useNavigate } from 'react-router-dom'
 
+// ── SVG icons ─────────────────────────────────────────────────────────────
+function GameIcon({ id, color }: { id: string; color: string }) {
+  const s = { width: 52, height: 52, fill: 'none', stroke: color, strokeWidth: 1.8,
+    strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+  if (id === 'math-arena') return (
+    <svg {...s} viewBox="0 0 24 24">
+      <rect x="3" y="3" width="18" height="18" rx="4"/>
+      <path d="M8 12h8M12 8v8"/>
+    </svg>
+  )
+  if (id === 'word-blitz') return (
+    <svg {...s} viewBox="0 0 24 24">
+      <path d="M4 6h16M4 11h10M4 16h7"/>
+      <path d="M17 13l2.5 2.5L17 18"/>
+      <line x1="19.5" y1="15.5" x2="14" y2="15.5"/>
+    </svg>
+  )
+  if (id === 'reaction-grid') return (
+    <svg {...s} viewBox="0 0 24 24">
+      <rect x="2" y="2" width="9" height="9" rx="2" strokeOpacity="0.35"/>
+      <rect x="13" y="2" width="9" height="9" rx="2" strokeOpacity="0.35"/>
+      <rect x="2" y="13" width="9" height="9" rx="2" strokeOpacity="0.35"/>
+      <rect x="13" y="13" width="9" height="9" rx="2" fill={color} fillOpacity="0.2"/>
+      <circle cx="17.5" cy="17.5" r="2.5" fill={color}/>
+    </svg>
+  )
+  if (id === 'highest-unique') return (
+    <svg {...s} viewBox="0 0 24 24">
+      <rect x="2" y="13" width="5" height="8" rx="1"/>
+      <rect x="9.5" y="8" width="5" height="13" rx="1"/>
+      <rect x="17" y="2" width="5" height="19" rx="1"/>
+      <path d="M4.5 13l5-7 5 4 5-8" strokeOpacity="0.7"/>
+    </svg>
+  )
+  if (id === 'lowest-unique') return (
+    <svg {...s} viewBox="0 0 24 24">
+      <path d="M21 6H3l6 6H5l7 8 7-8h-4z"/>
+    </svg>
+  )
+  if (id === 'number-rush') return (
+    <svg {...s} viewBox="0 0 24 24">
+      <rect x="3" y="3" width="7.5" height="7.5" rx="2"/>
+      <rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/>
+      <rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/>
+      <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" fill={color} fillOpacity="0.25"/>
+      <circle cx="6.75" cy="6.75" r="1.5" fill={color}/>
+      <circle cx="17.25" cy="6.75" r="1.5" fill={color} opacity="0.5"/>
+      <circle cx="6.75" cy="17.25" r="1.5" fill={color} opacity="0.5"/>
+      <circle cx="15.75" cy="16.25" r="1" fill={color}/>
+      <circle cx="18.75" cy="18.25" r="1" fill={color}/>
+    </svg>
+  )
+  return <svg {...s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>
+}
+
 const GAMES = [
   {
     id: 'math-arena',
     title: 'Math Arena',
-    emoji: '🧮',
-    desc: 'Speed math quiz — first correct answer scores. 100% skill, zero luck.',
+    desc: 'Speed math quiz — first correct answer scores. No luck, 100% skill.',
     tags: ['Skill', 'Speed', 'Quiz'],
     entry: '$0.50 – $50',
     players: '2–10',
     status: 'live' as const,
-    glow: '#7c3aed',
-    glowRgb: '124,58,237',
+    glow: '#7c3aed', glowRgb: '124,58,237',
+    botMode: true,
   },
   {
-    id: 'unique-bid',
-    title: 'Highest Unique Bid',
-    emoji: '🎯',
-    desc: 'Submit the highest number nobody else picked. Read the heatmap, beat the crowd.',
-    tags: ['Strategy', 'Bluff'],
-    entry: '$1 – $100',
-    players: '2–50',
-    status: 'soon' as const,
-    glow: '#06b6d4',
-    glowRgb: '6,182,212',
+    id: 'word-blitz',
+    title: 'Word Blitz',
+    desc: 'Unscramble the word faster than everyone else. Vocabulary meets speed.',
+    tags: ['Skill', 'Speed', 'Words'],
+    entry: '$0.50 – $50',
+    players: '2–10',
+    status: 'live' as const,
+    glow: '#06b6d4', glowRgb: '6,182,212',
+    botMode: false,
   },
   {
-    id: 'tiled-grid',
-    title: 'Tiled Grid',
-    emoji: '⚡',
-    desc: 'Race to claim unique tiles on a shared grid in 30 seconds. Reaction speed wins.',
+    id: 'reaction-grid',
+    title: 'Reaction Grid',
+    desc: 'A cell lights up — click it before anyone else. Pure reaction speed.',
     tags: ['Reaction', 'Speed'],
     entry: '$1 – $50',
-    players: '2–30',
-    status: 'soon' as const,
-    glow: '#f59e0b',
-    glowRgb: '245,158,11',
+    players: '2–10',
+    status: 'live' as const,
+    glow: '#f59e0b', glowRgb: '245,158,11',
+    botMode: false,
   },
   {
-    id: 'last-standing',
-    title: 'Last Unique Standing',
-    emoji: '🏆',
-    desc: 'Pick a number each round — duplicates get eliminated. Last unique player wins.',
-    tags: ['Elimination', 'Strategy'],
+    id: 'highest-unique',
+    title: 'Highest Unique',
+    desc: 'Pick the highest number nobody else picks. Read the crowd, outsmart them.',
+    tags: ['Strategy', 'Bluff'],
     entry: '$1 – $50',
-    players: '3–20',
-    status: 'soon' as const,
-    glow: '#22c55e',
-    glowRgb: '34,197,94',
+    players: '2–20',
+    status: 'live' as const,
+    glow: '#22c55e', glowRgb: '34,197,94',
+    botMode: false,
   },
   {
-    id: 'reverse-auction',
-    title: 'Reverse Auction',
-    emoji: '📈',
-    desc: 'Bid on a rising price ladder. Highest unique bid wins. Read velocity, spot gaps.',
-    tags: ['Auction', 'Bluff'],
-    entry: '$1 – $100',
-    players: '2–40',
-    status: 'soon' as const,
-    glow: '#ec4899',
-    glowRgb: '236,72,153',
+    id: 'lowest-unique',
+    title: 'Lowest Unique',
+    desc: 'Pick the lowest number nobody else picks. Fewer players, sharper edge.',
+    tags: ['Strategy', 'Bluff'],
+    entry: '$1 – $50',
+    players: '2–20',
+    status: 'live' as const,
+    glow: '#ec4899', glowRgb: '236,72,153',
+    botMode: false,
   },
   {
-    id: 'color-rush',
-    title: 'Color & Number Rush',
-    emoji: '🌈',
-    desc: 'Pick the rarest color+number combo from a 5×10 matrix. Jackpot rollover mechanic.',
+    id: 'number-rush',
+    title: 'Number Rush',
+    desc: 'Pick the rarest number in 1–50. Most contrarian pick takes the pot.',
     tags: ['Jackpot', 'Contrarian'],
     entry: '$0.50 – $20',
-    players: '2–100',
-    status: 'soon' as const,
-    glow: '#a78bfa',
-    glowRgb: '167,139,250',
+    players: '2–30',
+    status: 'live' as const,
+    glow: '#a78bfa', glowRgb: '167,139,250',
+    botMode: false,
   },
 ]
 
 const STEPS = [
-  { icon: '🔗', title: 'Connect Wallet', desc: 'MetaMask, Coinbase, WalletConnect all supported. Use USDT on any major network.' },
-  { icon: '🎮', title: 'Join a Room', desc: 'Pick a game, choose your entry fee, and join or create a room.' },
-  { icon: '🏆', title: 'Win the Pot', desc: 'Outplay your opponents. Winner claims 85% of the pot instantly.' },
+  {
+    icon: (
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="1.8" strokeLinecap="round">
+        <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/>
+        <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/>
+        <path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>
+      </svg>
+    ),
+    title: 'Connect Wallet',
+    desc: 'MetaMask, Coinbase, WalletConnect all supported. Use USDT on any major network.',
+  },
+  {
+    icon: (
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" strokeWidth="1.8" strokeLinecap="round">
+        <rect x="3" y="3" width="18" height="18" rx="4"/>
+        <path d="M8 12h8M12 8v8"/>
+      </svg>
+    ),
+    title: 'Join a Room',
+    desc: 'Pick any of 6 live games, choose your entry fee, and join or create a room.',
+  },
+  {
+    icon: (
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="1.8" strokeLinecap="round">
+        <circle cx="12" cy="8" r="6"/>
+        <path d="M8.21 13.89L7 23l5-3 5 3-1.21-9.12"/>
+      </svg>
+    ),
+    title: 'Win the Pot',
+    desc: 'Outplay your opponents. Winner claims 85% of the entire pot instantly.',
+  },
 ]
 
 export default function Home() {
@@ -87,79 +164,52 @@ export default function Home() {
   return (
     <div style={{ background: '#0a0a0f', minHeight: '100vh' }}>
       <style>{`
-        @keyframes pulse-glow {
-          0%, 100% { opacity: 0.4; transform: scale(1); }
-          50% { opacity: 0.7; transform: scale(1.05); }
-        }
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-8px); }
-        }
-        @keyframes shimmer {
-          0% { background-position: -200% center; }
-          100% { background-position: 200% center; }
-        }
-        .game-card:hover .card-glow { opacity: 1 !important; }
+        @keyframes pulse-glow { 0%,100%{opacity:.4;transform:scale(1)} 50%{opacity:.7;transform:scale(1.05)} }
+        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+        .game-card { transition: transform .22s, box-shadow .22s; }
         .game-card:hover { transform: translateY(-6px) !important; }
-        .practice-btn:hover { background: rgba(124,58,237,0.25) !important; border-color: rgba(124,58,237,0.6) !important; }
-        .play-btn:hover { box-shadow: 0 0 24px rgba(124,58,237,0.6) !important; }
       `}</style>
 
       {/* Hero */}
       <div style={{ position: 'relative', textAlign: 'center', padding: '80px 24px 60px', overflow: 'hidden' }}>
-        {/* Background glow blobs */}
         <div style={{ position: 'absolute', top: '10%', left: '20%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%)', borderRadius: '50%', animation: 'pulse-glow 4s ease-in-out infinite', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', top: '20%', right: '15%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)', borderRadius: '50%', animation: 'pulse-glow 4s ease-in-out infinite 2s', pointerEvents: 'none' }} />
 
-        {/* Live badge */}
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '20px', padding: '6px 16px', marginBottom: '24px', fontSize: '0.8rem', color: '#22c55e', fontWeight: 700, letterSpacing: '0.05em' }}>
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block', boxShadow: '0 0 8px #22c55e', animation: 'pulse-glow 1.5s ease-in-out infinite' }} />
-          LIVE — USDT ON ANY CHAIN
+          6 GAMES LIVE — USDT ON ANY CHAIN
         </div>
 
-        <h1 style={{
-          fontFamily: 'Orbitron, sans-serif',
-          fontSize: 'clamp(2.2rem, 6vw, 4.5rem)',
-          fontWeight: 900,
-          lineHeight: 1.1,
-          marginBottom: '20px',
-          background: 'linear-gradient(135deg, #ffffff 0%, #a78bfa 40%, #06b6d4 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-        }}>
+        <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(2.2rem, 6vw, 4.5rem)', fontWeight: 900, lineHeight: 1.1, marginBottom: '20px', background: 'linear-gradient(135deg, #ffffff 0%, #a78bfa 40%, #06b6d4 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
           Compete.<br />Win Crypto.
         </h1>
 
         <p style={{ color: '#94a3b8', fontSize: '1.15rem', maxWidth: '520px', margin: '0 auto 32px', lineHeight: 1.6 }}>
-          Skill-based multiplayer games on any chain.<br />
-          Connect your wallet, beat the competition, take the pot.
+          Six skill-based multiplayer games. Pay in USDT on any chain.<br />
+          Outplay the competition — winner takes 85% of the pot.
         </p>
 
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '40px' }}>
           <button
             onClick={() => navigate('/lobby/math-arena')}
-            className="play-btn"
             style={{ background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '12px', padding: '14px 32px', color: '#fff', fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1rem', cursor: 'pointer', letterSpacing: '0.05em', boxShadow: '0 0 32px rgba(124,58,237,0.4)', transition: 'box-shadow 0.2s' }}
           >
             Play Now →
           </button>
           <button
             onClick={() => navigate('/game/practice', { state: { bot: true, entry: 0 } })}
-            className="practice-btn"
             style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: '12px', padding: '14px 32px', color: '#a78bfa', fontWeight: 700, fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s' }}
           >
-            🤖 Practice vs Bot
+            Practice vs Bot
           </button>
         </div>
 
-        {/* Stats row */}
         <div style={{ display: 'flex', gap: '32px', justifyContent: 'center', flexWrap: 'wrap' }}>
           {[
-            { label: 'Games Live', value: '1', color: '#22c55e' },
-            { label: 'Networks', value: '6 Chains', color: '#a78bfa' },
-            { label: 'Token', value: 'USDT', color: '#06b6d4' },
-            { label: 'Rake', value: '15%', color: '#f59e0b' },
+            { label: 'Games Live',  value: '6',     color: '#22c55e' },
+            { label: 'Networks',    value: '6 Chains', color: '#a78bfa' },
+            { label: 'Token',       value: 'USDT',  color: '#06b6d4' },
+            { label: 'Winner Gets', value: '85%',   color: '#f59e0b' },
           ].map(s => (
             <div key={s.label} style={{ textAlign: 'center' }}>
               <div style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 900, fontSize: '1.3rem', color: s.color }}>{s.value}</div>
@@ -172,13 +222,10 @@ export default function Home() {
       {/* Games Grid */}
       <div style={{ maxWidth: '1140px', margin: '0 auto', padding: '0 24px 80px' }}>
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <h2 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1.4rem', color: '#e2e8f0', letterSpacing: '0.05em' }}>
-            GAME MODES
-          </h2>
-          <p style={{ color: '#64748b', marginTop: '6px' }}>More games launching soon — vote for your favourite</p>
+          <h2 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1.4rem', color: '#e2e8f0', letterSpacing: '0.05em' }}>GAME MODES</h2>
+          <p style={{ color: '#64748b', marginTop: '6px' }}>All 6 games live — choose your battleground</p>
         </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
           {GAMES.map(game => <GameCard key={game.id} game={game} />)}
         </div>
       </div>
@@ -192,7 +239,7 @@ export default function Home() {
             {STEPS.map((step, i) => (
               <div key={i} style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '16px', padding: '32px 24px', position: 'relative' }}>
                 <div style={{ position: 'absolute', top: '-14px', left: '24px', background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', borderRadius: '8px', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Orbitron, sans-serif', fontWeight: 900, fontSize: '0.75rem', color: '#fff' }}>{i + 1}</div>
-                <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>{step.icon}</div>
+                <div style={{ marginBottom: '12px' }}>{step.icon}</div>
                 <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.9rem', color: '#e2e8f0', marginBottom: '8px', letterSpacing: '0.05em' }}>{step.title.toUpperCase()}</h3>
                 <p style={{ color: '#64748b', fontSize: '0.9rem', lineHeight: 1.6 }}>{step.desc}</p>
               </div>
@@ -203,19 +250,24 @@ export default function Home() {
 
       {/* Bottom CTA */}
       <div style={{ textAlign: 'center', padding: '72px 24px' }}>
-        <div style={{ fontSize: '3rem', marginBottom: '16px', animation: 'float 3s ease-in-out infinite', display: 'inline-block' }}>🏆</div>
+        <div style={{ marginBottom: '16px', display: 'inline-block', animation: 'float 3s ease-in-out infinite' }}>
+          <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="1.8" strokeLinecap="round">
+            <circle cx="12" cy="8" r="6"/>
+            <path d="M8.21 13.89L7 23l5-3 5 3-1.21-9.12"/>
+          </svg>
+        </div>
         <h2 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 900, fontSize: 'clamp(1.4rem, 3vw, 2rem)', color: '#e2e8f0', marginBottom: '12px' }}>
           Ready to Compete?
         </h2>
         <p style={{ color: '#64748b', marginBottom: '28px', fontSize: '1rem' }}>
-          Start with bot practice — no wallet needed
+          Start with free bot practice — no wallet needed
         </p>
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <Link to="/lobby/math-arena" style={{ textDecoration: 'none', background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', borderRadius: '12px', padding: '13px 28px', color: '#fff', fontWeight: 700, fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem', letterSpacing: '0.05em', boxShadow: '0 0 32px rgba(124,58,237,0.35)' }}>
             Enter Lobby
           </Link>
           <Link to="/leaderboard" style={{ textDecoration: 'none', background: '#12121a', border: '1px solid #1e1e30', borderRadius: '12px', padding: '13px 28px', color: '#94a3b8', fontWeight: 700, fontSize: '0.9rem' }}>
-            View Leaderboard
+            Leaderboard
           </Link>
         </div>
       </div>
@@ -225,50 +277,22 @@ export default function Home() {
 
 function GameCard({ game }: { game: typeof GAMES[0] }) {
   const navigate = useNavigate()
-  const isLive = game.status === 'live'
 
   return (
     <div
       className="game-card"
       style={{
-        position: 'relative',
-        background: 'rgba(18,18,26,0.8)',
-        backdropFilter: 'blur(12px)',
-        border: `1px solid ${isLive ? `rgba(${game.glowRgb},0.4)` : '#1e1e30'}`,
-        borderRadius: '18px',
-        overflow: 'hidden',
-        transition: 'transform 0.25s, box-shadow 0.25s',
-        cursor: isLive ? 'pointer' : 'default',
-        opacity: isLive ? 1 : 0.55,
-        boxShadow: isLive ? `0 4px 32px rgba(${game.glowRgb},0.1)` : 'none',
-      }}
-      onMouseEnter={e => {
-        if (!isLive) return
-        ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-6px)'
-        ;(e.currentTarget as HTMLElement).style.boxShadow = `0 16px 48px rgba(${game.glowRgb},0.25)`
-      }}
-      onMouseLeave={e => {
-        ;(e.currentTarget as HTMLElement).style.transform = ''
-        ;(e.currentTarget as HTMLElement).style.boxShadow = isLive ? `0 4px 32px rgba(${game.glowRgb},0.1)` : 'none'
+        position: 'relative', background: 'rgba(18,18,26,0.8)', backdropFilter: 'blur(12px)',
+        border: `1px solid rgba(${game.glowRgb},0.35)`, borderRadius: '18px', overflow: 'hidden',
+        cursor: 'pointer', boxShadow: `0 4px 32px rgba(${game.glowRgb},0.08)`,
       }}
     >
-      {/* Top glow bar */}
-      {isLive && (
-        <div style={{ height: '2px', background: `linear-gradient(90deg, transparent, rgba(${game.glowRgb},0.8), transparent)` }} />
-      )}
-
+      <div style={{ height: '2px', background: `linear-gradient(90deg, transparent, rgba(${game.glowRgb},0.8), transparent)` }} />
       <div style={{ padding: '24px' }}>
-        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '14px' }}>
-          <span style={{ fontSize: '2.8rem', lineHeight: 1 }}>{game.emoji}</span>
-          <span style={{
-            fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em',
-            padding: '4px 10px', borderRadius: '20px',
-            background: isLive ? 'rgba(34,197,94,0.12)' : 'rgba(245,158,11,0.12)',
-            color: isLive ? '#22c55e' : '#f59e0b',
-            border: `1px solid ${isLive ? 'rgba(34,197,94,0.3)' : 'rgba(245,158,11,0.3)'}`,
-          }}>
-            {isLive ? '● LIVE' : 'SOON'}
+          <GameIcon id={game.id} color={game.glow} />
+          <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', padding: '4px 10px', borderRadius: '20px', background: 'rgba(34,197,94,0.12)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)' }}>
+            ● LIVE
           </span>
         </div>
 
@@ -279,43 +303,33 @@ function GameCard({ game }: { game: typeof GAMES[0] }) {
           {game.desc}
         </p>
 
-        {/* Tags */}
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
           {game.tags.map(tag => (
-            <span key={tag} style={{
-              fontSize: '0.7rem', padding: '3px 10px', borderRadius: '20px', fontWeight: 600,
-              background: `rgba(${game.glowRgb},0.1)`,
-              border: `1px solid rgba(${game.glowRgb},0.25)`,
-              color: game.glow,
-            }}>{tag}</span>
+            <span key={tag} style={{ fontSize: '0.7rem', padding: '3px 10px', borderRadius: '20px', fontWeight: 600, background: `rgba(${game.glowRgb},0.1)`, border: `1px solid rgba(${game.glowRgb},0.25)`, color: game.glow }}>{tag}</span>
           ))}
         </div>
 
-        {/* Info row */}
-        <div style={{ display: 'flex', gap: '16px', fontSize: '0.8rem', color: '#475569', marginBottom: isLive ? '18px' : '0' }}>
+        <div style={{ display: 'flex', gap: '16px', fontSize: '0.8rem', color: '#475569', marginBottom: '18px' }}>
           <span>👥 {game.players}</span>
           <span>💵 {game.entry}</span>
         </div>
 
-        {/* CTA buttons — live only */}
-        {isLive && (
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              onClick={() => navigate(`/lobby/${game.id}`)}
-              style={{ flex: 1, background: `linear-gradient(135deg, rgba(${game.glowRgb},0.9), rgba(6,182,212,0.9))`, border: 'none', borderRadius: '9px', padding: '11px', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Orbitron, sans-serif', letterSpacing: '0.04em' }}
-            >
-              PLAY NOW
-            </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={() => navigate(`/lobby/${game.id}`)}
+            style={{ flex: 1, background: `linear-gradient(135deg, rgba(${game.glowRgb},0.9), rgba(6,182,212,0.9))`, border: 'none', borderRadius: '9px', padding: '11px', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Orbitron, sans-serif', letterSpacing: '0.04em' }}
+          >
+            PLAY NOW
+          </button>
+          {game.botMode && (
             <button
               onClick={() => navigate('/game/practice', { state: { bot: true, entry: 0 } })}
-              style={{ flex: 1, background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.25)', borderRadius: '9px', padding: '11px', color: '#a78bfa', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', transition: 'all 0.2s' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(124,58,237,0.18)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(124,58,237,0.08)' }}
+              style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.25)', borderRadius: '9px', padding: '11px 14px', color: '#a78bfa', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}
             >
-              🤖 VS BOT
+              vs Bot
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )

@@ -5,7 +5,11 @@ import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { parseUnits } from 'viem'
 import { polygon } from 'wagmi/chains'
 import { fetchPlayerHistory, fetchPlayerStats, fetchProfile, upsertProfile, unlockAvatarStyle, type GameHistory } from '../utils/supabase'
-import { getAvatarUrl, getAvatarColor, AVATAR_STYLES, type AvatarStyle } from '../utils/avatar'
+import {
+  getAvatarUrl, getAvatarColor, AVATAR_STYLES, STYLE_CATALOG,
+  isStyleOwned, parseStyleId, getDefaultStyle,
+  type AvatarStyle, type AvatarEntry,
+} from '../utils/avatar'
 import { getUsername, setUsername, shortAddr } from '../utils/profile'
 
 const HOUSE_WALLET = (import.meta.env.VITE_HOUSE_WALLET || '0x0000000000000000000000000000000000000000') as `0x${string}`
@@ -15,6 +19,8 @@ const USDT_ABI = [
     inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }],
     outputs: [{ name: '', type: 'bool' }] },
 ] as const
+
+type PriceFilter = 'all' | 0 | 1 | 2 | 3
 
 export default function Profile() {
   const { address, isConnected } = useAccount()
@@ -32,13 +38,16 @@ export default function Profile() {
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput]     = useState('')
   const [displayName, setDisplayName] = useState('')
-  const [avatarStyle, setAvatarStyle] = useState<AvatarStyle>('adventurer')
-  const [ownedStyles, setOwnedStyles] = useState<string[]>(['adventurer'])
+  const [avatarStyle, setAvatarStyle] = useState<AvatarStyle>('bottts')
+  const [ownedBases, setOwnedBases]   = useState<string[]>(['bottts'])
+
+  // Avatar picker filter
+  const [priceFilter, setPriceFilter] = useState<PriceFilter>('all')
 
   // Purchase flow
-  const [buying, setBuying]           = useState<AvatarStyle | null>(null)
-  const [confirmStyle, setConfirmStyle] = useState<AvatarStyle | null>(null)
-  const [buyStatus, setBuyStatus]     = useState<'idle' | 'switching' | 'paying' | 'saving'>('idle')
+  const [buying, setBuying]             = useState<string | null>(null)  // base key being bought
+  const [confirmEntry, setConfirmEntry] = useState<AvatarEntry | null>(null)
+  const [buyStatus, setBuyStatus]       = useState<'idle' | 'switching' | 'paying' | 'saving'>('idle')
 
   // Load profile from Supabase on connect
   useEffect(() => {
@@ -46,12 +55,14 @@ export default function Profile() {
     const localName = getUsername(address)
     setDisplayName(localName)
     setNameInput(localName)
+    // Set address-derived robot default while loading
+    setAvatarStyle(getDefaultStyle(address))
 
     fetchProfile(address).then(p => {
       if (p) {
         if (p.username) { setDisplayName(p.username); setNameInput(p.username); setUsername(address, p.username) }
-        setAvatarStyle((p.avatar_style as AvatarStyle) || 'adventurer')
-        setOwnedStyles(p.purchased_styles ?? ['adventurer'])
+        if (p.avatar_style) setAvatarStyle(p.avatar_style as AvatarStyle)
+        setOwnedBases(p.purchased_styles ?? ['bottts'])
       }
     })
   }, [address])
@@ -75,62 +86,61 @@ export default function Profile() {
     await upsertProfile(address, { username: clean }).catch(() => null)
   }
 
-  async function handleBuyStyle(style: AvatarStyle) {
+  async function handleBuyStyle(entry: AvatarEntry) {
     if (!address || !isConnected) return
-    const meta = AVATAR_STYLES.find(s => s.id === style)
-    if (!meta || meta.price === 0) {
-      // Free style — just set it
-      setAvatarStyle(style)
-      if (!ownedStyles.includes(style)) setOwnedStyles(prev => [...prev, style])
-      await upsertProfile(address, { avatar_style: style, purchased_styles: Array.from(new Set([...ownedStyles, style])) }).catch(() => null)
-      setConfirmStyle(null)
+    const { baseKey, price } = entry
+
+    if (price === 0 || isStyleOwned(entry.id, ownedBases)) {
+      // Free or already owned — just switch
+      setAvatarStyle(entry.id)
+      await upsertProfile(address, { avatar_style: entry.id }).catch(() => null)
+      setConfirmEntry(null)
       return
     }
 
-    setBuying(style)
+    setBuying(baseKey)
     setBuyStatus('switching')
 
-    // Switch to Polygon for payment
     if (chainId !== polygon.id) {
       try { await switchChainAsync({ chainId: polygon.id }) }
       catch {
-        setError('Switch to Polygon to pay for avatar')
-        setBuying(null); setBuyStatus('idle'); setConfirmStyle(null); return
+        setError('Switch to Polygon to pay for this avatar')
+        setBuying(null); setBuyStatus('idle'); setConfirmEntry(null); return
       }
     }
 
-    // Pay USDT
     setBuyStatus('paying')
     try {
       await writeContractAsync({
         address: USDT_POLYGON,
         abi: USDT_ABI,
         functionName: 'transfer',
-        args: [HOUSE_WALLET, parseUnits(String(meta.price), 6)],
+        args: [HOUSE_WALLET, parseUnits(String(price), 6)],
         chainId: polygon.id,
       })
     } catch {
       setError('Payment cancelled. No charge applied.')
-      setBuying(null); setBuyStatus('idle'); setConfirmStyle(null); return
+      setBuying(null); setBuyStatus('idle'); setConfirmEntry(null); return
     }
 
-    // Save to Supabase
     setBuyStatus('saving')
     try {
-      await unlockAvatarStyle(address, style, ownedStyles)
-      setOwnedStyles(prev => Array.from(new Set([...prev, style])))
-      setAvatarStyle(style)
+      await unlockAvatarStyle(address, baseKey, ownedBases)
+      const newBases = Array.from(new Set([...ownedBases, baseKey]))
+      setOwnedBases(newBases)
+      setAvatarStyle(entry.id)
+      await upsertProfile(address, { avatar_style: entry.id }).catch(() => null)
     } catch {
       setError('Paid but failed to save — refresh and it may appear.')
     } finally {
-      setBuying(null); setBuyStatus('idle'); setConfirmStyle(null)
+      setBuying(null); setBuyStatus('idle'); setConfirmEntry(null)
     }
   }
 
-  async function switchToStyle(style: AvatarStyle) {
+  async function switchToStyle(entry: AvatarEntry) {
     if (!address) return
-    setAvatarStyle(style)
-    await upsertProfile(address, { avatar_style: style }).catch(() => null)
+    setAvatarStyle(entry.id)
+    await upsertProfile(address, { avatar_style: entry.id }).catch(() => null)
   }
 
   if (!isConnected) {
@@ -147,6 +157,18 @@ export default function Profile() {
   const netProfit   = stats ? stats.totalEarned - stats.totalSpent : 0
   const avatarUrl   = address ? getAvatarUrl(address, avatarStyle) : ''
   const avatarColor = address ? getAvatarColor(address) : '#7c3aed'
+
+  const filteredStyles = priceFilter === 'all'
+    ? AVATAR_STYLES
+    : AVATAR_STYLES.filter(s => s.price === priceFilter)
+
+  const priceCounts = {
+    all: AVATAR_STYLES.length,
+    0: AVATAR_STYLES.filter(s => s.price === 0).length,
+    1: AVATAR_STYLES.filter(s => s.price === 1).length,
+    2: AVATAR_STYLES.filter(s => s.price === 2).length,
+    3: AVATAR_STYLES.filter(s => s.price === 3).length,
+  }
 
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', padding: 'clamp(20px,4vw,40px) clamp(16px,4vw,24px)' }}>
@@ -193,38 +215,70 @@ export default function Profile() {
         </div>
       )}
 
-      {/* Avatar style picker */}
+      {/* Avatar picker */}
       <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '16px', padding: '20px 24px', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.7rem', color: '#64748b', letterSpacing: '0.1em' }}>AVATAR STYLE</p>
-          <p style={{ color: '#475569', fontSize: '0.72rem' }}>Purchases are permanent · stored on-chain</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+          <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.7rem', color: '#64748b', letterSpacing: '0.1em' }}>
+            AVATAR STYLE &nbsp;<span style={{ color: '#475569' }}>{AVATAR_STYLES.length} styles</span>
+          </p>
+          <p style={{ color: '#475569', fontSize: '0.72rem' }}>Buying a style unlocks all 6 color variants</p>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '12px' }}>
-          {AVATAR_STYLES.map(s => {
-            const owned  = ownedStyles.includes(s.id) || s.price === 0
+
+        {/* Filter tabs */}
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+          {([['all', 'All'], [0, 'Free'], [1, '$1'], [2, '$2'], [3, '$3']] as [PriceFilter, string][]).map(([val, label]) => (
+            <button key={String(val)} onClick={() => setPriceFilter(val)}
+              style={{ background: priceFilter === val ? 'rgba(124,58,237,0.2)' : '#0a0a0f', border: `1px solid ${priceFilter === val ? '#7c3aed' : '#1e1e30'}`, borderRadius: '20px', padding: '4px 12px', color: priceFilter === val ? '#a78bfa' : '#64748b', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'Orbitron, sans-serif' }}>
+              {label} <span style={{ opacity: 0.6, fontSize: '0.65rem' }}>{priceCounts[val === 'all' ? 'all' : val]}</span>
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '8px', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
+          {filteredStyles.map(s => {
+            const owned  = isStyleOwned(s.id, ownedBases)
             const active = avatarStyle === s.id
-            const isBuyingThis = buying === s.id
+            const isBuyingThis = buying === s.baseKey
+            const activeStyle = parseStyleId(avatarStyle)
+            const sameBase = activeStyle.dicebearStyle === s.baseKey
             return (
               <button key={s.id}
                 onClick={() => {
-                  if (owned) switchToStyle(s.id as AvatarStyle)
-                  else setConfirmStyle(s.id as AvatarStyle)
+                  if (owned) switchToStyle(s)
+                  else setConfirmEntry(s)
                 }}
-                style={{ background: active ? 'rgba(124,58,237,0.15)' : owned ? '#0a0a0f' : '#070710', border: `2px solid ${active ? '#7c3aed' : owned ? '#1e1e30' : '#0d0d1a'}`, borderRadius: '12px', padding: '12px 8px', cursor: 'pointer', transition: 'all 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', position: 'relative', opacity: isBuyingThis ? 0.7 : 1 }}>
-                {/* Lock overlay for unowned */}
+                style={{
+                  background: active ? 'rgba(124,58,237,0.18)' : sameBase && owned ? 'rgba(124,58,237,0.06)' : '#0a0a0f',
+                  border: `2px solid ${active ? '#7c3aed' : sameBase && owned ? 'rgba(124,58,237,0.25)' : '#1e1e30'}`,
+                  borderRadius: '12px', padding: '10px 6px', cursor: 'pointer',
+                  transition: 'all 0.15s', display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', gap: '6px', position: 'relative',
+                  opacity: isBuyingThis ? 0.6 : 1,
+                }}>
+                {/* Lock badge — top-right corner only, no blur */}
                 {!owned && (
-                  <div style={{ position: 'absolute', inset: 0, borderRadius: '10px', background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(1px)' }}>
-                    <span style={{ fontSize: '1.2rem' }}>🔒</span>
-                  </div>
+                  <span style={{ position: 'absolute', top: '4px', right: '4px', fontSize: '0.6rem', lineHeight: 1 }}>🔒</span>
                 )}
-                <img src={address ? getAvatarUrl(address, s.id as AvatarStyle) : ''} alt={s.name}
-                  width={48} height={48} style={{ borderRadius: '50%', border: `2px solid ${active ? '#7c3aed' : '#1e1e30'}`, background: '#1e1e30' }} />
-                <span style={{ fontSize: '0.62rem', fontWeight: 700, color: active ? '#a78bfa' : owned ? '#64748b' : '#475569', fontFamily: 'Orbitron, sans-serif' }}>{s.name.toUpperCase()}</span>
+                {active && (
+                  <span style={{ position: 'absolute', top: '4px', left: '4px', width: '7px', height: '7px', borderRadius: '50%', background: '#7c3aed', display: 'block' }} />
+                )}
+                <img
+                  src={address ? getAvatarUrl(address, s.id) : ''}
+                  alt={s.name} width={44} height={44}
+                  style={{ borderRadius: '50%', border: `2px solid ${active ? '#7c3aed' : '#1e1e30'}`, background: '#1e1e30', display: 'block' }}
+                />
+                <span style={{ fontSize: '0.6rem', fontWeight: 700, color: active ? '#a78bfa' : '#64748b', fontFamily: 'Orbitron, sans-serif', textAlign: 'center', lineHeight: 1.2 }}>
+                  {s.baseName.toUpperCase()}
+                </span>
+                {s.bgLabel && s.bgLabel !== 'Classic' && (
+                  <span style={{ fontSize: '0.55rem', color: '#475569', marginTop: '-4px' }}>{s.bgLabel}</span>
+                )}
                 {s.price === 0
-                  ? <span style={{ fontSize: '0.6rem', color: '#22c55e', fontWeight: 700 }}>FREE</span>
+                  ? <span style={{ fontSize: '0.55rem', color: '#22c55e', fontWeight: 700 }}>FREE</span>
                   : owned
-                    ? <span style={{ fontSize: '0.6rem', color: '#a78bfa', fontWeight: 700 }}>✓ OWNED</span>
-                    : <span style={{ fontSize: '0.6rem', color: '#f59e0b', fontWeight: 700 }}>${s.price} USDT</span>}
+                    ? <span style={{ fontSize: '0.55rem', color: '#a78bfa', fontWeight: 700 }}>✓ OWNED</span>
+                    : <span style={{ fontSize: '0.55rem', color: '#f59e0b', fontWeight: 700 }}>${s.price} USDT</span>
+                }
               </button>
             )
           })}
@@ -309,32 +363,35 @@ export default function Profile() {
       </div>
 
       {/* Purchase confirmation modal */}
-      {confirmStyle && (
-        <div onClick={() => !buying && setConfirmStyle(null)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '24px' }}>
+      {confirmEntry && (
+        <div onClick={() => !buying && setConfirmEntry(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.78)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '24px' }}>
           <div onClick={e => e.stopPropagation()}
             style={{ background: '#12121a', border: '1px solid rgba(124,58,237,0.3)', borderRadius: '20px', padding: '32px', width: '100%', maxWidth: '380px', textAlign: 'center' }}>
             {(() => {
-              const meta = AVATAR_STYLES.find(s => s.id === confirmStyle)!
-              const buyLabel = buyStatus === 'switching' ? 'Switching to Polygon…' : buyStatus === 'paying' ? `Sending $${meta.price} USDT…` : buyStatus === 'saving' ? 'Saving…' : `Buy for $${meta.price} USDT`
+              const baseMeta = STYLE_CATALOG.find(s => s.key === confirmEntry.baseKey)!
+              const buyLabel = buyStatus === 'switching' ? 'Switching to Polygon…' : buyStatus === 'paying' ? `Sending $${baseMeta.price} USDT…` : buyStatus === 'saving' ? 'Saving…' : `Unlock for $${baseMeta.price} USDT`
               return (
                 <>
-                  <img src={address ? getAvatarUrl(address, confirmStyle) : ''} alt={meta.name}
+                  <img src={address ? getAvatarUrl(address, confirmEntry.id) : ''} alt={confirmEntry.name}
                     width={80} height={80} style={{ borderRadius: '50%', border: `3px solid ${getAvatarColor(address ?? '')}`, background: '#1e1e30', margin: '0 auto 16px' }} />
-                  <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1rem', marginBottom: '8px' }}>{meta.name} Style</h3>
+                  <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1rem', marginBottom: '4px' }}>{confirmEntry.baseName}</h3>
+                  {confirmEntry.bgLabel && confirmEntry.bgLabel !== 'Classic' && (
+                    <p style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '8px' }}>{confirmEntry.bgLabel} variant</p>
+                  )}
                   <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '20px', lineHeight: 1.6 }}>
-                    One-time purchase of <strong style={{ color: '#f59e0b' }}>${meta.price} USDT</strong> on Polygon.<br />
-                    Permanently unlocked for your wallet address forever.
+                    One-time <strong style={{ color: '#f59e0b' }}>${baseMeta.price} USDT</strong> on Polygon.<br />
+                    Unlocks <strong style={{ color: '#e2e8f0' }}>all 6 color variants</strong> of this style permanently.
                   </p>
                   <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)', borderRadius: '8px', padding: '10px 14px', marginBottom: '20px', fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5 }}>
                     🔑 Linked to <strong style={{ color: '#e2e8f0', fontFamily: 'monospace' }}>{address ? shortAddr(address) : ''}</strong> — works on any device
                   </div>
-                  <button onClick={() => handleBuyStyle(confirmStyle)} disabled={!!buying}
+                  <button onClick={() => handleBuyStyle(confirmEntry)} disabled={!!buying}
                     style={{ width: '100%', background: buying ? '#1e1e30' : 'linear-gradient(135deg,#7c3aed,#06b6d4)', border: 'none', borderRadius: '10px', padding: '13px', color: buying ? '#64748b' : '#fff', fontWeight: 700, cursor: buying ? 'not-allowed' : 'pointer', fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem', marginBottom: '10px' }}>
-                    {buying ? buyLabel : `Unlock for $${meta.price} USDT`}
+                    {buying ? buyLabel : `Unlock for $${baseMeta.price} USDT`}
                   </button>
                   {!buying && (
-                    <button onClick={() => setConfirmStyle(null)}
+                    <button onClick={() => setConfirmEntry(null)}
                       style={{ width: '100%', background: 'transparent', border: '1px solid #1e1e30', borderRadius: '10px', padding: '11px', color: '#64748b', fontWeight: 600, cursor: 'pointer', fontSize: '0.88rem' }}>
                       Cancel
                     </button>
