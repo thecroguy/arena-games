@@ -235,6 +235,184 @@ export default function Guide() {
         ))}
       </div>
 
+      {/* ── Game Guide ── */}
+      <div style={{ marginBottom: '56px' }}>
+
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.3)', borderRadius: '20px', padding: '6px 16px', marginBottom: '16px', fontSize: '0.78rem', color: '#06b6d4', fontWeight: 700, letterSpacing: '0.05em' }}>
+            🧮 GAME GUIDE
+          </div>
+          <h2 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 900, fontSize: 'clamp(1.2rem,3vw,1.8rem)', color: '#e2e8f0' }}>Math Arena — How It Works</h2>
+          <p style={{ color: '#64748b', marginTop: '8px', fontSize: '0.9rem' }}>Simple rules, pure skill, real money.</p>
+        </div>
+
+        {/* Round flow visual */}
+        <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '16px', padding: '24px', marginBottom: '20px' }}>
+          <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.72rem', color: '#64748b', letterSpacing: '0.1em', marginBottom: '20px' }}>A ROUND LOOKS LIKE THIS</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0', overflowX: 'auto', paddingBottom: '8px' }}>
+            {[
+              { icon: '3️⃣', label: 'Countdown',   sub: '3 · 2 · 1',          color: '#7c3aed' },
+              { icon: '🧮', label: 'Question',    sub: '27 × 4 = ?',          color: '#06b6d4' },
+              { icon: '⚡', label: 'Answer Fast',  sub: 'Type + press Enter',  color: '#f59e0b' },
+              { icon: '✅', label: 'Score',        sub: '+1 if correct',        color: '#22c55e' },
+              { icon: '🔁', label: 'Next Round',  sub: '10 rounds total',     color: '#a78bfa' },
+              { icon: '🏆', label: 'Winner',      sub: 'Highest score wins',  color: '#f59e0b' },
+            ].map((s, i, arr) => (
+              <div key={s.label} style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <div style={{ textAlign: 'center', padding: '0 12px' }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: `${s.color}18`, border: `2px solid ${s.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', margin: '0 auto 8px' }}>{s.icon}</div>
+                  <p style={{ fontWeight: 700, color: s.color, fontSize: '0.75rem', whiteSpace: 'nowrap' }}>{s.label}</p>
+                  <p style={{ color: '#64748b', fontSize: '0.7rem', marginTop: '2px', whiteSpace: 'nowrap' }}>{s.sub}</p>
+                </div>
+                {i < arr.length - 1 && <div style={{ width: '24px', height: '2px', background: '#1e1e30', flexShrink: 0 }} />}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Question types */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+          {[
+            { op: '+', label: 'Addition',       example: '34 + 17 = 51',  tip: 'Easiest — always go fast',        color: '#22c55e' },
+            { op: '−', label: 'Subtraction',    example: '52 − 28 = 24',  tip: 'Watch for borrow carries',        color: '#06b6d4' },
+            { op: '×', label: 'Multiplication', example: '7 × 8 = 56',    tip: 'Know your times tables to 12',    color: '#f59e0b' },
+          ].map(q => (
+            <div key={q.op} style={{ background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: '12px', padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: `${q.color}18`, border: `1px solid ${q.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Orbitron, sans-serif', fontWeight: 900, fontSize: '1.1rem', color: q.color }}>{q.op}</div>
+                <span style={{ fontWeight: 700, color: '#e2e8f0', fontSize: '0.9rem' }}>{q.label}</span>
+              </div>
+              <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.82rem', color: '#94a3b8', marginBottom: '6px' }}>{q.example}</p>
+              <p style={{ color: '#64748b', fontSize: '0.75rem' }}>💡 {q.tip}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Timer + scoring rules */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+          <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', padding: '20px' }}>
+            <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.7rem', color: '#64748b', letterSpacing: '0.1em', marginBottom: '16px' }}>TIMER RULES</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {[
+                { bar: '100%', color: '#22c55e', text: '12s — Full time, solve fast' },
+                { bar: '50%',  color: '#f59e0b', text: '6s left — Yellow warning' },
+                { bar: '25%',  color: '#ef4444', text: '3s left — Red, hurry up!' },
+                { bar: '0%',   color: '#475569', text: '0s — Round ends, no points' },
+              ].map(t => (
+                <div key={t.text} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '48px', height: '5px', background: '#1e1e30', borderRadius: '3px', flexShrink: 0, overflow: 'hidden' }}>
+                    <div style={{ width: t.bar, height: '100%', background: t.color, borderRadius: '3px' }} />
+                  </div>
+                  <span style={{ color: '#94a3b8', fontSize: '0.78rem' }}>{t.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', padding: '20px' }}>
+            <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.7rem', color: '#64748b', letterSpacing: '0.1em', marginBottom: '16px' }}>SCORING RULES</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {[
+                { icon: '✅', color: '#22c55e', text: 'Correct answer = +1 point' },
+                { icon: '❌', color: '#ef4444', text: 'Wrong answer = 0 points (no penalty)' },
+                { icon: '⏱️', color: '#64748b', text: 'No answer = 0 points' },
+                { icon: '⚡', color: '#f59e0b', text: 'Speed doesn\'t add points, only first correct' },
+                { icon: '🔟', color: '#a78bfa', text: '10 rounds total per game' },
+              ].map(r => (
+                <div key={r.text} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: '0.9rem', flexShrink: 0 }}>{r.icon}</span>
+                  <span style={{ color: '#94a3b8', fontSize: '0.78rem', lineHeight: 1.5 }}>{r.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Tiebreaker */}
+        <div style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.08), rgba(124,58,237,0.06))', border: '1px solid rgba(245,158,11,0.25)', borderRadius: '14px', padding: '20px 24px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+            <span style={{ fontSize: '1.3rem' }}>⚔️</span>
+            <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.9rem', color: '#f59e0b' }}>Tiebreaker — Sudden Death</h3>
+          </div>
+          <p style={{ color: '#94a3b8', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '12px' }}>
+            If two or more players finish with the <strong style={{ color: '#e2e8f0' }}>same score</strong> after 10 rounds, they enter a <strong style={{ color: '#f59e0b' }}>sudden death tiebreaker</strong>. One extra question — whoever answers correctly first wins the entire pot. No more chances, first right answer takes all.
+          </p>
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+            {[
+              { label: 'Same score?',       value: 'Tiebreaker triggered' },
+              { label: 'Extra rounds',      value: '1 sudden death question' },
+              { label: 'Winner condition',  value: 'First correct answer' },
+            ].map(t => (
+              <div key={t.label} style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '8px 14px' }}>
+                <p style={{ color: '#64748b', fontSize: '0.68rem', marginBottom: '2px' }}>{t.label}</p>
+                <p style={{ color: '#f59e0b', fontWeight: 700, fontSize: '0.82rem' }}>{t.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Payout table */}
+        <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', overflow: 'hidden', marginBottom: '20px' }}>
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid #1e1e30' }}>
+            <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.7rem', color: '#64748b', letterSpacing: '0.1em' }}>PAYOUT EXAMPLES</p>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #1e1e30' }}>
+                  {['Players', 'Entry Fee', 'Total Pot', 'Winner Gets (85%)', 'Platform Fee'].map(h => (
+                    <th key={h} style={{ padding: '10px 16px', textAlign: 'left', color: '#64748b', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  [2,  0.5],
+                  [4,  1],
+                  [5,  2],
+                  [10, 5],
+                  [5,  10],
+                  [10, 25],
+                ].map(([players, fee]) => {
+                  const pot     = players * fee
+                  const winner  = (pot * 0.85).toFixed(2)
+                  const rake    = (pot * 0.15).toFixed(2)
+                  return (
+                    <tr key={`${players}-${fee}`} style={{ borderBottom: '1px solid #0d0d14' }}>
+                      <td style={{ padding: '11px 16px', color: '#94a3b8', fontSize: '0.85rem' }}>{players}</td>
+                      <td style={{ padding: '11px 16px', color: '#94a3b8', fontSize: '0.85rem' }}>${fee}</td>
+                      <td style={{ padding: '11px 16px', fontWeight: 700, color: '#e2e8f0', fontSize: '0.85rem' }}>${pot}</td>
+                      <td style={{ padding: '11px 16px', fontFamily: 'Orbitron, sans-serif', fontWeight: 700, color: '#22c55e', fontSize: '0.85rem' }}>${winner}</td>
+                      <td style={{ padding: '11px 16px', color: '#64748b', fontSize: '0.82rem' }}>${rake}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Strategy tips */}
+        <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', padding: '20px 24px' }}>
+          <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.7rem', color: '#64748b', letterSpacing: '0.1em', marginBottom: '16px' }}>PRO TIPS</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+            {[
+              { icon: '⌨️', tip: 'Use a keyboard, not mobile — you\'ll answer 2× faster' },
+              { icon: '🧠', tip: 'Memorise ×9 and ×12 tables — they appear often' },
+              { icon: '🎯', tip: 'Submit even if unsure — wrong answers have no penalty' },
+              { icon: '👀', tip: 'Watch the scoreboard live to know how close the game is' },
+              { icon: '🤖', tip: 'Practice vs Bot first — bot has 70% accuracy, beat it first' },
+              { icon: '💡', tip: 'Small rooms (2 players) have worst odds but highest pot ratio' },
+            ].map(t => (
+              <div key={t.tip} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', background: '#0a0a0f', borderRadius: '10px', padding: '10px 12px' }}>
+                <span style={{ fontSize: '1rem', flexShrink: 0 }}>{t.icon}</span>
+                <p style={{ color: '#94a3b8', fontSize: '0.8rem', lineHeight: 1.5 }}>{t.tip}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* FAQ */}
       <div style={{ marginBottom: '40px' }}>
         <h2 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1.1rem', marginBottom: '20px', color: '#e2e8f0', textAlign: 'center' }}>
