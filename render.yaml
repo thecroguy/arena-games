@@ -1,0 +1,20 @@
+# Render.com deployment config
+# Push this repo to GitHub, then connect it on render.com → New Web Service
+
+services:
+  - type: web
+    name: arena-games-server
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_URL
+        sync: false   # set this in Render dashboard to your Vercel URL
+      - key: SUPABASE_URL
+        sync: false   # set in Render dashboard
+      - key: SUPABASE_SERVICE_KEY
+        sync: false   # set in Render dashboard
