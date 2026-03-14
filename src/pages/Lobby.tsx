@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useConnection } from 'wagmi'
+import { useAccount } from 'wagmi'
 import { connectSocket } from '../utils/socket'
 
 const GAME_META: Record<string, { title: string; emoji: string; desc: string; minPlayers: number; maxPlayers: number }> = {
@@ -27,7 +27,7 @@ type Room = {
 export default function Lobby() {
   const { gameMode } = useParams<{ gameMode: string }>()
   const navigate = useNavigate()
-  const { address, isConnected } = useConnection()
+  const { address, isConnected } = useAccount()
 
   const [rooms, setRooms] = useState<Room[]>([])
   const [selectedFee, setSelectedFee] = useState<number>(0)

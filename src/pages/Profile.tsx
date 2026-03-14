@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { useConnection } from 'wagmi'
+import { useAccount } from 'wagmi'
 import { useNavigate } from 'react-router-dom'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { fetchPlayerHistory, fetchPlayerStats, type GameHistory } from '../utils/supabase'
 
 export default function Profile() {
-  const { address, isConnected } = useConnection()
+  const { address, isConnected } = useAccount()
   const navigate = useNavigate()
 
   const [history, setHistory]   = useState<GameHistory[]>([])

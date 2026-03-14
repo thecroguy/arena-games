@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
-import { useConnection } from 'wagmi'
+import { useAccount } from 'wagmi'
 import { connectSocket } from '../utils/socket'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -33,7 +33,7 @@ export default function Game() {
   const { roomCode } = useParams<{ roomCode: string }>()
   const location = useLocation()
   const navigate = useNavigate()
-  const { address } = useConnection()
+  const { address } = useAccount()
 
   const isHost   = location.state?.host    ?? false
   const entryFee = location.state?.entry   ?? 1

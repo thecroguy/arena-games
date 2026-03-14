@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useConnection } from 'wagmi'
+import { useAccount } from 'wagmi'
 import { fetchLeaderboard, type LeaderboardEntry } from '../utils/supabase'
 
 type Period = 'alltime' | 'weekly' | 'daily'
@@ -15,7 +15,7 @@ export default function Leaderboard() {
   const [data, setData]       = useState<LeaderboardEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
-  const { address } = useConnection()
+  const { address } = useAccount()
 
   useEffect(() => {
     setLoading(true)
