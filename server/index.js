@@ -7,19 +7,37 @@ const { createClient } = require('@supabase/supabase-js')
 
 // ── Config ─────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001
-const CLIENT_URL = process.env.CLIENT_URL || '*'
 const TOTAL_ROUNDS = 10
 const ROUND_TIME_MS = 12000
 
+// Allow comma-separated origins + all *.vercel.app preview URLs
+const configuredOrigins = (process.env.CLIENT_URL || '')
+  .split(',').map(o => o.trim()).filter(Boolean)
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true
+  if (configuredOrigins.length === 0) return true
+  if (configuredOrigins.includes(origin)) return true
+  // Allow all Vercel preview deployments
+  if (/^https:\/\/[a-z0-9-]+(\.vercel\.app)$/.test(origin)) return true
+  return false
+}
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (isAllowedOrigin(origin)) callback(null, true)
+    else callback(new Error('Not allowed by CORS'))
+  },
+  methods: ['GET', 'POST'],
+}
+
 // ── Express + Socket.io ────────────────────────────────────────────────────
 const app = express()
-app.use(cors({ origin: CLIENT_URL }))
+app.use(cors(corsOptions))
 app.use(express.json())
 
 const server = http.createServer(app)
-const io = new Server(server, {
-  cors: { origin: CLIENT_URL, methods: ['GET', 'POST'] },
-})
+const io = new Server(server, { cors: corsOptions })
 
 // ── Supabase (optional — only if env vars are set) ─────────────────────────
 let supabase = null
