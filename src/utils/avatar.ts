@@ -31,7 +31,7 @@ export const STYLE_CATALOG: StyleBase[] = [
   { key: 'fun-emoji',          name: 'Emoji',     price: 1 },
   { key: 'icons',              name: 'Icons',     price: 1 },
   { key: 'miniavs',            name: 'Mini',      price: 1 },
-  { key: 'glass',              name: 'Glass',     price: 1 },
+  { key: 'initials',            name: 'Initial',   price: 1 },
   { key: 'identicon',          name: 'Identicon', price: 1 },
   // ── $2 TIER ───────────────────────────────────────────────────────────────
   { key: 'adventurer',         name: 'Explorer',  price: 2 },

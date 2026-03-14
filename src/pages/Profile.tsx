@@ -41,8 +41,10 @@ export default function Profile() {
   const [avatarStyle, setAvatarStyle] = useState<AvatarStyle>('bottts')
   const [ownedBases, setOwnedBases]   = useState<string[]>(['bottts'])
 
-  // Avatar picker filter
+  // Avatar picker filter + layout
   const [priceFilter, setPriceFilter] = useState<PriceFilter>('all')
+  const [expanded, setExpanded]       = useState(false)
+  const [pendingStyle, setPendingStyle] = useState<AvatarEntry | null>(null)
 
   // Purchase flow
   const [buying, setBuying]             = useState<string | null>(null)  // base key being bought
@@ -137,10 +139,11 @@ export default function Profile() {
     }
   }
 
-  async function switchToStyle(entry: AvatarEntry) {
-    if (!address) return
-    setAvatarStyle(entry.id)
-    await upsertProfile(address, { avatar_style: entry.id }).catch(() => null)
+  async function saveAvatarSelection() {
+    if (!pendingStyle || !address) return
+    setAvatarStyle(pendingStyle.id)
+    setPendingStyle(null)
+    await upsertProfile(address, { avatar_style: pendingStyle.id }).catch(() => null)
   }
 
   if (!isConnected) {
@@ -217,15 +220,23 @@ export default function Profile() {
 
       {/* Avatar picker */}
       <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '16px', padding: '20px 24px', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+
+        {/* Header row */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
           <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.7rem', color: '#64748b', letterSpacing: '0.1em' }}>
             AVATAR STYLE &nbsp;<span style={{ color: '#475569' }}>{AVATAR_STYLES.length} styles</span>
           </p>
-          <p style={{ color: '#475569', fontSize: '0.72rem' }}>Buying a style unlocks all 6 color variants</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <p style={{ color: '#475569', fontSize: '0.72rem' }}>Buying unlocks all 6 variants</p>
+            <button onClick={() => setExpanded(e => !e)}
+              style={{ background: expanded ? 'rgba(124,58,237,0.15)' : '#0a0a0f', border: `1px solid ${expanded ? '#7c3aed' : '#1e1e30'}`, borderRadius: '8px', padding: '4px 10px', color: expanded ? '#a78bfa' : '#64748b', fontWeight: 700, fontSize: '0.68rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              {expanded ? '▲ Collapse' : '▼ Expand all'}
+            </button>
+          </div>
         </div>
 
         {/* Filter tabs */}
-        <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
           {([['all', 'All'], [0, 'Free'], [1, '$1'], [2, '$2'], [3, '$3']] as [PriceFilter, string][]).map(([val, label]) => (
             <button key={String(val)} onClick={() => setPriceFilter(val)}
               style={{ background: priceFilter === val ? 'rgba(124,58,237,0.2)' : '#0a0a0f', border: `1px solid ${priceFilter === val ? '#7c3aed' : '#1e1e30'}`, borderRadius: '20px', padding: '4px 12px', color: priceFilter === val ? '#a78bfa' : '#64748b', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'Orbitron, sans-serif' }}>
@@ -234,55 +245,82 @@ export default function Profile() {
           ))}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '8px', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
+        {/* Grid — horizontal scroll (collapsed) or full grid (expanded) */}
+        <div style={expanded
+          ? { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 1fr))', gap: '8px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }
+          : { display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '6px' }
+        }>
           {filteredStyles.map(s => {
-            const owned  = isStyleOwned(s.id, ownedBases)
-            const active = avatarStyle === s.id
+            const owned       = isStyleOwned(s.id, ownedBases)
+            const isSaved     = avatarStyle === s.id
+            const isPending   = pendingStyle?.id === s.id
             const isBuyingThis = buying === s.baseKey
-            const activeStyle = parseStyleId(avatarStyle)
-            const sameBase = activeStyle.dicebearStyle === s.baseKey
             return (
               <button key={s.id}
                 onClick={() => {
-                  if (owned) switchToStyle(s)
+                  if (owned) setPendingStyle(isSaved && !pendingStyle ? null : s)
                   else setConfirmEntry(s)
                 }}
                 style={{
-                  background: active ? 'rgba(124,58,237,0.18)' : sameBase && owned ? 'rgba(124,58,237,0.06)' : '#0a0a0f',
-                  border: `2px solid ${active ? '#7c3aed' : sameBase && owned ? 'rgba(124,58,237,0.25)' : '#1e1e30'}`,
+                  flexShrink: 0,
+                  background: isPending ? 'rgba(6,182,212,0.15)' : isSaved ? 'rgba(124,58,237,0.18)' : '#0a0a0f',
+                  border: `2px solid ${isPending ? '#06b6d4' : isSaved ? '#7c3aed' : '#1e1e30'}`,
                   borderRadius: '12px', padding: '10px 6px', cursor: 'pointer',
                   transition: 'all 0.15s', display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', gap: '6px', position: 'relative',
+                  alignItems: 'center', gap: '5px', position: 'relative',
                   opacity: isBuyingThis ? 0.6 : 1,
+                  width: expanded ? 'auto' : '82px',
                 }}>
-                {/* Lock badge — top-right corner only, no blur */}
                 {!owned && (
-                  <span style={{ position: 'absolute', top: '4px', right: '4px', fontSize: '0.6rem', lineHeight: 1 }}>🔒</span>
+                  <span style={{ position: 'absolute', top: '4px', right: '4px', fontSize: '0.55rem', lineHeight: 1 }}>🔒</span>
                 )}
-                {active && (
-                  <span style={{ position: 'absolute', top: '4px', left: '4px', width: '7px', height: '7px', borderRadius: '50%', background: '#7c3aed', display: 'block' }} />
+                {isSaved && !isPending && (
+                  <span style={{ position: 'absolute', top: '4px', left: '4px', width: '6px', height: '6px', borderRadius: '50%', background: '#7c3aed', display: 'block' }} />
+                )}
+                {isPending && (
+                  <span style={{ position: 'absolute', top: '3px', left: '4px', fontSize: '0.55rem', color: '#06b6d4', lineHeight: 1, fontWeight: 700 }}>•</span>
                 )}
                 <img
                   src={address ? getAvatarUrl(address, s.id) : ''}
                   alt={s.name} width={44} height={44}
-                  style={{ borderRadius: '50%', border: `2px solid ${active ? '#7c3aed' : '#1e1e30'}`, background: '#1e1e30', display: 'block' }}
+                  style={{ borderRadius: '50%', border: `2px solid ${isPending ? '#06b6d4' : isSaved ? '#7c3aed' : '#1e1e30'}`, background: '#1e1e30', display: 'block' }}
                 />
-                <span style={{ fontSize: '0.6rem', fontWeight: 700, color: active ? '#a78bfa' : '#64748b', fontFamily: 'Orbitron, sans-serif', textAlign: 'center', lineHeight: 1.2 }}>
+                <span style={{ fontSize: '0.58rem', fontWeight: 700, color: isPending ? '#06b6d4' : isSaved ? '#a78bfa' : '#64748b', fontFamily: 'Orbitron, sans-serif', textAlign: 'center', lineHeight: 1.2 }}>
                   {s.baseName.toUpperCase()}
                 </span>
                 {s.bgLabel && s.bgLabel !== 'Classic' && (
-                  <span style={{ fontSize: '0.55rem', color: '#475569', marginTop: '-4px' }}>{s.bgLabel}</span>
+                  <span style={{ fontSize: '0.52rem', color: '#475569', marginTop: '-3px' }}>{s.bgLabel}</span>
                 )}
                 {s.price === 0
-                  ? <span style={{ fontSize: '0.55rem', color: '#22c55e', fontWeight: 700 }}>FREE</span>
+                  ? <span style={{ fontSize: '0.52rem', color: '#22c55e', fontWeight: 700 }}>FREE</span>
                   : owned
-                    ? <span style={{ fontSize: '0.55rem', color: '#a78bfa', fontWeight: 700 }}>✓ OWNED</span>
-                    : <span style={{ fontSize: '0.55rem', color: '#f59e0b', fontWeight: 700 }}>${s.price} USDT</span>
+                    ? <span style={{ fontSize: '0.52rem', color: '#a78bfa', fontWeight: 700 }}>✓ OWNED</span>
+                    : <span style={{ fontSize: '0.52rem', color: '#f59e0b', fontWeight: 700 }}>${s.price} USDT</span>
                 }
               </button>
             )
           })}
         </div>
+
+        {/* Save bar — appears when a pending selection is made */}
+        {pendingStyle && (
+          <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.25)', borderRadius: '10px', padding: '10px 14px' }}>
+            <img src={address ? getAvatarUrl(address, pendingStyle.id) : ''} alt="" width={32} height={32}
+              style={{ borderRadius: '50%', border: '2px solid #06b6d4', background: '#1e1e30', flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ color: '#06b6d4', fontWeight: 700, fontSize: '0.78rem' }}>{pendingStyle.baseName}{pendingStyle.bgLabel !== 'Classic' ? ` · ${pendingStyle.bgLabel}` : ''}</p>
+              <p style={{ color: '#64748b', fontSize: '0.7rem' }}>Selected — save to apply</p>
+            </div>
+            <button onClick={saveAvatarSelection}
+              style={{ background: 'linear-gradient(135deg,#06b6d4,#7c3aed)', border: 'none', borderRadius: '8px', padding: '8px 18px', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              Save Avatar
+            </button>
+            <button onClick={() => setPendingStyle(null)}
+              style={{ background: 'none', border: '1px solid #1e1e30', borderRadius: '8px', padding: '7px 10px', color: '#64748b', fontSize: '0.82rem', cursor: 'pointer' }}>
+              ✕
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Stats */}

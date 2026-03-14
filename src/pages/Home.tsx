@@ -76,7 +76,7 @@ const GAMES = [
     players: '2–10',
     status: 'live' as const,
     glow: '#06b6d4', glowRgb: '6,182,212',
-    botMode: false,
+    botMode: true,
   },
   {
     id: 'reaction-grid',
@@ -87,7 +87,7 @@ const GAMES = [
     players: '2–10',
     status: 'live' as const,
     glow: '#f59e0b', glowRgb: '245,158,11',
-    botMode: false,
+    botMode: true,
   },
   {
     id: 'highest-unique',
@@ -171,7 +171,7 @@ export default function Home() {
       `}</style>
 
       {/* Hero */}
-      <div style={{ position: 'relative', textAlign: 'center', padding: '80px 24px 60px', overflow: 'hidden' }}>
+      <div style={{ position: 'relative', textAlign: 'center', padding: 'clamp(56px,10vw,96px) clamp(16px,5vw,40px) clamp(40px,6vw,72px)', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: '10%', left: '20%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%)', borderRadius: '50%', animation: 'pulse-glow 4s ease-in-out infinite', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', top: '20%', right: '15%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)', borderRadius: '50%', animation: 'pulse-glow 4s ease-in-out infinite 2s', pointerEvents: 'none' }} />
 
@@ -220,10 +220,10 @@ export default function Home() {
       </div>
 
       {/* Games Grid */}
-      <div style={{ maxWidth: '1140px', margin: '0 auto', padding: '0 24px 80px' }}>
+      <div style={{ maxWidth: '1140px', margin: '0 auto', padding: '0 clamp(16px,4vw,32px) clamp(48px,8vw,80px)' }}>
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <h2 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1.4rem', color: '#e2e8f0', letterSpacing: '0.05em' }}>GAME MODES</h2>
-          <p style={{ color: '#64748b', marginTop: '6px' }}>All 6 games live — choose your battleground</p>
+          <h2 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1.4rem', color: '#e2e8f0', letterSpacing: '0.05em' }}>PICK YOUR GAME</h2>
+          <p style={{ color: '#64748b', marginTop: '6px' }}>Six modes. One winner. Your skill decides.</p>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
           {GAMES.map(game => <GameCard key={game.id} game={game} />)}
@@ -309,9 +309,15 @@ function GameCard({ game }: { game: typeof GAMES[0] }) {
           ))}
         </div>
 
-        <div style={{ display: 'flex', gap: '16px', fontSize: '0.8rem', color: '#475569', marginBottom: '18px' }}>
-          <span>👥 {game.players}</span>
-          <span>💵 {game.entry}</span>
+        <div style={{ display: 'flex', gap: '16px', fontSize: '0.8rem', color: '#475569', marginBottom: '18px', alignItems: 'center' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="6" cy="5" r="3"/><path d="M1 14c0-2.8 2.2-5 5-5"/><circle cx="12" cy="6" r="2.5"/><path d="M15 14c0-2.2-1.6-4-3.5-4"/></svg>
+            {game.players}
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 4v1M8 11v1M5.5 6.5A1.5 1.5 0 0 1 8 5.5h.5a1.5 1.5 0 0 1 0 3h-1a1.5 1.5 0 0 0 0 3H8a1.5 1.5 0 0 0 1.5-1.5"/></svg>
+            {game.entry}
+          </span>
         </div>
 
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -323,7 +329,7 @@ function GameCard({ game }: { game: typeof GAMES[0] }) {
           </button>
           {game.botMode && (
             <button
-              onClick={() => navigate('/game/practice', { state: { bot: true, entry: 0 } })}
+              onClick={() => navigate('/game/practice', { state: { bot: true, entry: 0, gameMode: game.id } })}
               style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.25)', borderRadius: '9px', padding: '11px 14px', color: '#a78bfa', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}
             >
               vs Bot

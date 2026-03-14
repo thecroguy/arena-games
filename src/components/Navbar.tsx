@@ -2,11 +2,46 @@ import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 
+function IconGames({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1" y="1" width="6" height="6" rx="1.5" />
+      <rect x="9" y="1" width="6" height="6" rx="1.5" />
+      <rect x="1" y="9" width="6" height="6" rx="1.5" />
+      <rect x="9" y="9" width="6" height="6" rx="1.5" />
+    </svg>
+  )
+}
+function IconTrophy({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 11v2M5 15h6M4 1h8v5a4 4 0 0 1-8 0V1Z" />
+      <path d="M4 3H2a2 2 0 0 0 0 4h2M12 3h2a2 2 0 0 1 0 4h-2" />
+    </svg>
+  )
+}
+function IconBook({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 3c-1.5-1-3.5-1-5-1v11c1.5 0 3.5 0 5 1 1.5-1 3.5-1 5-1V2c-1.5 0-3.5 0-5 1Z" />
+      <line x1="8" y1="3" x2="8" y2="14" />
+    </svg>
+  )
+}
+function IconPerson({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="5" r="3" />
+      <path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+    </svg>
+  )
+}
+
 const NAV_LINKS = [
-  { to: '/',            label: 'Games',   icon: '⊞' },
-  { to: '/leaderboard', label: 'Board',   icon: '🏆' },
-  { to: '/guide',       label: 'Guide',   icon: '📖' },
-  { to: '/profile',     label: 'Profile', icon: '👤' },
+  { to: '/',            label: 'Games',   icon: <IconGames size={16} /> },
+  { to: '/leaderboard', label: 'Board',   icon: <IconTrophy size={16} /> },
+  { to: '/guide',       label: 'Guide',   icon: <IconBook size={16} /> },
+  { to: '/profile',     label: 'Profile', icon: <IconPerson size={16} /> },
 ]
 
 export default function Navbar() {
@@ -18,8 +53,9 @@ export default function Navbar() {
       <nav style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 clamp(12px, 4vw, 28px)', height: '60px',
-        background: 'rgba(10,10,15,0.97)', backdropFilter: 'blur(16px)',
-        borderBottom: '1px solid rgba(124,58,237,0.15)',
+        background: 'rgba(10,10,15,0.6)', backdropFilter: 'blur(24px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+        borderBottom: '1px solid rgba(124,58,237,0.12)',
         position: 'sticky', top: 0, zIndex: 100,
         minWidth: 0, overflow: 'hidden',
       }}>
@@ -102,7 +138,7 @@ export default function Navbar() {
                 color: active ? '#a78bfa' : '#94a3b8',
                 fontWeight: 600, fontSize: '0.95rem',
               }}>
-                <span style={{ fontSize: '1rem', width: '20px', textAlign: 'center' }}>{icon}</span>
+                <span style={{ width: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</span>
                 {label}
                 {active && <span style={{ marginLeft: 'auto', width: '6px', height: '6px', borderRadius: '50%', background: '#7c3aed', display: 'block' }} />}
               </Link>
