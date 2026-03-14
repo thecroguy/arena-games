@@ -7,7 +7,7 @@ import { polygon } from 'wagmi/chains'
 import { fetchPlayerHistory, fetchPlayerStats, fetchProfile, upsertProfile, unlockAvatarStyle, type GameHistory } from '../utils/supabase'
 import {
   getAvatarUrl, getAvatarColor, AVATAR_STYLES, STYLE_CATALOG,
-  isStyleOwned, parseStyleId, getDefaultStyle,
+  isStyleOwned, getDefaultStyle,
   type AvatarStyle, type AvatarEntry,
 } from '../utils/avatar'
 import { getUsername, setUsername, shortAddr } from '../utils/profile'
