@@ -76,7 +76,7 @@ const GAMES = [
 ]
 
 const STEPS = [
-  { icon: '🔗', title: 'Connect Wallet', desc: 'Link your Polygon wallet — MetaMask, Coinbase, WalletConnect all supported.' },
+  { icon: '🔗', title: 'Connect Wallet', desc: 'MetaMask, Coinbase, WalletConnect all supported. Use USDT on any major network.' },
   { icon: '🎮', title: 'Join a Room', desc: 'Pick a game, choose your entry fee, and join or create a room.' },
   { icon: '🏆', title: 'Win the Pot', desc: 'Outplay your opponents. Winner claims 85% of the pot instantly.' },
 ]
@@ -114,7 +114,7 @@ export default function Home() {
         {/* Live badge */}
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '20px', padding: '6px 16px', marginBottom: '24px', fontSize: '0.8rem', color: '#22c55e', fontWeight: 700, letterSpacing: '0.05em' }}>
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block', boxShadow: '0 0 8px #22c55e', animation: 'pulse-glow 1.5s ease-in-out infinite' }} />
-          LIVE ON POLYGON
+          LIVE — USDT ON ANY CHAIN
         </div>
 
         <h1 style={{
@@ -132,7 +132,7 @@ export default function Home() {
         </h1>
 
         <p style={{ color: '#94a3b8', fontSize: '1.15rem', maxWidth: '520px', margin: '0 auto 32px', lineHeight: 1.6 }}>
-          Skill-based multiplayer games on Polygon.<br />
+          Skill-based multiplayer games on any chain.<br />
           Connect your wallet, beat the competition, take the pot.
         </p>
 
@@ -157,7 +157,7 @@ export default function Home() {
         <div style={{ display: 'flex', gap: '32px', justifyContent: 'center', flexWrap: 'wrap' }}>
           {[
             { label: 'Games Live', value: '1', color: '#22c55e' },
-            { label: 'Network', value: 'Polygon', color: '#a78bfa' },
+            { label: 'Networks', value: '6 Chains', color: '#a78bfa' },
             { label: 'Token', value: 'USDT', color: '#06b6d4' },
             { label: 'Rake', value: '15%', color: '#f59e0b' },
           ].map(s => (

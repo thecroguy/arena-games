@@ -4,6 +4,7 @@ import Lobby from './pages/Lobby'
 import Game from './pages/Game'
 import Profile from './pages/Profile'
 import Leaderboard from './pages/Leaderboard'
+import Guide from './pages/Guide'
 import Navbar from './components/Navbar'
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="/game/:roomCode" element={<Game />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/guide" element={<Guide />} />
         </Routes>
       </main>
     </div>

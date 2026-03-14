@@ -3,9 +3,10 @@ import { Link, useLocation } from 'react-router-dom'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 
 const NAV_LINKS = [
-  { to: '/',            label: 'Games',    icon: '🎮' },
-  { to: '/leaderboard', label: 'Board',    icon: '🏆' },
-  { to: '/profile',     label: 'Profile',  icon: '👤' },
+  { to: '/',            label: 'Games',   icon: '🎮' },
+  { to: '/leaderboard', label: 'Board',   icon: '🏆' },
+  { to: '/guide',       label: 'Guide',   icon: '📖' },
+  { to: '/profile',     label: 'Profile', icon: '👤' },
 ]
 
 export default function Navbar() {
