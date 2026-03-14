@@ -1,20 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useAccount, useWriteContract, useChainId, useSwitchChain } from 'wagmi'
-import { polygon } from 'wagmi/chains'
-import { parseUnits } from 'viem'
+import { useAccount, useWriteContract, useChainId, useSwitchChain, useReadContract } from 'wagmi'
+import { parseUnits, formatUnits } from 'viem'
 import { connectSocket } from '../utils/socket'
 import { getUsername, shortAddr } from '../utils/profile'
+import { SUPPORTED_CHAINS, USDT_ABI, getChain, type SupportedChain } from '../utils/chains'
 
-const ACTIVE_ROOM_KEY = 'ag_active_room'
-
-const USDT_POLYGON = '0xc2132D05D31c914a87C6611C10748AEb04B58e8F'
 const HOUSE_WALLET = (import.meta.env.VITE_HOUSE_WALLET || '0x0000000000000000000000000000000000000000') as `0x${string}`
-const USDT_ABI = [
-  { name: 'transfer', type: 'function', stateMutability: 'nonpayable',
-    inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }],
-    outputs: [{ name: '', type: 'bool' }] },
-] as const
+const ACTIVE_ROOM_KEY = 'ag_active_room'
 
 const GAME_META: Record<string, { title: string; emoji: string; desc: string; minPlayers: number; maxPlayers: number }> = {
   'math-arena': {
@@ -32,27 +25,48 @@ export default function Lobby() {
   const { gameMode } = useParams<{ gameMode: string }>()
   const navigate = useNavigate()
   const { address, isConnected } = useAccount()
-  const chainId = useChainId()
+  const currentChainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
 
-  const [rooms, setRooms]         = useState<Room[]>([])
+  const [rooms, setRooms]           = useState<Room[]>([])
   const [selectedFee, setSelectedFee] = useState<number>(1)
-  const [maxPlayers, setMaxPlayers]   = useState<number>(5)
-  const [joinCode, setJoinCode]   = useState('')
-  const [tab, setTab]             = useState<'browse' | 'create'>('browse')
-  const [loading, setLoading]     = useState(true)
-  const [creating, setCreating]   = useState(false)
-  const [joining, setJoining]     = useState<string | null>(null)
-  const [error, setError]         = useState('')
-  const [payStep, setPayStep]     = useState<'idle' | 'switching' | 'paying' | 'creating'>('idle')
+  const [maxPlayers, setMaxPlayers] = useState<number>(5)
+  const [joinCode, setJoinCode]     = useState('')
+  const [tab, setTab]               = useState<'browse' | 'create'>('browse')
+  const [loading, setLoading]       = useState(true)
+  const [creating, setCreating]     = useState(false)
+  const [joining, setJoining]       = useState<string | null>(null)
+  const [error, setError]           = useState('')
+  const [payStep, setPayStep]       = useState<'idle' | 'switching' | 'paying' | 'creating'>('idle')
   const [activeRoom, setActiveRoom] = useState(() => localStorage.getItem(ACTIVE_ROOM_KEY) || '')
+  const [selectedChain, setSelectedChain] = useState<SupportedChain>(SUPPORTED_CHAINS[0])
+  const [showChainPicker, setShowChainPicker] = useState(false)
   const errorTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const meta = GAME_META[gameMode ?? ''] ?? { title: gameMode ?? 'Game', emoji: '🎮', desc: '', minPlayers: 2, maxPlayers: 10 }
   const myName = address ? getUsername(address) : ''
 
-  // Auto-dismiss errors after 5s
+  // Read USDT balance on selected chain
+  const { data: usdtBalance } = useReadContract({
+    address: selectedChain.usdt,
+    abi: USDT_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    chainId: selectedChain.id,
+    query: { enabled: !!address },
+  })
+
+  const balanceFormatted = usdtBalance !== undefined
+    ? Number(formatUnits(usdtBalance as bigint, selectedChain.decimals)).toFixed(2)
+    : '—'
+
+  // Sync chain picker to current wallet chain
+  useEffect(() => {
+    const chain = getChain(currentChainId)
+    if (chain) setSelectedChain(chain)
+  }, [currentChainId])
+
   function showError(msg: string) {
     setError(msg)
     if (errorTimer.current) clearTimeout(errorTimer.current)
@@ -68,88 +82,83 @@ export default function Lobby() {
     else { socket.connect(); socket.once('connect', loadRooms) }
     socket.on('room:update', loadRooms)
     const interval = setInterval(loadRooms, 5000)
-    return () => { socket.off('room:update'); clearInterval(interval); if (errorTimer.current) clearTimeout(errorTimer.current) }
+    return () => {
+      socket.off('room:update')
+      clearInterval(interval)
+      if (errorTimer.current) clearTimeout(errorTimer.current)
+    }
   }, [gameMode])
 
-  const filteredRooms = rooms
-
-  async function payAndCreate() {
-    if (!isConnected || !address) { showError('Connect your wallet first'); return }
-    setCreating(true)
-    setError('')
-
-    if (chainId !== polygon.id) {
+  async function payEntryFee(fee: number, chain: SupportedChain): Promise<string | null> {
+    // Switch chain if needed
+    if (currentChainId !== chain.id) {
       setPayStep('switching')
       try {
-        await switchChainAsync({ chainId: polygon.id })
+        await switchChainAsync({ chainId: chain.id })
       } catch {
-        showError('Please switch to Polygon network to pay entry fee')
-        setCreating(false); setPayStep('idle'); return
+        showError(`Please switch to ${chain.name} in your wallet`)
+        return null
       }
     }
 
+    // Transfer USDT
     setPayStep('paying')
     try {
-      await writeContractAsync({
-        address: USDT_POLYGON as `0x${string}`,
+      const hash = await writeContractAsync({
+        address: chain.usdt,
         abi: USDT_ABI,
         functionName: 'transfer',
-        args: [HOUSE_WALLET, parseUnits(String(selectedFee), 6)],
-        chainId: polygon.id,
+        args: [HOUSE_WALLET, parseUnits(String(fee), chain.decimals)],
+        chainId: chain.id,
       })
+      return hash
     } catch {
-      showError('Payment failed or rejected. Entry fee is required to create a room.')
-      setCreating(false); setPayStep('idle'); return
+      showError('Payment rejected. Entry fee is required to play.')
+      return null
     }
+  }
+
+  async function payAndCreate() {
+    if (!isConnected || !address) { showError('Connect your wallet first'); return }
+    setCreating(true); setError('')
+
+    const txHash = await payEntryFee(selectedFee, selectedChain)
+    if (!txHash) { setCreating(false); setPayStep('idle'); return }
 
     setPayStep('creating')
     const socket = connectSocket()
-    socket.emit('room:create', { gameMode, entryFee: selectedFee, maxPlayers, address }, (res: { code?: string; error?: string }) => {
-      setCreating(false); setPayStep('idle')
-      if (res.error) { showError(res.error); return }
-      localStorage.setItem(ACTIVE_ROOM_KEY, res.code!)
-      setActiveRoom(res.code!)
-      navigate(`/game/${res.code}`, { state: { host: true, entry: selectedFee, maxPlayers } })
-    })
+    socket.emit('room:create',
+      { gameMode, entryFee: selectedFee, maxPlayers, address, chainId: selectedChain.id, txHash },
+      (res: { code?: string; error?: string }) => {
+        setCreating(false); setPayStep('idle')
+        if (res.error) { showError(res.error); return }
+        localStorage.setItem(ACTIVE_ROOM_KEY, res.code!)
+        setActiveRoom(res.code!)
+        navigate(`/game/${res.code}`, { state: { host: true, entry: selectedFee, maxPlayers } })
+      }
+    )
   }
 
   async function handleJoinRoom(code: string) {
     if (!isConnected || !address) { showError('Connect your wallet first'); return }
     const room = rooms.find(r => r.code === code)
     const fee = room?.entry ?? 1
-    setJoining(code)
-    setError('')
+    setJoining(code); setError('')
 
-    if (chainId !== polygon.id) {
-      try {
-        await switchChainAsync({ chainId: polygon.id })
-      } catch {
-        showError('Please switch to Polygon network')
-        setJoining(null); return
-      }
-    }
-
-    try {
-      await writeContractAsync({
-        address: USDT_POLYGON as `0x${string}`,
-        abi: USDT_ABI,
-        functionName: 'transfer',
-        args: [HOUSE_WALLET, parseUnits(String(fee), 6)],
-        chainId: polygon.id,
-      })
-    } catch {
-      showError('Payment failed or rejected. Entry fee is required to join.')
-      setJoining(null); return
-    }
+    const txHash = await payEntryFee(fee, selectedChain)
+    if (!txHash) { setJoining(null); setPayStep('idle'); return }
 
     const socket = connectSocket()
-    socket.emit('room:join', { code, address }, (res: { ok?: boolean; error?: string }) => {
-      setJoining(null)
-      if (res.error) { showError(res.error); return }
-      localStorage.setItem(ACTIVE_ROOM_KEY, code)
-      setActiveRoom(code)
-      navigate(`/game/${code}`)
-    })
+    socket.emit('room:join',
+      { code, address, chainId: selectedChain.id, txHash },
+      (res: { ok?: boolean; error?: string }) => {
+        setJoining(null); setPayStep('idle')
+        if (res.error) { showError(res.error); return }
+        localStorage.setItem(ACTIVE_ROOM_KEY, code)
+        setActiveRoom(code)
+        navigate(`/game/${code}`)
+      }
+    )
   }
 
   function handleJoinByCode() {
@@ -164,10 +173,10 @@ export default function Lobby() {
   }
 
   const createBtnLabel = () => {
-    if (payStep === 'switching') return 'Switching to Polygon…'
+    if (payStep === 'switching') return `Switching to ${selectedChain.name}…`
     if (payStep === 'paying')    return `Sending $${selectedFee} USDT…`
     if (payStep === 'creating')  return 'Creating room…'
-    return `Pay $${selectedFee} & Create Room`
+    return `Pay $${selectedFee} USDT & Create`
   }
 
   return (
@@ -175,7 +184,7 @@ export default function Lobby() {
 
       {/* Header */}
       <div style={{ marginBottom: '28px' }}>
-        <button style={{ color: '#64748b', fontSize: '0.85rem', background: 'none', border: 'none', cursor: 'pointer', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => navigate('/')}>
+        <button style={{ color: '#64748b', fontSize: '0.85rem', background: 'none', border: 'none', cursor: 'pointer', marginBottom: '12px' }} onClick={() => navigate('/')}>
           ← Back
         </button>
         <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(1.4rem,4vw,2rem)', fontWeight: 900, background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginBottom: '4px' }}>
@@ -189,7 +198,7 @@ export default function Lobby() {
       {activeRoom && (
         <div style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: '10px', padding: '12px 18px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
           <span style={{ color: '#22c55e', fontSize: '0.88rem', fontWeight: 600 }}>
-            You have an active room: <strong style={{ fontFamily: 'Orbitron, sans-serif' }}>{activeRoom}</strong>
+            Active room: <strong style={{ fontFamily: 'Orbitron, sans-serif' }}>{activeRoom}</strong>
           </span>
           <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
             <button onClick={() => navigate(`/game/${activeRoom}`)}
@@ -207,9 +216,45 @@ export default function Lobby() {
       {error && (
         <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '12px 18px', marginBottom: '16px', color: '#ef4444', fontSize: '0.88rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>{error}</span>
-          <button style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1rem', flexShrink: 0 }} onClick={() => setError('')}>✕</button>
+          <button style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', flexShrink: 0 }} onClick={() => setError('')}>✕</button>
         </div>
       )}
+
+      {/* Chain selector */}
+      <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', padding: '14px 18px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <p style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '4px' }}>PAY WITH USDT ON</p>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {SUPPORTED_CHAINS.map(chain => (
+                <button key={chain.id}
+                  onClick={() => setSelectedChain(chain)}
+                  style={{
+                    padding: '6px 14px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s',
+                    background: selectedChain.id === chain.id ? `${chain.color}22` : 'transparent',
+                    border: `1px solid ${selectedChain.id === chain.id ? chain.color : '#1e1e30'}`,
+                    color: selectedChain.id === chain.id ? chain.color : '#64748b',
+                  }}>
+                  {chain.icon} {chain.shortName}
+                </button>
+              ))}
+            </div>
+          </div>
+          {address && (
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <p style={{ fontSize: '0.7rem', color: '#64748b', marginBottom: '2px' }}>Your balance</p>
+              <p style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1rem', color: Number(balanceFormatted) >= selectedFee ? '#22c55e' : '#f59e0b' }}>
+                ${balanceFormatted} <span style={{ fontSize: '0.65rem', color: '#64748b' }}>USDT</span>
+              </p>
+            </div>
+          )}
+        </div>
+        {selectedChain.id === 1 && (
+          <p style={{ color: '#f59e0b', fontSize: '0.75rem', marginTop: '10px' }}>
+            ⚠️ Ethereum has high gas fees. Consider Polygon, Arbitrum, or Base for cheap transfers.
+          </p>
+        )}
+      </div>
 
       {/* Join by code */}
       <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', padding: '16px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
@@ -241,13 +286,13 @@ export default function Lobby() {
       {tab === 'browse' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {loading && <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', textAlign: 'center', color: '#64748b', padding: '48px' }}>Loading rooms…</div>}
-          {!loading && filteredRooms.length === 0 && (
+          {!loading && rooms.length === 0 && (
             <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', textAlign: 'center', color: '#64748b', padding: '48px' }}>
               No open rooms.{' '}
               <button style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontWeight: 700, fontSize: 'inherit' }} onClick={() => setTab('create')}>Create the first →</button>
             </div>
           )}
-          {filteredRooms.map(room => (
+          {rooms.map(room => (
             <div key={room.code} style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', opacity: room.status === 'full' ? 0.5 : 1 }}>
               <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <div>
@@ -268,7 +313,7 @@ export default function Lobby() {
                   disabled={room.status === 'full' || joining === room.code}
                   onClick={() => handleJoinRoom(room.code)}
                   style={{ background: room.status === 'full' ? '#1e1e30' : 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '8px', padding: '9px 20px', color: room.status === 'full' ? '#64748b' : '#fff', fontWeight: 700, cursor: room.status === 'full' ? 'not-allowed' : 'pointer', fontSize: '0.88rem', whiteSpace: 'nowrap' }}>
-                  {joining === room.code ? 'Paying…' : `Join $${room.entry}`}
+                  {joining === room.code ? `${selectedChain.icon} Paying…` : `Join ${selectedChain.icon}`}
                 </button>
               </div>
             </div>
@@ -302,26 +347,57 @@ export default function Lobby() {
             </div>
           </div>
 
-          <div style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: '10px', padding: '14px 16px', marginBottom: '20px' }}>
-            {([['Entry Fee', `$${selectedFee} USDT`], ['Max Players', maxPlayers], ['Pot if full (85%)', `$${(selectedFee * maxPlayers * 0.85).toFixed(2)} USDT`]] as [string, string | number][]).map(([k, v], i) => (
+          {/* Summary */}
+          <div style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px' }}>
+            {([
+              ['Network', `${selectedChain.icon} ${selectedChain.name}`],
+              ['Entry Fee', `$${selectedFee} USDT`],
+              ['Max Players', maxPlayers],
+              ['Max Pot (85%)', `$${(selectedFee * maxPlayers * 0.85).toFixed(2)} USDT`],
+            ] as [string, string | number][]).map(([k, v], i) => (
               <div key={String(k)} style={{ display: 'flex', justifyContent: 'space-between', paddingTop: i > 0 ? '8px' : 0, marginTop: i > 0 ? '8px' : 0, borderTop: i > 0 ? '1px solid #1e1e30' : 'none' }}>
                 <span style={{ color: '#94a3b8', fontSize: '0.88rem' }}>{k}</span>
-                <span style={{ fontWeight: 700, color: i === 2 ? '#22c55e' : '#e2e8f0', fontSize: '0.88rem' }}>{v}</span>
+                <span style={{ fontWeight: 700, color: i === 3 ? '#22c55e' : '#e2e8f0', fontSize: '0.88rem' }}>{v}</span>
               </div>
             ))}
           </div>
 
-          <div style={{ background: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.15)', borderRadius: '10px', padding: '10px 14px', marginBottom: '20px', fontSize: '0.8rem', color: '#64748b' }}>
-            💳 Your wallet will prompt you to send <strong style={{ color: '#22c55e' }}>${selectedFee} USDT</strong> on Polygon as entry fee.
-          </div>
+          {/* Balance warning */}
+          {address && Number(balanceFormatted) < selectedFee && balanceFormatted !== '—' && (
+            <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.8rem', color: '#ef4444' }}>
+              ⚠️ Insufficient USDT on {selectedChain.name}. Balance: ${balanceFormatted}
+            </div>
+          )}
 
           <button onClick={payAndCreate} disabled={creating || !isConnected}
             style={{ width: '100%', background: creating ? '#1e1e30' : 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '10px', padding: '14px', color: creating ? '#64748b' : '#fff', fontWeight: 700, fontSize: '0.95rem', fontFamily: 'Orbitron, sans-serif', cursor: creating ? 'not-allowed' : 'pointer', letterSpacing: '0.04em' }}>
-            {creating ? createBtnLabel() : `Pay $${selectedFee} USDT & Create`}
+            {creating ? createBtnLabel() : `${selectedChain.icon} Pay & Create Room`}
           </button>
           {!isConnected && (
             <p style={{ color: '#f59e0b', fontSize: '0.82rem', marginTop: '10px', textAlign: 'center' }}>⚠️ Connect your wallet to create a room</p>
           )}
+        </div>
+      )}
+
+      {/* Chain picker modal */}
+      {showChainPicker && (
+        <div onClick={() => setShowChainPicker(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '24px' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '380px' }}>
+            <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.9rem', marginBottom: '16px', color: '#e2e8f0' }}>Select Network</h3>
+            {SUPPORTED_CHAINS.map(chain => (
+              <button key={chain.id} onClick={() => { setSelectedChain(chain); setShowChainPicker(false) }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', borderRadius: '10px', border: `1px solid ${selectedChain.id === chain.id ? chain.color : '#1e1e30'}`, background: selectedChain.id === chain.id ? `${chain.color}18` : 'transparent', cursor: 'pointer', marginBottom: '6px' }}>
+                <span style={{ fontSize: '1.2rem' }}>{chain.icon}</span>
+                <div style={{ textAlign: 'left' }}>
+                  <p style={{ color: '#e2e8f0', fontWeight: 600, fontSize: '0.9rem' }}>{chain.name}</p>
+                  <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Gas: {chain.symbol}</p>
+                </div>
+                {selectedChain.id === chain.id && <span style={{ marginLeft: 'auto', color: chain.color, fontSize: '1rem' }}>✓</span>}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
