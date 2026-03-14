@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAccount, useWriteContract, useChainId, useSwitchChain } from 'wagmi'
 import { polygon } from 'wagmi/chains'
 import { parseUnits } from 'viem'
 import { connectSocket } from '../utils/socket'
 import { getUsername, shortAddr } from '../utils/profile'
+
+const ACTIVE_ROOM_KEY = 'ag_active_room'
 
 const USDT_POLYGON = '0xc2132D05D31c914a87C6611C10748AEb04B58e8F'
 const HOUSE_WALLET = (import.meta.env.VITE_HOUSE_WALLET || '0x0000000000000000000000000000000000000000') as `0x${string}`
@@ -44,9 +46,18 @@ export default function Lobby() {
   const [joining, setJoining]     = useState<string | null>(null)
   const [error, setError]         = useState('')
   const [payStep, setPayStep]     = useState<'idle' | 'switching' | 'paying' | 'creating'>('idle')
+  const [activeRoom, setActiveRoom] = useState(() => localStorage.getItem(ACTIVE_ROOM_KEY) || '')
+  const errorTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const meta = GAME_META[gameMode ?? ''] ?? { title: gameMode ?? 'Game', emoji: '🎮', desc: '', minPlayers: 2, maxPlayers: 10 }
   const myName = address ? getUsername(address) : ''
+
+  // Auto-dismiss errors after 5s
+  function showError(msg: string) {
+    setError(msg)
+    if (errorTimer.current) clearTimeout(errorTimer.current)
+    errorTimer.current = setTimeout(() => setError(''), 5000)
+  }
 
   useEffect(() => {
     const socket = connectSocket()
@@ -57,28 +68,26 @@ export default function Lobby() {
     else { socket.connect(); socket.once('connect', loadRooms) }
     socket.on('room:update', loadRooms)
     const interval = setInterval(loadRooms, 5000)
-    return () => { socket.off('room:update'); clearInterval(interval) }
+    return () => { socket.off('room:update'); clearInterval(interval); if (errorTimer.current) clearTimeout(errorTimer.current) }
   }, [gameMode])
 
   const filteredRooms = rooms
 
   async function payAndCreate() {
-    if (!isConnected || !address) { setError('Connect your wallet first'); return }
+    if (!isConnected || !address) { showError('Connect your wallet first'); return }
     setCreating(true)
     setError('')
 
-    // Switch to Polygon if needed
     if (chainId !== polygon.id) {
       setPayStep('switching')
       try {
         await switchChainAsync({ chainId: polygon.id })
       } catch {
-        setError('Please switch to Polygon network to pay entry fee')
+        showError('Please switch to Polygon network to pay entry fee')
         setCreating(false); setPayStep('idle'); return
       }
     }
 
-    // Transfer USDT to house wallet
     setPayStep('paying')
     try {
       await writeContractAsync({
@@ -89,38 +98,37 @@ export default function Lobby() {
         chainId: polygon.id,
       })
     } catch {
-      setError('Payment failed or rejected. Entry fee is required to create a room.')
+      showError('Payment failed or rejected. Entry fee is required to create a room.')
       setCreating(false); setPayStep('idle'); return
     }
 
-    // Create room after payment
     setPayStep('creating')
     const socket = connectSocket()
     socket.emit('room:create', { gameMode, entryFee: selectedFee, maxPlayers, address }, (res: { code?: string; error?: string }) => {
       setCreating(false); setPayStep('idle')
-      if (res.error) { setError(res.error); return }
+      if (res.error) { showError(res.error); return }
+      localStorage.setItem(ACTIVE_ROOM_KEY, res.code!)
+      setActiveRoom(res.code!)
       navigate(`/game/${res.code}`, { state: { host: true, entry: selectedFee, maxPlayers } })
     })
   }
 
   async function handleJoinRoom(code: string) {
-    if (!isConnected || !address) { setError('Connect your wallet first'); return }
+    if (!isConnected || !address) { showError('Connect your wallet first'); return }
     const room = rooms.find(r => r.code === code)
     const fee = room?.entry ?? 1
     setJoining(code)
     setError('')
 
-    // Switch to Polygon if needed
     if (chainId !== polygon.id) {
       try {
         await switchChainAsync({ chainId: polygon.id })
       } catch {
-        setError('Please switch to Polygon network')
+        showError('Please switch to Polygon network')
         setJoining(null); return
       }
     }
 
-    // Pay entry fee
     try {
       await writeContractAsync({
         address: USDT_POLYGON as `0x${string}`,
@@ -130,14 +138,16 @@ export default function Lobby() {
         chainId: polygon.id,
       })
     } catch {
-      setError('Payment failed or rejected. Entry fee is required to join.')
+      showError('Payment failed or rejected. Entry fee is required to join.')
       setJoining(null); return
     }
 
     const socket = connectSocket()
     socket.emit('room:join', { code, address }, (res: { ok?: boolean; error?: string }) => {
       setJoining(null)
-      if (res.error) { setError(res.error); return }
+      if (res.error) { showError(res.error); return }
+      localStorage.setItem(ACTIVE_ROOM_KEY, code)
+      setActiveRoom(code)
       navigate(`/game/${code}`)
     })
   }
@@ -146,6 +156,11 @@ export default function Lobby() {
     const code = joinCode.trim().toUpperCase()
     if (!code) return
     handleJoinRoom(code)
+  }
+
+  function clearActiveRoom() {
+    localStorage.removeItem(ACTIVE_ROOM_KEY)
+    setActiveRoom('')
   }
 
   const createBtnLabel = () => {
@@ -170,8 +185,27 @@ export default function Lobby() {
         {myName && <p style={{ color: '#a78bfa', fontSize: '0.8rem', marginTop: '4px' }}>Playing as <strong>{myName}</strong></p>}
       </div>
 
+      {/* Active room banner */}
+      {activeRoom && (
+        <div style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: '10px', padding: '12px 18px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+          <span style={{ color: '#22c55e', fontSize: '0.88rem', fontWeight: 600 }}>
+            You have an active room: <strong style={{ fontFamily: 'Orbitron, sans-serif' }}>{activeRoom}</strong>
+          </span>
+          <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+            <button onClick={() => navigate(`/game/${activeRoom}`)}
+              style={{ background: '#22c55e', border: 'none', borderRadius: '7px', padding: '6px 14px', color: '#0a0a0f', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
+              Rejoin →
+            </button>
+            <button onClick={clearActiveRoom}
+              style={{ background: 'none', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '7px', padding: '6px 10px', color: '#64748b', fontSize: '0.82rem', cursor: 'pointer' }}>
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {error && (
-        <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '12px 18px', marginBottom: '20px', color: '#ef4444', fontSize: '0.88rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '12px 18px', marginBottom: '16px', color: '#ef4444', fontSize: '0.88rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>{error}</span>
           <button style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1rem', flexShrink: 0 }} onClick={() => setError('')}>✕</button>
         </div>

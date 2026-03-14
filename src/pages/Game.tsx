@@ -243,6 +243,7 @@ export default function Game() {
     })
     socket.on('game:over', (data: { winner: string; pot: string; scores: Array<{ address: string; score: number; rank: number }> }) => {
       if (timerRef.current) clearInterval(timerRef.current)
+      localStorage.removeItem('ag_active_room')
       setPhase('finished'); setGameOver(data)
     })
     socket.on('game:player_left', (data: { address: string }) => {

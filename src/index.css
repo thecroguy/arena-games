@@ -42,3 +42,38 @@ body { overflow-x: hidden; }
 /* Smooth transitions */
 a, button { transition: opacity 0.15s; }
 button:active { opacity: 0.8; }
+
+/* ── RainbowKit dark theme overrides ─────────────── */
+[data-rk] * { font-family: var(--font-body) !important; }
+
+/* Connect button background */
+[data-rk] button[data-testid="rk-connect-button"],
+[data-rk] button[data-testid="rk-account-button"] {
+  background: rgba(124,58,237,0.15) !important;
+  border: 1px solid rgba(124,58,237,0.35) !important;
+  color: #a78bfa !important;
+  border-radius: 10px !important;
+}
+
+/* Chain / network button */
+[data-rk] button[data-testid="rk-chain-button"] {
+  background: rgba(30,30,48,0.8) !important;
+  border: 1px solid #1e1e30 !important;
+  color: #64748b !important;
+  border-radius: 10px !important;
+}
+
+/* Inner wallet address area - remove white */
+[data-rk] [style*="background: white"],
+[data-rk] [style*="background:white"],
+[data-rk] [style*="background: rgb(255"] {
+  background: #12121a !important;
+  color: #e2e8f0 !important;
+}
+
+/* Modal overlay */
+[data-rk] [role="dialog"] {
+  background: #12121a !important;
+  border: 1px solid #1e1e30 !important;
+  border-radius: 16px !important;
+}
