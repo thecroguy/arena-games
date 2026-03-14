@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAccount } from 'wagmi'
 import { fetchLeaderboard, type LeaderboardEntry } from '../utils/supabase'
+import { getAvatarUrl, getAvatarColor } from '../utils/avatar'
 
 type Period = 'alltime' | 'weekly' | 'daily'
 
@@ -22,7 +23,7 @@ export default function Leaderboard() {
     setError('')
     fetchLeaderboard(period)
       .then(setData)
-      .catch(() => setError('Could not load leaderboard — check Supabase env vars'))
+      .catch(() => setError('Leaderboard unavailable — backend not configured yet'))
       .finally(() => setLoading(false))
   }, [period])
 
@@ -90,7 +91,8 @@ export default function Leaderboard() {
                 const heights = ['140px', '170px', '120px']
                 return (
                   <div key={p.player_address} style={{ background: actualRank === 1 ? 'linear-gradient(135deg, rgba(245,158,11,0.15), rgba(124,58,237,0.1))' : '#12121a', border: `1px solid ${actualRank === 1 ? 'rgba(245,158,11,0.4)' : '#1e1e30'}`, borderRadius: '16px', padding: '20px 16px', textAlign: 'center', alignSelf: 'flex-end', minHeight: heights[podiumIdx], display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                    <div style={{ fontSize: '1.8rem' }}>{MEDAL[actualRank]}</div>
+                    <img src={getAvatarUrl(p.player_address)} alt="avatar" width={48} height={48} style={{ borderRadius: '50%', border: `3px solid ${actualRank === 1 ? '#f59e0b' : getAvatarColor(p.player_address)}`, background: '#1e1e30' }} />
+                    <div style={{ fontSize: '1.4rem' }}>{MEDAL[actualRank]}</div>
                     <div style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.72rem', color: actualRank === 1 ? '#f59e0b' : '#94a3b8', letterSpacing: '0.05em', wordBreak: 'break-all' }}>
                       {short(p.player_address)}
                     </div>
@@ -130,6 +132,7 @@ export default function Leaderboard() {
                         </td>
                         <td style={{ padding: '14px 20px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <img src={getAvatarUrl(p.player_address)} alt="avatar" width={28} height={28} style={{ borderRadius: '50%', border: `2px solid ${getAvatarColor(p.player_address)}`, background: '#1e1e30', flexShrink: 0 }} />
                             <span style={{ fontWeight: 600, color: isMe ? '#a78bfa' : '#e2e8f0', fontSize: '0.9rem' }}>{short(p.player_address)}</span>
                             {isMe && <span style={{ fontSize: '0.65rem', background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa', borderRadius: '4px', padding: '1px 6px', fontWeight: 700 }}>YOU</span>}
                           </div>

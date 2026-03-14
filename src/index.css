@@ -19,3 +19,26 @@ html, body, #root {
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #12121a; }
 ::-webkit-scrollbar-thumb { background: #7c3aed; border-radius: 3px; }
+
+/* ── Mobile responsive ───────────────────────── */
+@media (max-width: 640px) {
+  nav { padding: 0 16px !important; }
+  nav span[style*="1.25rem"] { font-size: 1rem !important; }
+
+  /* Shrink rainbow connect button */
+  [data-rk] button { font-size: 0.8rem !important; padding: 6px 10px !important; }
+
+  /* Lobby / profile tables scroll */
+  table { font-size: 0.8rem; }
+  th, td { padding: 10px 12px !important; }
+
+  /* Game question box */
+  kbd { display: none; }
+}
+
+/* Prevent horizontal scroll globally */
+body { overflow-x: hidden; }
+
+/* Smooth transitions */
+a, button { transition: opacity 0.15s; }
+button:active { opacity: 0.8; }
