@@ -223,7 +223,7 @@ export default function Guide() {
 
       {/* Steps */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '56px' }}>
-        {STEPS.map((s, i) => (
+        {STEPS.map((s) => (
           <div key={s.step} style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '16px', overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '18px 24px', borderBottom: '1px solid #1e1e30', background: `linear-gradient(135deg, ${s.color}0a, transparent)` }}>
               <div style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 900, fontSize: '1.4rem', color: s.color, opacity: 0.5, minWidth: '44px' }}>{s.step}</div>
