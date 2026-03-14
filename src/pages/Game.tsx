@@ -3,6 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { useAccount } from 'wagmi'
 import { connectSocket } from '../utils/socket'
 import { getAvatarUrl, getAvatarColor } from '../utils/avatar'
+import { getUsername } from '../utils/profile'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Phase = 'waiting' | 'countdown' | 'playing' | 'round_end' | 'finished'
@@ -24,13 +25,14 @@ interface Question {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-function short(addr: string) {
-  if (addr === 'YOU' || addr.length < 10) return addr
-  return addr.slice(0, 6) + '…' + addr.slice(-4)
-}
-
 const ROUND_TIME_S = 12
 const BOT_ADDR = '0xB07B07B07B07B07B07B07B07B07B07B07B07B07B'
+
+function displayName(addr: string): string {
+  if (addr === BOT_ADDR) return '🤖 Bot'
+  if (addr === 'YOU') return 'You'
+  return getUsername(addr)
+}
 const TOTAL_BOT_ROUNDS = 10
 
 function makeLocalQ(round: number): Question {
@@ -289,7 +291,7 @@ export default function Game() {
           {players.map(p => (
             <div key={p.address} style={{ background: '#12121a', border: `1px solid ${p.address === myAddr ? '#7c3aed' : '#1e1e30'}`, borderRadius: '10px', padding: '8px 14px', fontSize: '0.82rem', color: p.address === myAddr ? '#a78bfa' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <img src={getAvatarUrl(p.address)} alt="avatar" width={28} height={28} style={{ borderRadius: '50%', border: `2px solid ${getAvatarColor(p.address)}`, background: '#1e1e30' }} />
-              {p.address === BOT_ADDR ? '🤖 Bot' : short(p.address)} {p.address === myAddr && '(you)'}
+              {displayName(p.address)} {p.address === myAddr && '(you)'}
             </div>
           ))}
         </div>
@@ -331,7 +333,7 @@ export default function Game() {
       <div style={{ textAlign: 'center', maxWidth: '480px', width: '100%', padding: '0 16px' }}>
         <div style={{ fontSize: '3.5rem', marginBottom: '8px' }}>🏆</div>
         <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(1.2rem,4vw,1.6rem)', fontWeight: 900, background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginBottom: '4px' }}>
-          {gameOver.winner === myAddr ? 'You Won!' : `${short(gameOver.winner)} Wins!`}
+          {gameOver.winner === myAddr ? 'You Won!' : `${displayName(gameOver.winner)} Wins!`}
         </h1>
         {!isBotMode && (
           <p style={{ color: gameOver.winner === myAddr ? '#22c55e' : '#94a3b8', fontWeight: 700, fontSize: '1.1rem', marginBottom: '24px' }}>
@@ -348,7 +350,7 @@ export default function Game() {
                   <span style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 900, color: i === 0 ? '#f59e0b' : '#64748b', width: '24px', fontSize: '0.9rem' }}>#{p.rank}</span>
                   <img src={getAvatarUrl(p.address)} alt="avatar" width={32} height={32} style={{ borderRadius: '50%', border: `2px solid ${getAvatarColor(p.address)}`, background: '#1e1e30', flexShrink: 0 }} />
                   <span style={{ fontWeight: 600, color: p.address === myAddr ? '#a78bfa' : '#e2e8f0', fontSize: '0.9rem' }}>
-                    {p.address === BOT_ADDR ? '🤖 Bot' : short(p.address)} {p.address === myAddr && '(you)'}
+                    {displayName(p.address)} {p.address === myAddr && '(you)'}
                   </span>
                 </div>
                 <span style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, color: i === 0 ? '#f59e0b' : '#94a3b8' }}>{p.score}/{question?.total ?? TOTAL_BOT_ROUNDS}</span>
@@ -464,7 +466,7 @@ export default function Game() {
                 <span style={{ color: '#64748b', fontSize: '0.78rem', width: '18px' }}>#{i + 1}</span>
                 <img src={getAvatarUrl(p.address)} alt="avatar" width={28} height={28} style={{ borderRadius: '50%', border: `2px solid ${getAvatarColor(p.address)}`, background: '#1e1e30', flexShrink: 0 }} />
                 <span style={{ fontWeight: 600, color: p.address === myAddr ? '#a78bfa' : '#94a3b8', fontSize: '0.88rem' }}>
-                  {p.address === BOT_ADDR ? '🤖 Bot' : short(p.address)} {p.address === myAddr && '(you)'}
+                  {displayName(p.address)} {p.address === myAddr && '(you)'}
                 </span>
                 {p.answered && <span style={{ fontSize: '0.8rem', color: p.correct ? '#22c55e' : '#ef4444' }}>{p.correct ? '✓' : '✗'}</span>}
               </div>

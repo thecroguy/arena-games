@@ -16,6 +16,12 @@ export function getAvatarUrl(address: string, style: AvatarStyle = 'adventurer')
   return `https://api.dicebear.com/8.x/${style}/svg?seed=${seed}&size=80`
 }
 
+/** Get avatar URL using the user's saved style preference */
+export function getAvatarUrlForUser(address: string): string {
+  const saved = localStorage.getItem(`ag_style_${address.toLowerCase()}`) as AvatarStyle | null
+  return getAvatarUrl(address, saved ?? 'adventurer')
+}
+
 /** Accent color derived from address (for border/glow) */
 const COLORS = ['#7c3aed','#06b6d4','#22c55e','#f59e0b','#ec4899','#ef4444','#a78bfa','#34d399']
 export function getAvatarColor(address: string): string {

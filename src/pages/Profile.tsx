@@ -3,16 +3,32 @@ import { useAccount } from 'wagmi'
 import { useNavigate } from 'react-router-dom'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { fetchPlayerHistory, fetchPlayerStats, type GameHistory } from '../utils/supabase'
-import { getAvatarUrl, getAvatarColor } from '../utils/avatar'
+import { getAvatarUrl, getAvatarColor, AVATAR_STYLES, type AvatarStyle } from '../utils/avatar'
+import { getUsername, setUsername, getSavedStyle, setSavedStyle, shortAddr } from '../utils/profile'
 
 export default function Profile() {
   const { address, isConnected } = useAccount()
   const navigate = useNavigate()
 
-  const [history, setHistory] = useState<GameHistory[]>([])
-  const [stats, setStats]     = useState<{ played: number; wins: number; winRate: number; totalEarned: number; totalSpent: number } | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState('')
+  const [history, setHistory]   = useState<GameHistory[]>([])
+  const [stats, setStats]       = useState<{ played: number; wins: number; winRate: number; totalEarned: number; totalSpent: number } | null>(null)
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState('')
+
+  const [editingName, setEditingName] = useState(false)
+  const [nameInput, setNameInput]     = useState('')
+  const [savedName, setSavedName]     = useState('')
+  const [avatarStyle, setAvatarStyle] = useState<AvatarStyle>('adventurer')
+
+  // Load saved preferences
+  useEffect(() => {
+    if (!address) return
+    const name  = getUsername(address)
+    const style = getSavedStyle(address) as AvatarStyle
+    setSavedName(name)
+    setNameInput(name)
+    setAvatarStyle(style)
+  }, [address])
 
   useEffect(() => {
     if (!address) return
@@ -23,6 +39,21 @@ export default function Profile() {
       .catch(() => setError('Stats unavailable — play some games first!'))
       .finally(() => setLoading(false))
   }, [address])
+
+  function saveName() {
+    if (!address || !nameInput.trim()) return
+    const clean = nameInput.trim().replace(/[^a-zA-Z0-9_\- ]/g, '').slice(0, 20)
+    setUsername(address, clean)
+    setSavedName(clean)
+    setNameInput(clean)
+    setEditingName(false)
+  }
+
+  function saveStyle(style: AvatarStyle) {
+    if (!address) return
+    setSavedStyle(address, style)
+    setAvatarStyle(style)
+  }
 
   if (!isConnected) {
     return (
@@ -35,36 +66,72 @@ export default function Profile() {
     )
   }
 
-  const short = address ? address.slice(0, 8) + '…' + address.slice(-6) : ''
-  const netProfit = stats ? stats.totalEarned - stats.totalSpent : 0
-  const avatarUrl = address ? getAvatarUrl(address) : ''
+  const netProfit  = stats ? stats.totalEarned - stats.totalSpent : 0
+  const avatarUrl  = address ? getAvatarUrl(address, avatarStyle) : ''
   const avatarColor = address ? getAvatarColor(address) : '#7c3aed'
 
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', padding: 'clamp(20px,4vw,40px) clamp(16px,4vw,24px)' }}>
 
       {/* Profile header */}
-      <div style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.12) 0%, rgba(6,182,212,0.06) 100%)', border: '1px solid rgba(124,58,237,0.25)', borderRadius: '20px', padding: 'clamp(20px,4vw,32px)', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flexShrink: 0 }}>
-          <img
-            src={avatarUrl}
-            alt="Your avatar"
-            width={80} height={80}
-            style={{ borderRadius: '50%', border: `3px solid ${avatarColor}`, background: '#1e1e30', display: 'block' }}
-          />
-          <div style={{ position: 'absolute', bottom: 0, right: 0, background: '#22c55e', borderRadius: '50%', width: '16px', height: '16px', border: '2px solid #0a0a0f' }} />
+      <div style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.12) 0%, rgba(6,182,212,0.06) 100%)', border: '1px solid rgba(124,58,237,0.25)', borderRadius: '20px', padding: 'clamp(20px,4vw,32px)', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <img src={avatarUrl} alt="Your avatar" width={80} height={80}
+              style={{ borderRadius: '50%', border: `3px solid ${avatarColor}`, background: '#1e1e30', display: 'block' }} />
+            <div style={{ position: 'absolute', bottom: 0, right: 0, background: '#22c55e', borderRadius: '50%', width: '16px', height: '16px', border: '2px solid #0a0a0f' }} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ color: '#64748b', fontSize: '0.7rem', letterSpacing: '0.1em', fontFamily: 'Orbitron, sans-serif', marginBottom: '4px' }}>PLAYER</p>
+            {editingName ? (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  value={nameInput}
+                  onChange={e => setNameInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && saveName()}
+                  maxLength={20}
+                  autoFocus
+                  placeholder="Enter display name"
+                  style={{ background: '#0a0a0f', border: '1px solid #7c3aed', borderRadius: '8px', padding: '6px 12px', color: '#e2e8f0', fontFamily: 'Orbitron, sans-serif', fontSize: '0.85rem', outline: 'none', width: '180px' }}
+                />
+                <button onClick={saveName} style={{ background: '#7c3aed', border: 'none', borderRadius: '6px', padding: '6px 14px', color: '#fff', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>Save</button>
+                <button onClick={() => { setEditingName(false); setNameInput(savedName) }} style={{ background: 'transparent', border: '1px solid #1e1e30', borderRadius: '6px', padding: '6px 10px', color: '#64748b', fontSize: '0.8rem', cursor: 'pointer' }}>✕</button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: 'clamp(0.85rem,2vw,1rem)', color: '#e2e8f0' }}>{savedName}</h1>
+                <button onClick={() => setEditingName(true)} style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: '6px', padding: '3px 10px', color: '#a78bfa', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 700 }}>Edit</button>
+              </div>
+            )}
+            <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '4px', fontFamily: 'monospace' }}>{address ? shortAddr(address) : ''} · Polygon</p>
+          </div>
+          <button onClick={() => navigate('/lobby/math-arena')}
+            style={{ background: 'linear-gradient(135deg,#7c3aed,#06b6d4)', border: 'none', borderRadius: '10px', padding: '10px 20px', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'Orbitron, sans-serif', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
+            Play Now →
+          </button>
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ color: '#64748b', fontSize: '0.7rem', letterSpacing: '0.1em', fontFamily: 'Orbitron, sans-serif', marginBottom: '4px' }}>PLAYER</p>
-          <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: 'clamp(0.85rem,2vw,1rem)', color: '#e2e8f0', wordBreak: 'break-all' }}>{short}</h1>
-          <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '4px' }}>⛓️ Polygon Network</p>
+      </div>
+
+      {/* Avatar style picker */}
+      <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '16px', padding: '20px 24px', marginBottom: '24px' }}>
+        <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.7rem', color: '#64748b', letterSpacing: '0.1em', marginBottom: '16px' }}>AVATAR STYLE</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '12px' }}>
+          {AVATAR_STYLES.map(s => {
+            const active = avatarStyle === s.id
+            return (
+              <button key={s.id} onClick={() => saveStyle(s.id as AvatarStyle)}
+                style={{ background: active ? 'rgba(124,58,237,0.15)' : '#0a0a0f', border: `2px solid ${active ? '#7c3aed' : '#1e1e30'}`, borderRadius: '12px', padding: '12px 8px', cursor: 'pointer', transition: 'all 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                <img src={address ? getAvatarUrl(address, s.id as AvatarStyle) : ''} alt={s.name} width={48} height={48}
+                  style={{ borderRadius: '50%', border: `2px solid ${active ? '#7c3aed' : '#1e1e30'}`, background: '#1e1e30' }} />
+                <span style={{ fontSize: '0.65rem', fontWeight: 700, color: active ? '#a78bfa' : '#64748b', fontFamily: 'Orbitron, sans-serif' }}>{s.name.toUpperCase()}</span>
+                {s.price === 0
+                  ? <span style={{ fontSize: '0.6rem', color: '#22c55e', fontWeight: 700 }}>FREE</span>
+                  : <span style={{ fontSize: '0.6rem', color: '#f59e0b', fontWeight: 700 }}>${s.price} USDT</span>}
+              </button>
+            )
+          })}
         </div>
-        <button
-          onClick={() => navigate('/lobby/math-arena')}
-          style={{ background: 'linear-gradient(135deg,#7c3aed,#06b6d4)', border: 'none', borderRadius: '10px', padding: '10px 20px', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'Orbitron, sans-serif', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
-        >
-          Play Now →
-        </button>
+        <p style={{ color: '#475569', fontSize: '0.75rem', marginTop: '12px' }}>Premium styles require USDT purchase (coming soon)</p>
       </div>
 
       {error && (
