@@ -56,6 +56,19 @@ function solveMath(q: Question): number {
   return (q.a ?? 0) * (q.b ?? 0)
 }
 
+const BOT_WORDS = ['arena','blitz','pixel','react','speed','craft','flame','storm','swift','brave','sharp','logic','quest','burst','vivid','nexus','pulse','valor','flash','cyber']
+function makeWordQ(round: number): Question {
+  const word = BOT_WORDS[Math.floor(Math.random() * BOT_WORDS.length)]
+  const arr = word.split(''); let s = [...arr]
+  for (let i = s.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[s[i], s[j]] = [s[j], s[i]] }
+  const scrambled = s.join('') === word ? s.reverse().join('') : s.join('')
+  return { round, total: TOTAL_BOT_ROUNDS, scrambled, type: 'word', timeMs: 15000, _word: word } as Question & { _word: string }
+}
+
+function makeGridQ(round: number): Question {
+  return { round, total: TOTAL_BOT_ROUNDS, target: Math.floor(Math.random() * 16), gridSize: 16, type: 'grid', timeMs: 8000 }
+}
+
 // ── Game help text ─────────────────────────────────────────────────────────
 const GAME_HELP: Record<string, { title: string; rules: string[] }> = {
   'math-arena':     { title: 'Math Arena',     rules: ['A math equation appears each round.', 'Type the correct answer and press Enter or GO.', 'First player to answer correctly scores a point.', '10 rounds — most points wins the pot.'] },
@@ -130,22 +143,31 @@ export default function Game() {
   }
 
   function startBotRound(round: number) {
-    const q = makeMathQ(round)
-    setQuestion(q); setPhase('playing'); setInput(''); setRoundAnswer(null)
+    const gm = gameMode || gameModeLS
+    const q = gm === 'word-blitz' ? makeWordQ(round)
+            : gm === 'reaction-grid' ? makeGridQ(round)
+            : makeMathQ(round)
+    setQuestion(q); setPhase('playing'); setInput(''); setRoundAnswer(null); setSelectedCell(null)
     setPlayers(prev => prev.map(p => ({ ...p, answered: false, correct: null })))
-    setTimeLeft(ROUND_TIME_S)
+    const roundSecs = gm === 'reaction-grid' ? 8 : gm === 'word-blitz' ? 15 : ROUND_TIME_S
+    setTimeLeft(roundSecs)
 
     if (timerRef.current) clearInterval(timerRef.current)
     timerRef.current = setInterval(() => {
       setTimeLeft(t => { if (t <= 1) { clearInterval(timerRef.current!); endBotRound(q); return 0 } return t - 1 })
     }, 1000)
 
-    const delay = 2500 + Math.random() * 5000
+    // Bot reaction delay — faster for grid, slower for words
+    const delay = gm === 'reaction-grid'
+      ? 300 + Math.random() * 900
+      : gm === 'word-blitz'
+        ? 3000 + Math.random() * 7000
+        : 2500 + Math.random() * 5000
     setBotThinking(true)
     botRef.current = setTimeout(() => {
       setBotThinking(false)
-      const correct = Math.random() < 0.70
-      const ans = solveMath(q)
+      const accuracy = gm === 'reaction-grid' ? 0.80 : gm === 'word-blitz' ? 0.60 : 0.70
+      const correct = Math.random() < accuracy
       setPlayers(prev => {
         const updated = prev.map(p =>
           p.address === BOT_ADDR
@@ -156,14 +178,17 @@ export default function Game() {
       })
       const playerDone = scoresRef.current.find(p => p.address === myAddr)?.answered
       if (playerDone) endBotRound(q)
-      void ans
     }, delay)
 
     setTimeout(() => inputRef.current?.focus(), 50)
   }
 
   function endBotRound(q: Question) {
-    clearBotTimer(); setPhase('round_end'); setRoundAnswer(String(solveMath(q)))
+    clearBotTimer(); setPhase('round_end')
+    const ans = q.type === 'word' ? (q as Question & { _word?: string })._word ?? ''
+              : q.type === 'grid' ? String(q.target ?? '')
+              : String(solveMath(q))
+    setRoundAnswer(ans)
     setTimeout(() => {
       const cur = scoresRef.current
       if (q.round >= q.total) finishBotGame(cur)
@@ -179,9 +204,16 @@ export default function Game() {
 
   function handleBotSubmit() {
     if (!question) return
-    const val = parseInt(input, 10)
-    if (isNaN(val)) return
-    const correct = val === solveMath(question)
+    let correct = false
+    if (question.type === 'word') {
+      correct = input.trim().toLowerCase() === ((question as Question & { _word?: string })._word ?? '').toLowerCase()
+    } else if (question.type === 'grid') {
+      return // grid handled by handleGridClick
+    } else {
+      const val = parseInt(input, 10)
+      if (isNaN(val)) return
+      correct = val === solveMath(question)
+    }
     clearTimeout(botRef.current!)
     setBotThinking(false)
     setPlayers(prev => {
@@ -288,7 +320,23 @@ export default function Game() {
   function handleGridClick(cell: number) {
     if (myPlayer?.answered) return
     setSelectedCell(cell)
-    submitAnswer(String(cell))
+    if (isBotMode) {
+      const correct = cell === question?.target
+      clearTimeout(botRef.current!)
+      setBotThinking(false)
+      setPlayers(prev => {
+        const updated = prev.map(p =>
+          p.address === myAddr
+            ? { ...p, answered: true, correct, score: correct ? p.score + 1 : p.score }
+            : p
+        )
+        scoresRef.current = updated; return updated
+      })
+      const botDone = scoresRef.current.find(p => p.address === BOT_ADDR)?.answered
+      if (botDone && question) endBotRound(question)
+    } else {
+      submitAnswer(String(cell))
+    }
   }
 
   function handleSealedSubmit() {

@@ -282,7 +282,8 @@ export default function Profile() {
                 )}
                 <img
                   src={address ? getAvatarUrl(address, s.id) : ''}
-                  alt={s.name} width={44} height={44}
+                  alt="" width={44} height={44}
+                  onError={(e) => { e.currentTarget.src = `https://api.dicebear.com/8.x/identicon/svg?seed=${address}` }}
                   style={{ borderRadius: '50%', border: `2px solid ${isPending ? '#06b6d4' : isSaved ? '#7c3aed' : '#1e1e30'}`, background: '#1e1e30', display: 'block' }}
                 />
                 <span style={{ fontSize: '0.58rem', fontWeight: 700, color: isPending ? '#06b6d4' : isSaved ? '#a78bfa' : '#64748b', fontFamily: 'Orbitron, sans-serif', textAlign: 'center', lineHeight: 1.2 }}>

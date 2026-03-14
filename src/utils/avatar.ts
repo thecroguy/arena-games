@@ -41,7 +41,6 @@ export const STYLE_CATALOG: StyleBase[] = [
   { key: 'micah',              name: 'Micah',     price: 2 },
   { key: 'croodles',           name: 'Doodle',    price: 2 },
   { key: 'croodles-neutral',   name: 'Sketch',    price: 2 },
-  { key: 'dylan',              name: 'Dylan',     price: 2 },
   { key: 'big-ears',           name: 'Big Ears',  price: 2 },
   { key: 'big-ears-neutral',   name: 'Ears',      price: 2 },
   { key: 'big-smile',          name: 'Smile',     price: 2 },
