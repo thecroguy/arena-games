@@ -1158,8 +1158,19 @@ app.get('/api/active-deposit/:address', async (req, res) => {
       .in('event_type', ['claim_signed', 'refund_signed'])
       .in('room_code', roomCodes)
     const settledRooms = new Set((settled || []).map(s => s.room_code))
-    const activeRoom = roomCodes.find(c => !settledRooms.has(c))
-    res.json({ hasActive: !!activeRoom, roomCode: activeRoom || null })
+    const unsettled = roomCodes.filter(c => !settledRooms.has(c))
+    if (unsettled.length === 0) return res.json({ hasActive: false })
+    // Only block if the room still exists (in memory or active_rooms table)
+    // Stuck/dead rooms should not prevent new room creation
+    const inMemory = unsettled.filter(c => rooms.has(c))
+    if (inMemory.length > 0) return res.json({ hasActive: true, roomCode: inMemory[0] })
+    const { data: activeRooms } = await supabase
+      .from('active_rooms')
+      .select('code')
+      .in('code', unsettled)
+    const activeInDb = (activeRooms || []).map(r => r.code)
+    const activeRoom = activeInDb[0] || null
+    res.json({ hasActive: !!activeRoom, roomCode: activeRoom })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }
