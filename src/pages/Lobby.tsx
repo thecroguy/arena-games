@@ -5,6 +5,7 @@ import { parseUnits, formatUnits } from 'viem'
 import { connectSocket } from '../utils/socket'
 import { getUsername, shortAddr } from '../utils/profile'
 import { SUPPORTED_CHAINS, USDT_ABI, getChain, type SupportedChain } from '../utils/chains'
+import { getEscrowAddress, getRoomId, ESCROW_ABI, USDT_APPROVE_ABI } from '../utils/escrow'
 
 const HOUSE_WALLET = (import.meta.env.VITE_HOUSE_WALLET || '0x0000000000000000000000000000000000000000') as `0x${string}`
 const ACTIVE_ROOM_KEY = 'ag_active_room'
@@ -39,7 +40,7 @@ export default function Lobby() {
   const [creating, setCreating]     = useState(false)
   const [joining, setJoining]       = useState<string | null>(null)
   const [error, setError]           = useState('')
-  const [payStep, setPayStep]       = useState<'idle' | 'switching' | 'paying' | 'creating'>('idle')
+  const [payStep, setPayStep]       = useState<'idle' | 'switching' | 'approving' | 'paying' | 'creating'>('idle')
   const [activeRoom, setActiveRoom] = useState(() => localStorage.getItem(ACTIVE_ROOM_KEY) || '')
   const [selectedChain, setSelectedChain] = useState<SupportedChain>(SUPPORTED_CHAINS[0])
   const [showChainPicker, setShowChainPicker] = useState(false)
@@ -90,7 +91,8 @@ export default function Lobby() {
     }
   }, [gameMode])
 
-  async function payEntryFee(fee: number, chain: SupportedChain): Promise<string | null> {
+  /** Switch chain if needed, then approve + deposit into escrow (or fallback to direct transfer). */
+  async function payEntryFee(fee: number, chain: SupportedChain, roomCode: string): Promise<string | null> {
     // Switch chain if needed
     if (currentChainId !== chain.id) {
       setPayStep('switching')
@@ -102,20 +104,60 @@ export default function Lobby() {
       }
     }
 
-    // Transfer USDT
-    setPayStep('paying')
-    try {
-      const hash = await writeContractAsync({
-        address: chain.usdt,
-        abi: USDT_ABI,
-        functionName: 'transfer',
-        args: [HOUSE_WALLET, parseUnits(String(fee), chain.decimals)],
-        chainId: chain.id,
-      })
-      return hash
-    } catch {
-      showError('Payment rejected. Entry fee is required to play.')
-      return null
+    const escrowAddr = getEscrowAddress(chain.id)
+    const amount     = parseUnits(String(fee), chain.decimals)
+
+    if (escrowAddr) {
+      // ── Escrow flow: approve → deposit ──────────────────────────────────
+      setPayStep('approving')
+      try {
+        // Step 1 — approve the escrow contract to pull USDT
+        await writeContractAsync({
+          address: chain.usdt,
+          abi: USDT_APPROVE_ABI,
+          functionName: 'approve',
+          args: [escrowAddr, amount],
+          chainId: chain.id,
+        })
+      } catch {
+        showError('Approval rejected. You must approve USDT to lock into the game contract.')
+        return null
+      }
+
+      // Step 2 — deposit into escrow (locks funds, auto-pays winner on game end)
+      setPayStep('paying')
+      try {
+        const roomId = getRoomId(roomCode)
+        const hash   = await writeContractAsync({
+          address: escrowAddr,
+          abi: ESCROW_ABI,
+          functionName: 'deposit',
+          args: [roomId, amount],
+          chainId: chain.id,
+        })
+        return hash
+      } catch {
+        showError('Deposit failed. Your USDT was not locked — please try again.')
+        return null
+      }
+    } else {
+      // ── Legacy fallback: direct transfer to house wallet ─────────────────
+      // Used on chains where the escrow contract isn't deployed yet.
+      // Winner is paid manually by the team within 24h.
+      setPayStep('paying')
+      try {
+        const hash = await writeContractAsync({
+          address: chain.usdt,
+          abi: USDT_ABI,
+          functionName: 'transfer',
+          args: [HOUSE_WALLET, amount],
+          chainId: chain.id,
+        })
+        return hash
+      } catch {
+        showError('Payment rejected. Entry fee is required to play.')
+        return null
+      }
     }
   }
 
@@ -123,21 +165,32 @@ export default function Lobby() {
     if (!isConnected || !address) { showError('Connect your wallet first'); return }
     setCreating(true); setError('')
 
-    const txHash = await payEntryFee(selectedFee, selectedChain)
-    if (!txHash) { setCreating(false); setPayStep('idle'); return }
-
+    // Step 1 — create room on server first to get the room code
+    // (needed so we can deposit into escrow with the correct roomId)
     setPayStep('creating')
     const socket = connectSocket()
-    socket.emit('room:create',
-      { gameMode, entryFee: selectedFee, maxPlayers, address, chainId: selectedChain.id, txHash },
-      (res: { code?: string; error?: string }) => {
-        setCreating(false); setPayStep('idle')
-        if (res.error) { showError(res.error); return }
-        localStorage.setItem(ACTIVE_ROOM_KEY, res.code!)
-        setActiveRoom(res.code!)
-        navigate(`/game/${res.code}`, { state: { host: true, entry: selectedFee, maxPlayers, gameMode } })
-      }
-    )
+    const code = await new Promise<string | null>(resolve => {
+      socket.emit('room:create',
+        { gameMode, entryFee: selectedFee, maxPlayers, address, chainId: selectedChain.id },
+        (res: { code?: string; error?: string }) => {
+          if (res.error) { showError(res.error); resolve(null) }
+          else resolve(res.code!)
+        }
+      )
+    })
+    if (!code) { setCreating(false); setPayStep('idle'); return }
+
+    // Step 2 — pay entry fee (escrow deposit or legacy transfer)
+    const txHash = await payEntryFee(selectedFee, selectedChain, code)
+    if (!txHash) { setCreating(false); setPayStep('idle'); return }
+
+    // Step 3 — confirm deposit with server (marks host as ready)
+    socket.emit('room:deposit', { code, txHash }, () => {})
+
+    setCreating(false); setPayStep('idle')
+    localStorage.setItem(ACTIVE_ROOM_KEY, code)
+    setActiveRoom(code)
+    navigate(`/game/${code}`, { state: { host: true, entry: selectedFee, maxPlayers, gameMode, chainId: selectedChain.id } })
   }
 
   async function handleJoinRoom(code: string) {
@@ -146,18 +199,22 @@ export default function Lobby() {
     const fee = room?.entry ?? 1
     setJoining(code); setError('')
 
-    const txHash = await payEntryFee(fee, selectedChain)
+    // Step 1 — pay entry fee into escrow (or legacy transfer) using the room code
+    const txHash = await payEntryFee(fee, selectedChain, code)
     if (!txHash) { setJoining(null); setPayStep('idle'); return }
 
+    // Step 2 — join the room on the server
     const socket = connectSocket()
     socket.emit('room:join',
       { code, address, chainId: selectedChain.id, txHash },
-      (res: { ok?: boolean; error?: string }) => {
+      (res: { ok?: boolean; error?: string; reconnected?: boolean }) => {
         setJoining(null); setPayStep('idle')
         if (res.error) { showError(res.error); return }
+        // Step 3 — confirm deposit so server marks player as ready
+        socket.emit('room:deposit', { code, txHash }, () => {})
         localStorage.setItem(ACTIVE_ROOM_KEY, code)
         setActiveRoom(code)
-        navigate(`/game/${code}`, { state: { gameMode } })
+        navigate(`/game/${code}`, { state: { gameMode, chainId: selectedChain.id } })
       }
     )
   }
@@ -187,11 +244,16 @@ export default function Lobby() {
     })
   }
 
+  const escrowAvailable = !!getEscrowAddress(selectedChain.id)
+
   const createBtnLabel = () => {
-    if (payStep === 'switching') return `Switching to ${selectedChain.name}…`
-    if (payStep === 'paying')    return `Sending $${selectedFee} USDT…`
-    if (payStep === 'creating')  return 'Creating room…'
-    return `Pay $${selectedFee} USDT & Create`
+    if (payStep === 'switching')  return `Switching to ${selectedChain.name}…`
+    if (payStep === 'creating')   return 'Creating room…'
+    if (payStep === 'approving')  return 'Step 1/2 — Approve USDT in wallet…'
+    if (payStep === 'paying')     return escrowAvailable ? 'Step 2/2 — Locking into contract…' : `Sending $${selectedFee} USDT…`
+    return escrowAvailable
+      ? `🔒 Lock $${selectedFee} USDT in contract & Create`
+      : `Pay $${selectedFee} USDT & Create`
   }
 
   return (
@@ -328,12 +390,21 @@ export default function Lobby() {
                 <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', background: room.status === 'waiting' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: room.status === 'waiting' ? '#22c55e' : '#ef4444', border: `1px solid ${room.status === 'waiting' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
                   {room.status === 'waiting' ? '● OPEN' : '■ FULL'}
                 </span>
-                <button
-                  disabled={room.status === 'full' || joining === room.code}
-                  onClick={() => handleJoinRoom(room.code)}
-                  style={{ background: room.status === 'full' ? '#1e1e30' : 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '8px', padding: '9px 20px', color: room.status === 'full' ? '#64748b' : '#fff', fontWeight: 700, cursor: room.status === 'full' ? 'not-allowed' : 'pointer', fontSize: '0.88rem', whiteSpace: 'nowrap' }}>
-                  {joining === room.code ? `${selectedChain.icon} Paying…` : `Join ${selectedChain.icon}`}
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+                  <button
+                    disabled={room.status === 'full' || joining === room.code}
+                    onClick={() => handleJoinRoom(room.code)}
+                    style={{ background: room.status === 'full' ? '#1e1e30' : 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '8px', padding: '9px 20px', color: room.status === 'full' ? '#64748b' : '#fff', fontWeight: 700, cursor: room.status === 'full' ? 'not-allowed' : 'pointer', fontSize: '0.88rem', whiteSpace: 'nowrap' }}>
+                    {joining === room.code
+                      ? (payStep === 'approving' ? 'Approving…' : payStep === 'paying' ? 'Locking…' : `${selectedChain.icon} Paying…`)
+                      : `Join ${selectedChain.icon}`}
+                  </button>
+                  {room.status === 'waiting' && (
+                    <span style={{ fontSize: '0.65rem', color: '#475569' }}>
+                      {getEscrowAddress(selectedChain.id) ? '🔒 Auto-payout + ~$0.01 gas' : '⚠️ Manual payout'}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -387,6 +458,17 @@ export default function Lobby() {
               ⚠️ Insufficient USDT on {selectedChain.name}. Balance: ${balanceFormatted}
             </div>
           )}
+
+          {/* Escrow / payout notice */}
+          <div style={{ background: escrowAvailable ? 'rgba(34,197,94,0.06)' : 'rgba(245,158,11,0.06)', border: `1px solid ${escrowAvailable ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)'}`, borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.78rem', color: escrowAvailable ? '#86efac' : '#fcd34d', lineHeight: 1.5 }}>
+            {escrowAvailable ? (
+              <>🔒 Funds locked in smart contract — winner paid automatically on-chain.<br />
+              <span style={{ color: '#64748b' }}>+ small gas fee (~$0.01 on Polygon) paid to the network, not to us.</span></>
+            ) : (
+              <>⚠️ Escrow not available on {selectedChain.name} yet — your USDT goes to our house wallet.<br />
+              Winner paid manually by the team within 24h. Switch to Polygon for instant auto-payout.</>
+            )}
+          </div>
 
           <button onClick={payAndCreate} disabled={creating || !isConnected}
             style={{ width: '100%', background: creating ? '#1e1e30' : 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '10px', padding: '14px', color: creating ? '#64748b' : '#fff', fontWeight: 700, fontSize: '0.95rem', fontFamily: 'Orbitron, sans-serif', cursor: creating ? 'not-allowed' : 'pointer', letterSpacing: '0.04em' }}>

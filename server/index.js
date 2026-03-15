@@ -4,6 +4,7 @@ const http = require('http')
 const { Server } = require('socket.io')
 const cors = require('cors')
 const { createClient } = require('@supabase/supabase-js')
+const { ethers } = require('ethers')
 
 // ── Config ─────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001
@@ -55,6 +56,52 @@ let supabase = null
 if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
   supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
   console.log('Supabase connected')
+}
+
+// ── Escrow auto-payout ────────────────────────────────────────────────────
+// Minimal ABI — only what the server needs to call
+const ESCROW_ABI_MIN = [
+  'function release(bytes32 roomId, address winner) external',
+  'function refund(bytes32 roomId) external',
+  'function hasDeposited(bytes32 roomId, address player) external view returns (bool)',
+]
+
+// Per-chain config: RPC + deployed escrow contract address
+const CHAIN_CONFIG = {
+  137:   { rpc: process.env.POLYGON_RPC  || 'https://polygon-rpc.com',              escrow: process.env.ESCROW_POLYGON  || '' },
+  80002: { rpc: process.env.AMOY_RPC     || 'https://rpc-amoy.polygon.technology',  escrow: process.env.ESCROW_AMOY     || '' },
+  56:    { rpc: 'https://bsc-dataseed.binance.org',                                  escrow: process.env.ESCROW_BSC      || '' },
+  42161: { rpc: 'https://arb1.arbitrum.io/rpc',                                      escrow: process.env.ESCROW_ARBITRUM || '' },
+  10:    { rpc: 'https://mainnet.optimism.io',                                        escrow: process.env.ESCROW_OPTIMISM || '' },
+  8453:  { rpc: 'https://mainnet.base.org',                                           escrow: process.env.ESCROW_BASE     || '' },
+}
+
+const SERVER_SIGNING_KEY = process.env.SERVER_SIGNING_KEY
+
+/** Returns an ethers Contract instance for the escrow on a given chain, or null if not configured. */
+function getEscrowContract(chainId) {
+  const cfg = CHAIN_CONFIG[chainId]
+  if (!cfg || !cfg.escrow || !SERVER_SIGNING_KEY) return null
+  try {
+    const provider = new ethers.JsonRpcProvider(cfg.rpc)
+    const wallet   = new ethers.Wallet(SERVER_SIGNING_KEY, provider)
+    return new ethers.Contract(cfg.escrow, ESCROW_ABI_MIN, wallet)
+  } catch (e) {
+    console.error('Escrow contract init error:', e.message)
+    return null
+  }
+}
+
+/** keccak256 of the room code string — matches Solidity keccak256(abi.encodePacked(code)) */
+function getRoomId(code) {
+  return ethers.keccak256(ethers.toUtf8Bytes(code))
+}
+
+if (SERVER_SIGNING_KEY) {
+  const w = new ethers.Wallet(SERVER_SIGNING_KEY)
+  console.log('Escrow signing wallet:', w.address)
+} else {
+  console.warn('SERVER_SIGNING_KEY not set — escrow auto-payout disabled (manual payouts only)')
 }
 
 // ── In-memory room store ──────────────────────────────────────────────────
@@ -189,7 +236,8 @@ function roomPublic(room) {
     entryFee:   room.entryFee,
     maxPlayers: room.maxPlayers,
     status:     room.status,
-    players:    room.players.map(p => ({ address: p.address, score: p.score, disconnected: !!p.disconnected })),
+    chainId:    room.chainId || 137,
+    players:    room.players.map(p => ({ address: p.address, score: p.score, disconnected: !!p.disconnected, deposited: !!p.deposited })),
   }
 }
 
@@ -294,16 +342,36 @@ async function endGame(room) {
   const winner = sorted[0]
   const pot    = (room.entryFee * room.players.length * 0.85).toFixed(2)
 
+  // ── Escrow auto-payout ────────────────────────────────────────────────
+  let payoutTx   = null
+  let payoutMode = 'manual' // 'escrow' | 'manual'
+  const escrow = getEscrowContract(room.chainId)
+  if (escrow) {
+    try {
+      const roomId = getRoomId(room.code)
+      const tx     = await escrow.release(roomId, winner.address)
+      await tx.wait(1) // wait for 1 confirmation
+      payoutTx   = tx.hash
+      payoutMode = 'escrow'
+      console.log(`Escrow payout TX ${tx.hash} → ${winner.address} ($${pot})`)
+    } catch (e) {
+      console.error(`Escrow release failed for room ${room.code}:`, e.message)
+      // Fall through — emit game:over with payoutMode=manual so team knows to pay manually
+    }
+  }
+
   io.to(room.code).emit('game:over', {
     winner: winner.address,
     pot,
+    payoutMode,  // client shows "Paid automatically" vs "Team will pay within 24h"
+    payoutTx,    // tx hash if escrow payout succeeded
     scores: sorted.map((p, i) => ({ address: p.address, score: p.score, rank: i + 1 })),
   })
 
   if (supabase) {
     try {
-      const cfg   = GAME_MODES[room.gameMode] || GAME_MODES['math-arena']
-      const rows  = room.players.map(p => ({
+      const cfg  = GAME_MODES[room.gameMode] || GAME_MODES['math-arena']
+      const rows = room.players.map(p => ({
         room_code:      room.code,
         game_mode:      room.gameMode,
         player_address: p.address.toLowerCase(),
@@ -313,6 +381,9 @@ async function endGame(room) {
         entry_fee:      room.entryFee,
         earned:         p.address === winner.address ? parseFloat(pot) : -room.entryFee,
         players_count:  room.players.length,
+        chain_id:       room.chainId || 137,
+        payout_tx:      payoutTx,
+        payout_mode:    payoutMode,
       }))
       await supabase.from('game_history').insert(rows)
     } catch (e) {
@@ -321,6 +392,23 @@ async function endGame(room) {
   }
 
   setTimeout(() => cleanupRoom(room.code), 60_000)
+}
+
+// ── Escrow refund helper — called on abandon/forfeit ──────────────────────
+async function escrowRefund(room) {
+  const escrow = getEscrowContract(room.chainId)
+  if (!escrow) return
+  try {
+    const roomId = getRoomId(room.code)
+    const tx     = await escrow.refund(roomId)
+    await tx.wait(1)
+    console.log(`Escrow refund TX ${tx.hash} for abandoned room ${room.code}`)
+  } catch (e) {
+    // Room may not have had any deposits yet (e.g., abandoned before anyone paid)
+    if (!e.message.includes('AlreadySettled')) {
+      console.error(`Escrow refund failed for room ${room.code}:`, e.message)
+    }
+  }
 }
 
 // ── Socket events ─────────────────────────────────────────────────────────
@@ -346,7 +434,7 @@ io.on('connection', (socket) => {
     cb(list)
   })
 
-  socket.on('room:create', ({ gameMode, entryFee, maxPlayers, address, txHash }, cb) => {
+  socket.on('room:create', ({ gameMode, entryFee, maxPlayers, address, chainId, txHash }, cb) => {
     if (typeof cb !== 'function') return
     if (!rateLimit(socket.id)) return cb({ error: 'Too many requests' })
 
@@ -362,13 +450,15 @@ io.on('connection', (socket) => {
 
     const cfg = GAME_MODES[gameMode]
     const clampedMax = Math.min(Math.max(maxPlayers || cfg.maxP, cfg.minP), cfg.maxP)
+    const resolvedChainId = Number(chainId) || 137
 
     const code = generateCode()
     const room = {
       code, gameMode, entryFee,
+      chainId: resolvedChainId,
       maxPlayers: clampedMax,
       host: address,
-      players: [{ id: socket.id, address, score: 0, answered: false, correct: null, sealedPick: null }],
+      players: [{ id: socket.id, address, score: 0, answered: false, correct: null, sealedPick: null, deposited: false }],
       status: 'waiting',
       round: 0, question: null, roundTimer: null, roundStartAt: null,
     }
@@ -378,8 +468,8 @@ io.on('connection', (socket) => {
     socket.join(code)
     socket.data.roomCode = code
     socket.data.address  = address
-    cb({ code })
-    console.log(`Room ${code} [${gameMode}] created by ${address.slice(0, 8)}`)
+    cb({ code, chainId: resolvedChainId })
+    console.log(`Room ${code} [${gameMode}] created by ${address.slice(0, 8)} on chain ${resolvedChainId}`)
   })
 
   socket.on('room:join', ({ code, address, txHash }, cb) => {
@@ -423,7 +513,7 @@ io.on('connection', (socket) => {
     if (room.players.length >= room.maxPlayers) return cb({ error: 'Room is full' })
     if (room.players.find(p => p.address === address)) return cb({ error: 'Already in room' })
 
-    room.players.push({ id: socket.id, address, score: 0, answered: false, correct: null, sealedPick: null })
+    room.players.push({ id: socket.id, address, score: 0, answered: false, correct: null, sealedPick: null, deposited: false })
     socket.join(code)
     socket.data.roomCode = code
     socket.data.address  = address
@@ -436,12 +526,57 @@ io.on('connection', (socket) => {
     }
   })
 
+  // Player confirms their escrow deposit — server verifies on-chain then marks them ready
+  socket.on('room:deposit', async ({ code, txHash }, cb) => {
+    if (typeof cb !== 'function') cb = () => {}
+    const room = rooms.get((code || '').toUpperCase())
+    if (!room || room.status !== 'waiting') return cb({ error: 'Room not found or already started' })
+
+    const address = socket.data.address
+    const player  = room.players.find(p => p.address === address)
+    if (!player) return cb({ error: 'Not in room' })
+    if (player.deposited) return cb({ ok: true }) // already confirmed
+
+    const escrow = getEscrowContract(room.chainId)
+    if (escrow) {
+      // Verify on-chain that this player actually deposited
+      try {
+        const roomId    = getRoomId(code)
+        const confirmed = await escrow.hasDeposited(roomId, address)
+        if (!confirmed) return cb({ error: 'Deposit not found on-chain. Please wait a moment and try again.' })
+      } catch (e) {
+        console.error('Escrow verification error:', e.message)
+        // If RPC fails, fall back to trusting the txHash
+        if (!txHash || !VALID_TX_HASH.test(txHash)) return cb({ error: 'Could not verify deposit. Please try again.' })
+      }
+    } else {
+      // Escrow not configured for this chain — trust txHash (legacy fallback)
+      if (txHash && !VALID_TX_HASH.test(txHash)) return cb({ error: 'Invalid transaction hash' })
+    }
+
+    player.deposited = true
+    io.to(code).emit('room:update', roomPublic(room))
+    cb({ ok: true })
+    console.log(`${address.slice(0, 8)} deposited for room ${code} (chain ${room.chainId})`)
+  })
+
   socket.on('room:start', ({ code }) => {
     const room = rooms.get(code)
     if (!room) return
-    if (room.host !== socket.data.address)   return socket.emit('error', 'Not the host')
-    if (room.players.length < 2)             return socket.emit('error', 'Need at least 2 players')
-    if (room.status !== 'waiting')           return
+    if (room.host !== socket.data.address) return socket.emit('error', 'Not the host')
+    if (room.players.length < 2)           return socket.emit('error', 'Need at least 2 players')
+    if (room.status !== 'waiting')         return
+
+    // Check all players have deposited (only enforced when escrow is configured)
+    const escrow = getEscrowContract(room.chainId)
+    if (escrow) {
+      const notReady = room.players.filter(p => !p.deposited)
+      if (notReady.length > 0) {
+        const names = notReady.map(p => p.address.slice(0, 6) + '…').join(', ')
+        return socket.emit('error', `Waiting for deposits from: ${names}`)
+      }
+    }
+
     startCountdown(room)
   })
 
@@ -531,9 +666,14 @@ io.on('connection', (socket) => {
 
     if (!wasActive) {
       // Waiting phase — remove immediately
+      const hadDeposits = room.players.some(p => p.deposited)
       room.players = room.players.filter(p => p.id !== socket.id)
       console.log(`- ${address} left ${code} (${room.players.length} remaining, waiting)`)
-      if (room.players.length === 0) { cleanupRoom(code); return }
+      if (room.players.length === 0) {
+        if (hadDeposits) escrowRefund(room).catch(() => {}) // refund any locked funds
+        cleanupRoom(code)
+        return
+      }
       if (room.host === address) room.host = room.players[0].address
       io.to(code).emit('room:update', roomPublic(room))
       io.to(code).emit('game:player_left', { address })
@@ -556,7 +696,12 @@ io.on('connection', (socket) => {
       r.players = r.players.filter(p => p.address !== address)
       console.log(`- ${address} forfeited from ${code} (reconnect timeout)`)
       const activePlayers = r.players.filter(p => !p.disconnected)
-      if (activePlayers.length === 0) { cleanupRoom(code); return }
+      if (activePlayers.length === 0) {
+        escrowRefund(r).catch(() => {}) // refund locked entry fees
+        io.to(code).emit('game:abandoned', { reason: 'All players disconnected — entry fees refunded to your wallet.' })
+        cleanupRoom(code)
+        return
+      }
       // If all remaining connected players already answered, end round now
       if (r.status === 'playing' && r.players.every(p => p.answered || p.disconnected)) {
         clearTimeout(r.roundTimer)

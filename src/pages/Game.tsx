@@ -117,7 +117,7 @@ export default function Game() {
   const [sealedCount, setSealedCount]   = useState(0)
   const [selectedCell, setSelectedCell] = useState<number | null>(null)
   const [gameOver, setGameOver]   = useState<{
-    winner: string; pot: string;
+    winner: string; pot: string; payoutMode?: string; payoutTx?: string;
     scores: Array<{ address: string; score: number; rank: number }>
   } | null>(null)
   const [error, setError]       = useState('')
@@ -416,7 +416,7 @@ export default function Game() {
       setPhase('round_end'); setRoundAnswer(data.answer); setPlayers(data.scores)
       if (data.sealedResult) setSealedResult(data.sealedResult)
     })
-    socket.on('game:over', (data: { winner: string; pot: string; scores: Array<{ address: string; score: number; rank: number }> }) => {
+    socket.on('game:over', (data: { winner: string; pot: string; payoutMode?: string; payoutTx?: string; scores: Array<{ address: string; score: number; rank: number }> }) => {
       if (timerRef.current) clearInterval(timerRef.current)
       localStorage.removeItem('ag_active_room')
       setPhase('finished'); setGameOver(data)
@@ -593,6 +593,9 @@ export default function Game() {
             <div key={p.address} style={{ background: '#12121a', border: `1px solid ${p.address === myAddr ? '#7c3aed' : '#1e1e30'}`, borderRadius: '10px', padding: '8px 14px', fontSize: '0.82rem', color: p.address === myAddr ? '#a78bfa' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <img src={getAvatarUrl(p.address)} alt="avatar" width={28} height={28} style={{ borderRadius: '50%', border: `2px solid ${getAvatarColor(p.address)}`, background: '#1e1e30' }} />
               {displayName(p.address)} {p.address === myAddr && '(you)'}
+              {(p as PlayerState & { deposited?: boolean }).deposited
+                ? <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#22c55e' }}>🔒 Locked</span>
+                : <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#f59e0b' }}>⏳ Pending</span>}
             </div>
           ))}
         </div>
@@ -668,9 +671,25 @@ export default function Game() {
           {gameOver.winner === myAddr ? 'You Won!' : `${displayName(gameOver.winner)} Wins!`}
         </h1>
         {!isBotMode && (
-          <p style={{ color: gameOver.winner === myAddr ? '#22c55e' : '#94a3b8', fontWeight: 700, fontSize: '1.1rem', marginBottom: '24px' }}>
-            {gameOver.winner === myAddr ? `+$${gameOver.pot} USDT` : 'Better luck next time'}
-          </p>
+          <>
+            <p style={{ color: gameOver.winner === myAddr ? '#22c55e' : '#94a3b8', fontWeight: 700, fontSize: '1.1rem', marginBottom: '12px' }}>
+              {gameOver.winner === myAddr ? `+$${gameOver.pot} USDT` : 'Better luck next time'}
+            </p>
+            {/* Payout status — fully transparent */}
+            {gameOver.payoutMode === 'escrow' && gameOver.payoutTx ? (
+              <div style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '8px', padding: '8px 14px', marginBottom: '20px', fontSize: '0.78rem', color: '#86efac' }}>
+                ✅ ${gameOver.pot} USDT sent automatically on-chain
+                {' · '}
+                <a href={`https://polygonscan.com/tx/${gameOver.payoutTx}`} target="_blank" rel="noopener noreferrer" style={{ color: '#22c55e' }}>View TX →</a>
+                <br /><span style={{ color: '#475569' }}>Winner received 85% of the pot. 15% platform fee. Gas paid by platform.</span>
+              </div>
+            ) : !isBotMode && (
+              <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '8px', padding: '8px 14px', marginBottom: '20px', fontSize: '0.78rem', color: '#fcd34d' }}>
+                ⏳ Team will manually send ${gameOver.pot} USDT to winner within 24h.
+                <br /><span style={{ color: '#475569' }}>Winner receives 85% of the pot. 15% platform fee.</span>
+              </div>
+            )}
+          </>
         )}
         {isBotMode && <p style={{ color: '#64748b', marginBottom: '24px', fontSize: '0.9rem' }}>Practice complete — play for real to win USDT</p>}
         <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', overflow: 'hidden', marginBottom: '20px' }}>
