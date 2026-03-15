@@ -203,22 +203,27 @@ function doMatch(key, gameMode, entryFee, chainId) {
 // ── Room persistence (survives server restarts) ────────────────────────────
 async function saveRoomToDb(room) {
   if (!supabase) return
-  await supabase.from('active_rooms').upsert({
-    code:        room.code,
-    game_mode:   room.gameMode,
-    entry_fee:   room.entryFee,
-    chain_id:    room.chainId || 137,
-    max_players: room.maxPlayers,
-    host:        room.host,
-    players:     room.players.map(p => ({ address: p.address, deposited: !!p.deposited })),
-    status:      'waiting',
-  }, { onConflict: 'code' }).catch(e => console.error('saveRoom error:', e.message))
+  try {
+    const { error } = await supabase.from('active_rooms').upsert({
+      code:        room.code,
+      game_mode:   room.gameMode,
+      entry_fee:   room.entryFee,
+      chain_id:    room.chainId || 137,
+      max_players: room.maxPlayers,
+      host:        room.host,
+      players:     room.players.map(p => ({ address: p.address, deposited: !!p.deposited })),
+      status:      'waiting',
+    }, { onConflict: 'code' })
+    if (error) console.error('saveRoom error:', error.message)
+  } catch (e) { console.error('saveRoom error:', e.message) }
 }
 
 async function deleteRoomFromDb(code) {
   if (!supabase) return
-  await supabase.from('active_rooms').delete().eq('code', code)
-    .catch(e => console.error('deleteRoom error:', e.message))
+  try {
+    const { error } = await supabase.from('active_rooms').delete().eq('code', code)
+    if (error) console.error('deleteRoom error:', error.message)
+  } catch (e) { console.error('deleteRoom error:', e.message) }
 }
 
 async function loadRoomsFromDb() {
@@ -864,8 +869,16 @@ io.on('connection', (socket) => {
     const escrowAddr = getChainEscrowAddress(room.chainId)
     if (escrowAddr) {
       // Verify on-chain that this player actually deposited
+      // The tx may still be pending when this fires — retry up to 3×10s before giving up
       try {
-        const confirmed = await hasDepositedOnChain(room.chainId, getRoomId(code), address)
+        let confirmed = await hasDepositedOnChain(room.chainId, getRoomId(code), address)
+        if (!confirmed && txHash && VALID_TX_HASH.test(txHash)) {
+          for (let attempt = 0; attempt < 3 && !confirmed; attempt++) {
+            await new Promise(r => setTimeout(r, 10000))
+            confirmed = await hasDepositedOnChain(room.chainId, getRoomId(code), address)
+            if (confirmed) console.log(`Deposit for ${code} confirmed after ${(attempt + 1) * 10}s`)
+          }
+        }
         if (!confirmed) return cb({ error: 'Deposit not found on-chain. Please wait a moment and try again.' })
       } catch (e) {
         console.error('Escrow verification error:', e.message)
@@ -909,7 +922,7 @@ io.on('connection', (socket) => {
         amount_usdt:    room.entryFee,
         tx_hash:        txHash || null,
         note:           `On-chain deposit verified for room ${code}`,
-      }).catch(e => console.error('escrow_events insert error:', e.message))
+      }).then(({ error }) => error && console.error('escrow_events insert error:', error.message))
     }
   })
 
