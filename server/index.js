@@ -1110,6 +1110,50 @@ app.get('/api/pending-claim/:address', async (req, res) => {
   }
 })
 
+// ── Report deposit (client fallback — called after on-chain tx even if server was down) ─
+// Ensures every deposit is recorded in escrow_events even if server restarted mid-flow.
+app.post('/api/report-deposit', express.json(), async (req, res) => {
+  try {
+    const { address, room_code, tx_hash, chain_id, amount_usdt } = req.body || {}
+    if (!address || !room_code) return res.status(400).json({ error: 'Missing fields' })
+    if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
+    if (!supabase) return res.json({ ok: true })
+
+    const addr = address.toLowerCase()
+    const code = String(room_code).toUpperCase().slice(0, 8)
+    const chainId = Number(chain_id) || 137
+    const escrowAddr = getChainEscrowAddress(chainId)
+    if (!escrowAddr) return res.json({ ok: true })
+
+    // Don't insert duplicate
+    const { data: existing } = await supabase
+      .from('escrow_events')
+      .select('id')
+      .eq('event_type', 'deposit_confirmed')
+      .eq('room_code', code)
+      .eq('player_address', addr)
+      .limit(1)
+    if (existing && existing.length > 0) return res.json({ ok: true, already: true })
+
+    const roomId = getRoomId(code)
+    await supabase.from('escrow_events').insert({
+      event_type:     'deposit_confirmed',
+      room_code:      code,
+      room_id_hash:   roomId,
+      chain_id:       chainId,
+      escrow_address: escrowAddr,
+      player_address: addr,
+      amount_usdt:    Number(amount_usdt) || 0,
+      tx_hash:        tx_hash || null,
+      note:           `Client-reported deposit for room ${code} (server was down at deposit time)`,
+    })
+    console.log(`[report-deposit] Recorded missed deposit: ${addr.slice(0, 8)} → room ${code}`)
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ── Mark win as claimed (called by frontend after successful on-chain claim) ─
 app.post('/api/mark-claimed', express.json(), async (req, res) => {
   try {

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useAccount, useWriteContract, useChainId, useSwitchChain, useSignMessage } from 'wagmi'
+import { useAccount, useWriteContract, useChainId, useSwitchChain, useSignMessage, usePublicClient } from 'wagmi'
 import { useNavigate } from 'react-router-dom'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { parseUnits } from 'viem'
@@ -11,6 +11,7 @@ import {
   type AvatarStyle, type AvatarEntry,
 } from '../utils/avatar'
 import { getUsername, setUsername, shortAddr } from '../utils/profile'
+import { getRoomId, ESCROW_ABI, getEscrowAddress } from '../utils/escrow'
 
 const HOUSE_WALLET = import.meta.env.VITE_HOUSE_WALLET as `0x${string}` | undefined
 const HOUSE_CONFIGURED = !!HOUSE_WALLET && HOUSE_WALLET !== '0x0000000000000000000000000000000000000000'
@@ -65,6 +66,7 @@ export default function Profile() {
   const { switchChainAsync } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
   const { signMessageAsync } = useSignMessage()
+  const publicClient = usePublicClient()
 
   const [history, setHistory]   = useState<GameHistory[]>([])
   const [stats, setStats]       = useState<{ played: number; wins: number; winRate: number; totalEarned: number; totalSpent: number } | null>(null)
@@ -93,6 +95,11 @@ export default function Profile() {
   const [pendingClaims, setPendingClaims]   = useState<PendingClaim[]>([])
   const [claimingRoom, setClaimingRoom]     = useState<string | null>(null)
   const [now, setNow]                       = useState(Date.now())
+
+  // On-chain deposit check (scans room history stored in localStorage)
+  type OnChainDeposit = { code: string; chainId: number; escrow: `0x${string}`; roomId: `0x${string}`; createdAt: number; settled: boolean }
+  const [onChainDeposits, setOnChainDeposits] = useState<OnChainDeposit[]>([])
+  const [scanningChain, setScanningChain]     = useState(false)
 
   // Load profile from Supabase on connect
   useEffect(() => {
@@ -132,6 +139,39 @@ export default function Profile() {
   }, [address])
 
   useEffect(() => { fetchStuck() }, [fetchStuck])
+
+  // Scan room history from localStorage against the contract on-chain
+  const scanOnChain = useCallback(async () => {
+    if (!address || !publicClient) return
+    try {
+      const history: { code: string; chainId: number }[] = JSON.parse(localStorage.getItem('ag_room_history') || '[]')
+      if (history.length === 0) return
+      setScanningChain(true)
+      const found: OnChainDeposit[] = []
+      for (const { code, chainId: rChainId } of history) {
+        const escrow = getEscrowAddress(rChainId)
+        if (!escrow) continue
+        try {
+          const roomId = getRoomId(code)
+          const [deposited, info] = await Promise.all([
+            publicClient.readContract({ address: escrow, abi: ESCROW_ABI, functionName: 'hasDeposited', args: [roomId, address] }),
+            publicClient.readContract({ address: escrow, abi: ESCROW_ABI, functionName: 'roomInfo', args: [roomId] }),
+          ])
+          if (deposited) {
+            const [, , settled, ] = info as [bigint, bigint, boolean, string[]]
+            if (!settled) {
+              found.push({ code, chainId: rChainId, escrow, roomId, createdAt: 0, settled })
+            }
+          }
+        } catch { /* room not on this chain or RPC error — skip */ }
+      }
+      setOnChainDeposits(found)
+    } catch { /* ignore */ } finally {
+      setScanningChain(false)
+    }
+  }, [address, publicClient])
+
+  useEffect(() => { scanOnChain() }, [scanOnChain])
 
   // Tick every 30s so countdown updates
   useEffect(() => {
@@ -572,6 +612,46 @@ export default function Profile() {
             )
           })}
         </div>
+      )}
+
+      {/* On-chain deposits found in room history but not in server records */}
+      {onChainDeposits.length > 0 && (
+        <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '16px', padding: '20px 24px', marginBottom: '24px' }}>
+          <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.7rem', color: '#ef4444', letterSpacing: '0.1em', marginBottom: '4px' }}>
+            🔍 FOUND ON-CHAIN (not yet in server records)
+          </p>
+          <p style={{ color: '#64748b', fontSize: '0.75rem', marginBottom: '14px' }}>These deposits exist on the blockchain but the server has no record. If 24h has passed since deposit, you can claim a full refund.</p>
+          {onChainDeposits.map(d => {
+            const isClaiming = claimingRoom === d.code
+            return (
+              <div key={d.code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', padding: '12px 0', borderBottom: '1px solid rgba(239,68,68,0.1)' }}>
+                <div>
+                  <p style={{ color: '#e2e8f0', fontWeight: 700, fontFamily: 'Orbitron, sans-serif', fontSize: '0.85rem' }}>Room {d.code}</p>
+                  <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '3px' }}>Chain ID {d.chainId} · Contract {d.escrow.slice(0, 10)}…</p>
+                </div>
+                <button onClick={async () => {
+                  setClaimingRoom(d.code)
+                  try {
+                    if (chainId !== d.chainId) await switchChainAsync({ chainId: d.chainId })
+                    await writeContractAsync({ address: d.escrow, abi: EMERGENCY_REFUND_ABI, functionName: 'emergencyRefund', args: [d.roomId], chainId: d.chainId })
+                    setOnChainDeposits(prev => prev.filter(x => x.code !== d.code))
+                  } catch (e: unknown) {
+                    const msg = e instanceof Error ? e.message : String(e)
+                    if (msg.includes('TooEarlyForEmergency')) setError('Too early — wait 24h after deposit.')
+                    else if (!msg.includes('rejected')) setError('Claim failed. Try again.')
+                  } finally { setClaimingRoom(null) }
+                }} disabled={isClaiming}
+                  style={{ background: isClaiming ? '#1e1e30' : 'linear-gradient(135deg,#ef4444,#f59e0b)', border: 'none', borderRadius: '8px', padding: '8px 18px', color: isClaiming ? '#475569' : '#0a0a0f', fontWeight: 700, fontSize: '0.82rem', cursor: isClaiming ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+                  {isClaiming ? 'Claiming…' : 'Emergency Refund →'}
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {scanningChain && onChainDeposits.length === 0 && (
+        <div style={{ color: '#475569', fontSize: '0.78rem', textAlign: 'center', marginBottom: '16px' }}>Scanning blockchain for deposits…</div>
       )}
 
       {/* Game history */}

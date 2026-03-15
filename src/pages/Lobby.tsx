@@ -9,7 +9,16 @@ import { getEscrowAddress, getRoomId, ESCROW_ABI, USDT_APPROVE_ABI } from '../ut
 
 const HOUSE_WALLET = import.meta.env.VITE_HOUSE_WALLET as `0x${string}` | undefined
 const ACTIVE_ROOM_KEY = 'ag_active_room'
+const ROOM_HISTORY_KEY = 'ag_room_history'
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
+
+function addToRoomHistory(code: string, chainId: number) {
+  try {
+    const prev = JSON.parse(localStorage.getItem(ROOM_HISTORY_KEY) || '[]') as { code: string; chainId: number }[]
+    const updated = [{ code, chainId }, ...prev.filter(r => r.code !== code)].slice(0, 20)
+    localStorage.setItem(ROOM_HISTORY_KEY, JSON.stringify(updated))
+  } catch { /* ignore */ }
+}
 
 const GAME_META: Record<string, { title: string; emoji: string; desc: string; minPlayers: number; maxPlayers: number }> = {
   'math-arena':     { title: 'Math Arena',     emoji: '✚', desc: 'Speed math quiz — first correct answer scores. 100% skill, zero luck.',          minPlayers: 2, maxPlayers: 10 },
@@ -220,10 +229,16 @@ export default function Lobby() {
 
     // Step 3 — confirm deposit with server (marks host as ready)
     socket.emit('room:deposit', { code, txHash }, () => {})
+    // Also report to REST API as permanent record (survives server restarts)
+    fetch(`${SERVER_URL}/api/report-deposit`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address, room_code: code, tx_hash: txHash, chain_id: selectedChain.id, amount_usdt: selectedFee }),
+    }).catch(() => {})
 
     setCreating(false); setPayStep('idle')
     localStorage.setItem(ACTIVE_ROOM_KEY, code)
     setActiveRoom(code)
+    addToRoomHistory(code, selectedChain.id)
     navigate(`/game/${code}`, { state: { host: true, entry: selectedFee, maxPlayers, gameMode, chainId: selectedChain.id } })
   }
 
@@ -247,8 +262,14 @@ export default function Lobby() {
         if (res.error) { showError(res.error); return }
         // Step 3 — confirm deposit so server marks player as ready
         socket.emit('room:deposit', { code, txHash }, () => {})
+        // Also report to REST API as permanent record
+        fetch(`${SERVER_URL}/api/report-deposit`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address, room_code: code, tx_hash: txHash, chain_id: selectedChain.id, amount_usdt: fee }),
+        }).catch(() => {})
         localStorage.setItem(ACTIVE_ROOM_KEY, code)
         setActiveRoom(code)
+        addToRoomHistory(code, selectedChain.id)
         navigate(`/game/${code}`, { state: { gameMode, chainId: selectedChain.id } })
       }
     )
