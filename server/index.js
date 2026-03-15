@@ -790,7 +790,7 @@ io.on('connection', (socket) => {
         io.to(code).emit('room:timeout', { message: 'Room timed out — no game started. Refunding your deposit.' })
         await escrowRefund(r)
         cleanupRoom(code)
-      }, 5 * 60 * 1000) // 5 minutes
+      }, 10 * 60 * 1000) // 10 minutes
     }
 
     // Log deposit confirmation — evidence player paid; dispute-proof if they deny depositing

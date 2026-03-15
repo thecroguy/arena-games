@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { useAccount, useWriteContract, useChainId, useSwitchChain, useReadContract, useSignMessage } from 'wagmi'
+import { useAccount, useWriteContract, useChainId, useSwitchChain, useReadContract, useSignMessage, usePublicClient } from 'wagmi'
 import { parseUnits, formatUnits } from 'viem'
 import { connectSocket } from '../utils/socket'
 import { getUsername, shortAddr } from '../utils/profile'
@@ -42,6 +42,7 @@ export default function Lobby() {
   const { switchChainAsync } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
   const { signMessageAsync } = useSignMessage()
+  const publicClient = usePublicClient()
   const authSigRef = useRef<string | null>(null)
 
   const [rooms, setRooms]           = useState<Room[]>([])
@@ -164,12 +165,20 @@ export default function Lobby() {
     socket.on('matchmaking:timeout', ({ reason }: { reason: string }) => {
       setSearching(false); setQueueSize(0); showError(reason)
     })
+    socket.on('room:timeout', () => {
+      setLockedInRoom(null)
+      setJoining(null)
+      setCreating(false)
+      setPayStep('idle')
+      showError('Room timed out — no second player joined in time. Your deposit will be refunded. Check Profile → Stuck Deposits.')
+    })
     const interval = setInterval(loadRooms, 5000)
     return () => {
       socket.off('room:update')
       socket.off('matchmaking:queue_update')
       socket.off('matchmaking:matched')
       socket.off('matchmaking:timeout')
+      socket.off('room:timeout')
       clearInterval(interval)
       if (errorTimer.current) clearTimeout(errorTimer.current)
     }
@@ -193,16 +202,30 @@ export default function Lobby() {
 
     if (escrowAddr) {
       // ── Escrow flow: approve → deposit ──────────────────────────────────
+      // Check existing allowance — skip approve if already sufficient
       setPayStep('approving')
       try {
-        // Step 1 — approve the escrow contract to pull USDT
-        await writeContractAsync({
-          address: chain.usdt,
-          abi: USDT_APPROVE_ABI,
-          functionName: 'approve',
-          args: [escrowAddr, amount],
-          chainId: chain.id,
-        })
+        let needsApprove = true
+        if (publicClient && address) {
+          try {
+            const allowance = await publicClient.readContract({
+              address: chain.usdt,
+              abi: [{ name: 'allowance', type: 'function', stateMutability: 'view', inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }], outputs: [{ type: 'uint256' }] }],
+              functionName: 'allowance',
+              args: [address, escrowAddr],
+            }) as bigint
+            if (allowance >= amount) needsApprove = false
+          } catch { /* ignore, proceed with approve */ }
+        }
+        if (needsApprove) {
+          await writeContractAsync({
+            address: chain.usdt,
+            abi: USDT_APPROVE_ABI,
+            functionName: 'approve',
+            args: [escrowAddr, amount],
+            chainId: chain.id,
+          })
+        }
       } catch {
         showError('Approval rejected. You must approve USDT to lock into the game contract.')
         return null
