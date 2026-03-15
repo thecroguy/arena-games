@@ -80,8 +80,26 @@ export default function Lobby() {
     function loadRooms() {
       socket.emit('rooms:list', gameMode, (list: Room[]) => { setRooms(list); setLoading(false) })
     }
-    if (socket.connected) loadRooms()
-    else { socket.connect(); socket.once('connect', loadRooms) }
+    function verifyActiveRoom(code: string) {
+      socket.emit('room:get', code, (room: unknown) => {
+        if (!room) {
+          localStorage.removeItem(ACTIVE_ROOM_KEY)
+          setActiveRoom('')
+        }
+      })
+    }
+    if (socket.connected) {
+      loadRooms()
+      const cached = localStorage.getItem(ACTIVE_ROOM_KEY)
+      if (cached) verifyActiveRoom(cached)
+    } else {
+      socket.connect()
+      socket.once('connect', () => {
+        loadRooms()
+        const cached = localStorage.getItem(ACTIVE_ROOM_KEY)
+        if (cached) verifyActiveRoom(cached)
+      })
+    }
     socket.on('room:update', loadRooms)
     const interval = setInterval(loadRooms, 5000)
     return () => {
