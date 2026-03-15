@@ -19,6 +19,9 @@ contracts/artifacts
 contracts/cache
 contracts/typechain-types
 
+# Local context (never push)
+CONTEXT.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

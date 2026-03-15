@@ -148,9 +148,8 @@ const STEPS = [
   },
   {
     icon: (
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="1.8" strokeLinecap="round">
-        <circle cx="12" cy="8" r="6"/>
-        <path d="M8.21 13.89L7 23l5-3 5 3-1.21-9.12"/>
+      <svg xmlns="http://www.w3.org/2000/svg" height="40" viewBox="0 -960 960 960" width="40" fill="#F19E39">
+        <path d="M536.5-543.5Q560-567 560-600t-23.5-56.5Q513-680 480-680t-56.5 23.5Q400-633 400-600t23.5 56.5Q447-520 480-520t56.5-23.5ZM280-120v-80h160v-124q-49-11-87.5-41.5T296-442q-75-9-125.5-65.5T120-640v-40q0-33 23.5-56.5T200-760h80v-80h400v80h80q33 0 56.5 23.5T840-680v40q0 76-50.5 132.5T664-442q-18 46-56.5 76.5T520-324v124h160v80H280Zm0-408v-152h-80v40q0 38 22 68.5t58 43.5Zm285 93q35-35 35-85v-240H360v240q0 50 35 85t85 35q50 0 85-35Zm115-93q36-13 58-43.5t22-68.5v-40h-80v152Zm-200-52Z"/>
       </svg>
     ),
     title: 'Win the Pot',
@@ -251,9 +250,8 @@ export default function Home() {
       {/* Bottom CTA */}
       <div style={{ textAlign: 'center', padding: '72px 24px' }}>
         <div style={{ marginBottom: '16px', display: 'inline-block', animation: 'float 3s ease-in-out infinite' }}>
-          <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="1.8" strokeLinecap="round">
-            <circle cx="12" cy="8" r="6"/>
-            <path d="M8.21 13.89L7 23l5-3 5 3-1.21-9.12"/>
+          <svg xmlns="http://www.w3.org/2000/svg" height="52" viewBox="0 -960 960 960" width="52" fill="#F19E39">
+            <path d="M536.5-543.5Q560-567 560-600t-23.5-56.5Q513-680 480-680t-56.5 23.5Q400-633 400-600t23.5 56.5Q447-520 480-520t56.5-23.5ZM280-120v-80h160v-124q-49-11-87.5-41.5T296-442q-75-9-125.5-65.5T120-640v-40q0-33 23.5-56.5T200-760h80v-80h400v80h80q33 0 56.5 23.5T840-680v40q0 76-50.5 132.5T664-442q-18 46-56.5 76.5T520-324v124h160v80H280Zm0-408v-152h-80v40q0 38 22 68.5t58 43.5Zm285 93q35-35 35-85v-240H360v240q0 50 35 85t85 35q50 0 85-35Zm115-93q36-13 58-43.5t22-68.5v-40h-80v152Zm-200-52Z"/>
           </svg>
         </div>
         <h2 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 900, fontSize: 'clamp(1.4rem, 3vw, 2rem)', color: '#e2e8f0', marginBottom: '12px' }}>
