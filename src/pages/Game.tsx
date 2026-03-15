@@ -398,6 +398,13 @@ export default function Game() {
     function rejoin() {
       if (!myAddr) return
       socket.emit('room:join', { code: roomCode, address: myAddr }, (res: { ok?: boolean; error?: string; reconnected?: boolean; room?: { players: PlayerState[]; gameMode?: string } }) => {
+        if (res.error === 'Room not found') {
+          // Room was cleaned up (refund issued, game ended, or server restart with no DB record)
+          // Don't strand user on a dead room page — send them back to lobby
+          localStorage.removeItem('ag_active_room')
+          navigate(`/lobby/${gameModeLS}`)
+          return
+        }
         if (res.error && res.error !== 'Already in room') setError(res.error)
         if (res.room) {
           setPlayers(res.room.players)
