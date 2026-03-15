@@ -325,6 +325,7 @@ export default function Profile() {
         })
       }
       setStuckDeposits(prev => prev.filter(d => d.room_code !== deposit.room_code))
+      setOnChainDeposits(prev => prev.filter(d => d.code !== deposit.room_code))
       // Tell server the refund was claimed so it doesn't reappear on refresh
       fetch(`${SERVER_URL}/api/mark-refund-claimed`, {
         method: 'POST',
