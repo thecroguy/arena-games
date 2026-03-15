@@ -303,6 +303,12 @@ export default function Profile() {
         })
       }
       setStuckDeposits(prev => prev.filter(d => d.room_code !== deposit.room_code))
+      // Tell server the refund was claimed so it doesn't reappear on refresh
+      fetch(`${SERVER_URL}/api/mark-refund-claimed`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomCode: deposit.room_code, address }),
+      }).catch(() => {})
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
       if (msg.includes('TooEarlyForEmergency')) setError('Too early — refund available 24h after deposit. Come back later.')

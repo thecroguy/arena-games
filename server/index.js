@@ -1228,12 +1228,12 @@ app.get('/api/stuck-deposits/:address', async (req, res) => {
 
     if (!deposits || deposits.length === 0) return res.json([])
 
-    // Rooms that already have a claim payout (fully settled — don't show)
+    // Rooms that are fully done — claim_signed (won) or refund_claimed (refunded on-chain)
     const roomCodes = [...new Set(deposits.map(d => d.room_code))]
     const { data: claimed } = await supabase
       .from('escrow_events')
       .select('room_code')
-      .eq('event_type', 'claim_signed')
+      .in('event_type', ['claim_signed', 'refund_claimed'])
       .in('room_code', roomCodes)
 
     // Fetch refund sigs — rooms with refund_signed still need player to call claimRefund
@@ -1381,6 +1381,25 @@ app.post('/api/mark-claimed', express.json(), async (req, res) => {
       .eq('player_address', address.toLowerCase())
       .eq('room_code', room_code)
       .eq('result', 'win')
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// ── Mark refund claimed — removes from stuck deposits on refresh ──────────
+app.post('/api/mark-refund-claimed', express.json(), async (req, res) => {
+  try {
+    const { roomCode, address } = req.body || {}
+    if (!roomCode || !address) return res.status(400).json({ error: 'Missing fields' })
+    if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
+    if (!supabase) return res.json({ ok: true })
+    await supabase.from('escrow_events').insert({
+      event_type:     'refund_claimed',
+      room_code:      roomCode,
+      player_address: address.toLowerCase(),
+      note:           'Player confirmed on-chain claimRefund',
+    })
     res.json({ ok: true })
   } catch (e) {
     res.status(500).json({ error: e.message })
