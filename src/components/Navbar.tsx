@@ -123,7 +123,7 @@ export default function Navbar() {
         >
           {/* Wallet connect at top of dropdown */}
           <div style={{ marginBottom: '12px', padding: '0 4px' }}>
-            <ConnectButton chainStatus="none" accountStatus="full" showBalance={false} />
+            <ConnectButton chainStatus="full" accountStatus="full" showBalance={false} />
           </div>
           <div style={{ height: '1px', background: '#1e1e30', marginBottom: '10px' }} />
           {NAV_LINKS.map(({ to, label, icon }) => {
