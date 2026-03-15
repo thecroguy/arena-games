@@ -555,7 +555,7 @@ export default function Lobby() {
               <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <div>
                   <p style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1rem', letterSpacing: '0.1em' }}>{room.code}</p>
-                  <p style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '2px' }}>Host: {shortAddr(room.host)}</p>
+                  <p style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '2px' }}>Host: {getUsername(room.host)}</p>
                 </div>
                 <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>👥 {room.players}/{room.max}</p>
                 <div>

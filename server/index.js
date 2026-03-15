@@ -820,10 +820,6 @@ io.on('connection', (socket) => {
 
     io.to(code).emit('room:update', roomPublic(room))
     cb({ ok: true, room: roomPublic(room) })
-
-    if (room.players.length >= room.maxPlayers) {
-      setTimeout(() => startCountdown(room), 500)
-    }
   })
 
   // Player confirms their escrow deposit — server verifies on-chain then marks them ready
@@ -896,7 +892,13 @@ io.on('connection', (socket) => {
     cb({ ok: true })
     console.log(`${address.slice(0, 8)} deposited for room ${code} (chain ${room.chainId})`)
 
-    // Start 5-min timeout on first deposit — if room never fills, auto-refund
+    // Auto-start when room is at capacity AND every player has deposited
+    if (room.players.length >= room.maxPlayers && room.players.every(p => p.deposited)) {
+      console.log(`All players deposited in full room ${code} — auto-starting`)
+      setTimeout(() => startCountdown(room), 2000) // 2s grace so UI can update first
+    }
+
+    // Start 10-min timeout on first deposit — if room never fills, auto-refund
     if (!room.depositTimeoutHandle) {
       room.depositTimeoutHandle = setTimeout(async () => {
         const r = rooms.get(code)
