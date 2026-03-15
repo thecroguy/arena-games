@@ -8,7 +8,8 @@
     "deploy:polygon":    "hardhat run scripts/deploy.js --network polygon",
     "mint":              "hardhat run scripts/mint.js --network amoy",
     "verify:amoy":       "hardhat verify --network amoy",
-    "verify:polygon":    "hardhat verify --network polygon"
+    "verify:polygon":    "hardhat verify --network polygon",
+    "emergency-refund":  "hardhat run scripts/emergency-refund.js --network polygon"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

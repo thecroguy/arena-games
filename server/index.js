@@ -101,9 +101,56 @@ if (SERVER_SIGNING_KEY) {
 }
 
 // ── In-memory room store ──────────────────────────────────────────────────
-const rooms           = new Map()
-const addressRooms    = new Map() // address → Set of room codes they created
+const rooms            = new Map()
+const addressRooms     = new Map() // address → Set of room codes they created
 const disconnectTimers = new Map() // `${code}:${address}` → reconnect timer
+
+// ── Room persistence (survives server restarts) ────────────────────────────
+async function saveRoomToDb(room) {
+  if (!supabase) return
+  await supabase.from('active_rooms').upsert({
+    code:        room.code,
+    game_mode:   room.gameMode,
+    entry_fee:   room.entryFee,
+    chain_id:    room.chainId || 137,
+    max_players: room.maxPlayers,
+    host:        room.host,
+    players:     room.players.map(p => ({ address: p.address, deposited: !!p.deposited })),
+    status:      'waiting',
+  }, { onConflict: 'code' }).catch(e => console.error('saveRoom error:', e.message))
+}
+
+async function deleteRoomFromDb(code) {
+  if (!supabase) return
+  await supabase.from('active_rooms').delete().eq('code', code)
+    .catch(e => console.error('deleteRoom error:', e.message))
+}
+
+async function loadRoomsFromDb() {
+  if (!supabase) return
+  const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() // last 2 hours only
+  const { data } = await supabase.from('active_rooms')
+    .select('*').eq('status', 'waiting').gt('created_at', cutoff)
+  if (!data || data.length === 0) return
+  for (const row of data) {
+    const room = {
+      code: row.code, gameMode: row.game_mode, entryFee: Number(row.entry_fee),
+      chainId: row.chain_id, maxPlayers: row.max_players, host: row.host,
+      players: (row.players || []).map(p => ({
+        id: null, address: p.address, score: 0,
+        answered: false, correct: null, sealedPick: null,
+        deposited: !!p.deposited, disconnected: true,
+      })),
+      status: 'waiting', round: 0, question: null, roundTimer: null, roundStartAt: null,
+    }
+    rooms.set(room.code, room)
+    const hostSet = addressRooms.get(room.host) || new Set()
+    hostSet.add(room.code)
+    addressRooms.set(room.host, hostSet)
+  }
+  console.log(`Restored ${data.length} active room(s) from DB`)
+}
+loadRoomsFromDb()
 
 // ── Simple per-socket rate limiter ────────────────────────────────────────
 const rateLimits = new Map()
@@ -258,6 +305,7 @@ function cleanupRoom(code) {
     if (hostSet.size === 0) addressRooms.delete(room.host)
   }
   rooms.delete(code)
+  deleteRoomFromDb(code)
 }
 
 // ── Game flow ─────────────────────────────────────────────────────────────
@@ -505,6 +553,7 @@ io.on('connection', (socket) => {
     socket.join(code)
     socket.data.roomCode = code
     socket.data.address  = address
+    saveRoomToDb(room)
     cb({ code, chainId: resolvedChainId })
     console.log(`Room ${code} [${gameMode}] created by ${address.slice(0, 8)} on chain ${resolvedChainId}`)
   })
@@ -592,6 +641,7 @@ io.on('connection', (socket) => {
     }
 
     player.deposited = true
+    saveRoomToDb(room)
     io.to(code).emit('room:update', roomPublic(room))
     cb({ ok: true })
     console.log(`${address.slice(0, 8)} deposited for room ${code} (chain ${room.chainId})`)

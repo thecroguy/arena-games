@@ -143,3 +143,26 @@ drop policy if exists "Owner upsert profile" on player_profiles;
 revoke insert, update, delete on player_profiles from anon;
 
 grant select on player_profiles to anon;
+
+-- ── Active rooms (survives server restarts) ────────────────────────────────
+-- Persisted so rooms are not lost when Render restarts.
+-- Only waiting rooms are stored here — cleared when game starts or room ends.
+create table if not exists active_rooms (
+  code        text primary key,
+  game_mode   text not null,
+  entry_fee   numeric not null,
+  chain_id    integer not null default 137,
+  max_players integer not null,
+  host        text not null,
+  players     jsonb not null default '[]', -- [{address, deposited}]
+  status      text not null default 'waiting',
+  created_at  timestamptz not null default now()
+);
+
+alter table active_rooms enable row level security;
+
+drop policy if exists "Public read active_rooms" on active_rooms;
+create policy "Public read active_rooms"
+  on active_rooms for select using (true);
+
+grant select on active_rooms to anon;
