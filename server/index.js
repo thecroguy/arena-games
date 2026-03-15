@@ -310,6 +310,11 @@ function cleanupRoom(code) {
 
 // ── Game flow ─────────────────────────────────────────────────────────────
 function startCountdown(room) {
+  // Cancel deposit timeout — game is starting
+  if (room.depositTimeoutHandle) {
+    clearTimeout(room.depositTimeoutHandle)
+    room.depositTimeoutHandle = null
+  }
   room.status = 'countdown'
   io.to(room.code).emit('room:update', roomPublic(room))
   let count = 3
@@ -652,6 +657,20 @@ io.on('connection', (socket) => {
     cb({ ok: true })
     console.log(`${address.slice(0, 8)} deposited for room ${code} (chain ${room.chainId})`)
 
+    // Start 5-min timeout on first deposit — if room never fills, auto-refund
+    if (!room.depositTimeoutHandle) {
+      room.depositTimeoutHandle = setTimeout(async () => {
+        const r = rooms.get(code)
+        if (!r || r.status !== 'waiting') return
+        const hasDeposits = r.players.some(p => p.deposited)
+        if (!hasDeposits) return
+        console.log(`Room ${code} timed out — auto-refunding depositors`)
+        io.to(code).emit('room:timeout', { message: 'Room timed out — no game started. Refunding your deposit.' })
+        await escrowRefund(r)
+        cleanupRoom(code)
+      }, 5 * 60 * 1000) // 5 minutes
+    }
+
     // Log deposit confirmation — evidence player paid; dispute-proof if they deny depositing
     const escrowAddr = getChainEscrowAddress(room.chainId)
     if (supabase && escrowAddr) {
@@ -904,6 +923,35 @@ app.post('/api/avatar-unlock', express.json(), async (req, res) => {
       .upsert({ address: address.toLowerCase(), purchased_styles: merged, avatar_style: style, updated_at: new Date().toISOString() }, { onConflict: 'address' })
     if (error) return res.status(500).json({ error: error.message })
     res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// ── Active deposit check — prevent joining two games at once ──────────────
+app.get('/api/active-deposit/:address', async (req, res) => {
+  const { address } = req.params
+  if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
+  if (!supabase) return res.json({ hasActive: false })
+  try {
+    const addr = address.toLowerCase()
+    const { data: deposits } = await supabase
+      .from('escrow_events')
+      .select('room_code')
+      .eq('event_type', 'deposit_confirmed')
+      .eq('player_address', addr)
+      .order('created_at', { ascending: false })
+      .limit(20)
+    if (!deposits || deposits.length === 0) return res.json({ hasActive: false })
+    const roomCodes = [...new Set(deposits.map(d => d.room_code))]
+    const { data: settled } = await supabase
+      .from('escrow_events')
+      .select('room_code')
+      .in('event_type', ['claim_signed', 'refund_signed'])
+      .in('room_code', roomCodes)
+    const settledRooms = new Set((settled || []).map(s => s.room_code))
+    const activeRoom = roomCodes.find(c => !settledRooms.has(c))
+    res.json({ hasActive: !!activeRoom, roomCode: activeRoom || null })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }

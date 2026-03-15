@@ -1,6 +1,8 @@
-import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
+
+const ACTIVE_ROOM_KEY = 'ag_active_room'
 
 function IconGames({ size = 16 }: { size?: number }) {
   return (
@@ -45,7 +47,20 @@ const NAV_LINKS = [
 
 export default function Navbar() {
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const [activeRoom, setActiveRoom] = useState(() => localStorage.getItem(ACTIVE_ROOM_KEY) || '')
+
+  // Keep banner in sync when localStorage changes (e.g. after room clears)
+  useEffect(() => {
+    const onStorage = () => setActiveRoom(localStorage.getItem(ACTIVE_ROOM_KEY) || '')
+    window.addEventListener('storage', onStorage)
+    // Also poll every 5s for same-tab changes
+    const t = setInterval(() => setActiveRoom(localStorage.getItem(ACTIVE_ROOM_KEY) || ''), 5000)
+    return () => { window.removeEventListener('storage', onStorage); clearInterval(t) }
+  }, [])
+
+  const onGamePage = pathname.startsWith('/game/')
 
   return (
     <>
@@ -109,6 +124,29 @@ export default function Navbar() {
           <span style={{ display: 'block', width: '18px', height: '2px', background: open ? '#a78bfa' : '#64748b', borderRadius: '2px', transition: 'all 0.2s', transform: open ? 'rotate(-45deg) translate(4px, -4px)' : 'none' }} />
         </button>
       </nav>
+
+      {/* Active room banner — shown on every page except the game page itself */}
+      {activeRoom && !onGamePage && (
+        <div style={{
+          background: 'rgba(34,197,94,0.08)', borderBottom: '1px solid rgba(34,197,94,0.2)',
+          padding: '8px clamp(12px,4vw,28px)', display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between', gap: '12px', zIndex: 98,
+        }}>
+          <span style={{ color: '#22c55e', fontSize: '0.82rem', fontWeight: 600 }}>
+            🎮 Active room: <strong style={{ fontFamily: 'Orbitron, sans-serif' }}>{activeRoom}</strong>
+          </span>
+          <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+            <button onClick={() => { navigate(`/game/${activeRoom}`); setOpen(false) }}
+              style={{ background: '#22c55e', border: 'none', borderRadius: '6px', padding: '5px 12px', color: '#0a0a0f', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}>
+              Return →
+            </button>
+            <button onClick={() => { localStorage.removeItem(ACTIVE_ROOM_KEY); setActiveRoom('') }}
+              style={{ background: 'none', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '6px', padding: '5px 8px', color: '#64748b', fontSize: '0.78rem', cursor: 'pointer' }}>
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Mobile dropdown */}
       {open && (

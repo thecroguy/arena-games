@@ -436,6 +436,12 @@ export default function Game() {
       setPlayers(prev => prev.filter(p => p.address !== data.address))
       setDisconnectedPlayers(prev => prev.filter(a => a !== data.address))
     })
+    socket.on('room:timeout', (data: { message: string }) => {
+      if (timerRef.current) clearInterval(timerRef.current)
+      localStorage.removeItem('ag_active_room')
+      setAbandonReason(data.message)
+      setPhase('abandoned')
+    })
     socket.on('game:abandoned', (data: { reason: string }) => {
       if (timerRef.current) clearInterval(timerRef.current)
       localStorage.removeItem('ag_active_room')
@@ -477,7 +483,7 @@ export default function Game() {
       socket.off('room:update'); socket.off('game:countdown'); socket.off('game:question')
       socket.off('game:player_answered'); socket.off('game:sealed_submitted')
       socket.off('game:round_end'); socket.off('game:over'); socket.off('game:refund_sig')
-      socket.off('game:player_left'); socket.off('game:abandoned')
+      socket.off('game:player_left'); socket.off('game:abandoned'); socket.off('room:timeout')
       socket.off('game:player_disconnected'); socket.off('game:player_reconnected')
       socket.off('game:reconnected')
       socket.off('reaction:message')

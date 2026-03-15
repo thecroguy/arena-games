@@ -9,6 +9,7 @@ import { getEscrowAddress, getRoomId, ESCROW_ABI, USDT_APPROVE_ABI } from '../ut
 
 const HOUSE_WALLET = import.meta.env.VITE_HOUSE_WALLET as `0x${string}` | undefined
 const ACTIVE_ROOM_KEY = 'ag_active_room'
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
 
 const GAME_META: Record<string, { title: string; emoji: string; desc: string; minPlayers: number; maxPlayers: number }> = {
   'math-arena':     { title: 'Math Arena',     emoji: '✚', desc: 'Speed math quiz — first correct answer scores. 100% skill, zero luck.',          minPlayers: 2, maxPlayers: 10 },
@@ -44,6 +45,7 @@ export default function Lobby() {
   const [activeRoom, setActiveRoom] = useState(() => localStorage.getItem(ACTIVE_ROOM_KEY) || '')
   const [selectedChain, setSelectedChain] = useState<SupportedChain>(SUPPORTED_CHAINS[0])
   const [showChainPicker, setShowChainPicker] = useState(false)
+  const [lockedInRoom, setLockedInRoom] = useState<string | null>(null)
   const errorTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const meta = GAME_META[gameMode ?? ''] ?? { title: gameMode ?? 'Game', emoji: '🎮', desc: '', minPlayers: 2, maxPlayers: 10 }
@@ -68,6 +70,15 @@ export default function Lobby() {
     const chain = getChain(currentChainId)
     if (chain) setSelectedChain(chain)
   }, [currentChainId])
+
+  // Check if user already has a locked deposit in another room
+  useEffect(() => {
+    if (!address) return
+    fetch(`${SERVER_URL}/api/active-deposit/${address}`)
+      .then(r => r.json())
+      .then(data => { if (data.hasActive) setLockedInRoom(data.roomCode) })
+      .catch(() => {})
+  }, [address])
 
   function showError(msg: string) {
     setError(msg)
@@ -185,6 +196,7 @@ export default function Lobby() {
 
   async function payAndCreate() {
     if (!isConnected || !address) { showError('Connect your wallet first'); return }
+    if (lockedInRoom) { showError(`You have funds locked in room ${lockedInRoom}. Finish that game or claim a refund from your Profile first.`); return }
     setCreating(true); setError('')
 
     // Step 1 — create room on server first to get the room code
@@ -217,6 +229,7 @@ export default function Lobby() {
 
   async function handleJoinRoom(code: string) {
     if (!isConnected || !address) { showError('Connect your wallet first'); return }
+    if (lockedInRoom && lockedInRoom !== code) { showError(`You have funds locked in room ${lockedInRoom}. Finish that game or claim a refund from your Profile first.`); return }
     const room = rooms.find(r => r.code === code)
     const fee = room?.entry ?? 1
     setJoining(code); setError('')
