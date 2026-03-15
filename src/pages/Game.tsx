@@ -681,7 +681,7 @@ export default function Game() {
                 ✅ ${gameOver.pot} USDT sent automatically on-chain
                 {' · '}
                 <a href={`https://polygonscan.com/tx/${gameOver.payoutTx}`} target="_blank" rel="noopener noreferrer" style={{ color: '#22c55e' }}>View TX →</a>
-                <br /><span style={{ color: '#475569' }}>Winner received 85% of the pot. 15% platform fee. Gas paid by platform.</span>
+                <br /><span style={{ color: '#475569' }}>Winner: 85% of pot · Platform: 15% · Gas: 0.005 MATIC/player (paid at entry)</span>
               </div>
             ) : !isBotMode && (
               <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '8px', padding: '8px 14px', marginBottom: '20px', fontSize: '0.78rem', color: '#fcd34d' }}>

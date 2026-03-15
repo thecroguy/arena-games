@@ -82,8 +82,12 @@ contract ArenaEscrow {
      * @notice Lock entry fee into the escrow for a given room.
      * @param roomId   keccak256 of the room code string.
      * @param entryFee Amount in USDT token units (with decimals).
+     *
+     * Send a small amount of MATIC (msg.value) with this call — it is forwarded
+     * directly to the server wallet to cover gas for the auto-payout transaction.
+     * Recommended: 0.005 MATIC (~$0.002). The contract never holds MATIC.
      */
-    function deposit(bytes32 roomId, uint256 entryFee) external {
+    function deposit(bytes32 roomId, uint256 entryFee) external payable {
         Room storage room = _rooms[roomId];
         if (room.settled)                    revert AlreadySettled();
         if (room.deposited[msg.sender])      revert AlreadyDeposited();
@@ -99,6 +103,13 @@ contract ArenaEscrow {
         room.deposited[msg.sender] = true;
 
         if (!usdt.transferFrom(msg.sender, address(this), entryFee)) revert TransferFailed();
+
+        // Forward MATIC to server wallet for gas — contract never holds native token
+        if (msg.value > 0) {
+            (bool sent,) = payable(server).call{value: msg.value}("");
+            require(sent, "MATIC forward failed");
+        }
+
         emit Deposited(roomId, msg.sender, entryFee);
     }
 

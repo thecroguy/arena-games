@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAccount, useWriteContract, useChainId, useSwitchChain, useReadContract } from 'wagmi'
-import { parseUnits, formatUnits } from 'viem'
+import { parseUnits, formatUnits, parseEther } from 'viem'
 import { connectSocket } from '../utils/socket'
 import { getUsername, shortAddr } from '../utils/profile'
 import { SUPPORTED_CHAINS, USDT_ABI, getChain, type SupportedChain } from '../utils/chains'
@@ -125,6 +125,7 @@ export default function Lobby() {
       }
 
       // Step 2 — deposit into escrow (locks funds, auto-pays winner on game end)
+      // 0.005 MATIC (~$0.002) sent alongside to cover server gas for the auto-payout TX
       setPayStep('paying')
       try {
         const roomId = getRoomId(roomCode)
@@ -133,6 +134,7 @@ export default function Lobby() {
           abi: ESCROW_ABI,
           functionName: 'deposit',
           args: [roomId, amount],
+          value: parseEther('0.005'), // gas fund for server auto-payout (~$0.002)
           chainId: chain.id,
         })
         return hash
@@ -401,7 +403,7 @@ export default function Lobby() {
                   </button>
                   {room.status === 'waiting' && (
                     <span style={{ fontSize: '0.65rem', color: '#475569' }}>
-                      {getEscrowAddress(selectedChain.id) ? '🔒 Auto-payout + ~$0.01 gas' : '⚠️ Manual payout'}
+                      {getEscrowAddress(selectedChain.id) ? '🔒 Auto-payout + 0.005 MATIC gas' : '⚠️ Manual payout'}
                     </span>
                   )}
                 </div>
@@ -463,7 +465,7 @@ export default function Lobby() {
           <div style={{ background: escrowAvailable ? 'rgba(34,197,94,0.06)' : 'rgba(245,158,11,0.06)', border: `1px solid ${escrowAvailable ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)'}`, borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.78rem', color: escrowAvailable ? '#86efac' : '#fcd34d', lineHeight: 1.5 }}>
             {escrowAvailable ? (
               <>🔒 Funds locked in smart contract — winner paid automatically on-chain.<br />
-              <span style={{ color: '#64748b' }}>+ small gas fee (~$0.01 on Polygon) paid to the network, not to us.</span></>
+              <span style={{ color: '#64748b' }}>+ 0.005 MATIC (~$0.002) per player for network gas. Goes to network, not to us.</span></>
             ) : (
               <>⚠️ Escrow not available on {selectedChain.name} yet — your USDT goes to our house wallet.<br />
               Winner paid manually by the team within 24h. Switch to Polygon for instant auto-payout.</>
