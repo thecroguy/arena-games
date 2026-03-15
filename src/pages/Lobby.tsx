@@ -42,7 +42,7 @@ export default function Lobby() {
   const { switchChainAsync } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
   const { signMessageAsync } = useSignMessage()
-  const publicClient = usePublicClient({ chainId: selectedChain.id })
+  const publicClient = usePublicClient()
   const authSigRef = useRef<string | null>(null)
 
   const [rooms, setRooms]           = useState<Room[]>([])
