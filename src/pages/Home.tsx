@@ -190,7 +190,7 @@ export default function Home() {
 
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '40px' }}>
           <button
-            onClick={() => navigate('/lobby/math-arena')}
+            onClick={() => document.getElementById('games-grid')?.scrollIntoView({ behavior: 'smooth' })}
             style={{ background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '12px', padding: '14px 32px', color: '#fff', fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1rem', cursor: 'pointer', letterSpacing: '0.05em', boxShadow: '0 0 32px rgba(124,58,237,0.4)', transition: 'box-shadow 0.2s' }}
           >
             Play Now →
@@ -261,9 +261,9 @@ export default function Home() {
           Start with free bot practice — no wallet needed
         </p>
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link to="/lobby/math-arena" style={{ textDecoration: 'none', background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', borderRadius: '12px', padding: '13px 28px', color: '#fff', fontWeight: 700, fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem', letterSpacing: '0.05em', boxShadow: '0 0 32px rgba(124,58,237,0.35)' }}>
-            Enter Lobby
-          </Link>
+          <button onClick={() => document.getElementById('games-grid')?.scrollIntoView({ behavior: 'smooth' })} style={{ textDecoration: 'none', background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', borderRadius: '12px', padding: '13px 28px', color: '#fff', fontWeight: 700, fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem', letterSpacing: '0.05em', boxShadow: '0 0 32px rgba(124,58,237,0.35)', border: 'none', cursor: 'pointer' }}>
+            Pick a Game
+          </button>
           <Link to="/leaderboard" style={{ textDecoration: 'none', background: '#12121a', border: '1px solid #1e1e30', borderRadius: '12px', padding: '13px 28px', color: '#94a3b8', fontWeight: 700, fontSize: '0.9rem' }}>
             Leaderboard
           </Link>
