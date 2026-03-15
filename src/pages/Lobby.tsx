@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAccount, useWriteContract, useChainId, useSwitchChain, useReadContract, useSignMessage } from 'wagmi'
 import { parseUnits, formatUnits } from 'viem'
 import { connectSocket } from '../utils/socket'
@@ -36,6 +36,7 @@ type Room = { code: string; host: string; players: number; max: number; entry: n
 export default function Lobby() {
   const { gameMode } = useParams<{ gameMode: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { address, isConnected } = useAccount()
   const currentChainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
@@ -57,6 +58,8 @@ export default function Lobby() {
   const [selectedChain, setSelectedChain] = useState<SupportedChain>(SUPPORTED_CHAINS[0])
   const [showChainPicker, setShowChainPicker] = useState(false)
   const [lockedInRoom, setLockedInRoom] = useState<string | null>(null)
+  const [searching, setSearching]       = useState(false)
+  const [queueSize, setQueueSize]       = useState(0)
   const errorTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const meta = GAME_META[gameMode ?? ''] ?? { title: gameMode ?? 'Game', emoji: '🎮', desc: '', minPlayers: 2, maxPlayers: 10 }
@@ -83,6 +86,19 @@ export default function Lobby() {
   }, [currentChainId])
 
   useEffect(() => { authSigRef.current = null }, [address])
+
+  // Auto-join when redirected from matchmaking
+  useEffect(() => {
+    const state = location.state as { autoJoin?: string; autoFee?: number; autoChainId?: number } | null
+    if (!state?.autoJoin || !address || joining || creating) return
+    const chain = getChain(state.autoChainId ?? 137) ?? selectedChain
+    setSelectedChain(chain)
+    if (state.autoFee) setSelectedFee(state.autoFee)
+    // Clear state so a refresh doesn't re-trigger
+    window.history.replaceState({}, '')
+    handleJoinRoom(state.autoJoin)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state, address])
 
   // Check if user already has a locked deposit in another room
   useEffect(() => {
@@ -137,9 +153,23 @@ export default function Lobby() {
       })
     }
     socket.on('room:update', loadRooms)
+    socket.on('matchmaking:queue_update', ({ size }: { size: number }) => setQueueSize(size))
+    socket.on('matchmaking:matched', ({ code, entryFee, chainId }: { code: string; entryFee: number; gameMode: string; chainId: number }) => {
+      setSearching(false)
+      setQueueSize(0)
+      addToRoomHistory(code, chainId)
+      // Navigate to lobby to complete deposit, with room pre-filled
+      navigate(`/lobby/${gameMode}`, { state: { autoJoin: code, autoFee: entryFee, autoChainId: chainId }, replace: true })
+    })
+    socket.on('matchmaking:timeout', ({ reason }: { reason: string }) => {
+      setSearching(false); setQueueSize(0); showError(reason)
+    })
     const interval = setInterval(loadRooms, 5000)
     return () => {
       socket.off('room:update')
+      socket.off('matchmaking:queue_update')
+      socket.off('matchmaking:matched')
+      socket.off('matchmaking:timeout')
       clearInterval(interval)
       if (errorTimer.current) clearTimeout(errorTimer.current)
     }
@@ -217,6 +247,28 @@ export default function Lobby() {
         return null
       }
     }
+  }
+
+  async function findMatch() {
+    if (!isConnected || !address) { showError('Connect your wallet first'); return }
+    if (lockedInRoom) { showError(`You have funds locked in room ${lockedInRoom}. Claim a refund from your Profile first.`); return }
+    const authSig = await getAuthSig()
+    if (!authSig) return
+    setSearching(true)
+    setQueueSize(0)
+    const socket = connectSocket()
+    socket.emit('matchmaking:join', { gameMode, entryFee: selectedFee, chainId: selectedChain.id, address, authSig },
+      (res: { ok?: boolean; error?: string; queueSize?: number }) => {
+        if (res.error) { setSearching(false); showError(res.error) }
+        else setQueueSize(res.queueSize ?? 1)
+      }
+    )
+  }
+
+  function cancelMatch() {
+    setSearching(false); setQueueSize(0)
+    const socket = connectSocket()
+    socket.emit('matchmaking:leave', {}, () => {})
   }
 
   async function payAndCreate() {
@@ -435,12 +487,38 @@ export default function Lobby() {
         ))}
       </div>
 
+      {/* Find Match (matchmaking) */}
+      {searching ? (
+        <div style={{ background: '#12121a', border: '1px solid rgba(124,58,237,0.4)', borderRadius: '14px', padding: '20px 24px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+          <div>
+            <p style={{ color: '#a78bfa', fontWeight: 700, fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem', marginBottom: '4px' }}>
+              Finding opponents… {queueSize > 0 && `(${queueSize} in queue)`}
+            </p>
+            <p style={{ color: '#64748b', fontSize: '0.8rem' }}>Entry fee ${selectedFee} · {selectedChain.name} · waiting up to 30s</p>
+          </div>
+          <button onClick={cancelMatch} style={{ background: 'none', border: '1px solid #475569', borderRadius: '8px', padding: '8px 16px', color: '#94a3b8', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', padding: '16px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <p style={{ color: '#e2e8f0', fontWeight: 700, fontSize: '0.9rem', marginBottom: '2px' }}>Auto Matchmaking</p>
+            <p style={{ color: '#64748b', fontSize: '0.78rem' }}>Get paired with opponents automatically — no room code needed</p>
+          </div>
+          <button onClick={findMatch} disabled={!isConnected}
+            style={{ background: isConnected ? 'linear-gradient(135deg,#7c3aed,#06b6d4)' : '#1e1e30', border: 'none', borderRadius: '9px', padding: '10px 22px', color: isConnected ? '#fff' : '#475569', fontWeight: 700, fontFamily: 'Orbitron, sans-serif', fontSize: '0.82rem', cursor: isConnected ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>
+            Find Match ${selectedFee}
+          </button>
+        </div>
+      )}
+
       {/* Browse */}
       {tab === 'browse' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <button onClick={quickMatch}
             style={{ background: 'linear-gradient(135deg, #22c55e, #06b6d4)', border: 'none', borderRadius: '10px', padding: '12px', color: '#0a0a0f', fontWeight: 800, fontSize: '0.92rem', fontFamily: 'Orbitron, sans-serif', cursor: 'pointer', letterSpacing: '0.04em' }}>
-            ⚡ Quick Match — Auto-join best open room
+            Quick Match — Auto-join best open room
           </button>
           {loading && <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', textAlign: 'center', color: '#64748b', padding: '48px' }}>Loading rooms…</div>}
           {!loading && rooms.length === 0 && (

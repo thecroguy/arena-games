@@ -106,6 +106,40 @@ const rooms            = new Map()
 const addressRooms     = new Map() // address → Set of room codes they created
 const disconnectTimers = new Map() // `${code}:${address}` → reconnect timer
 
+// ── Matchmaking queues ────────────────────────────────────────────────────
+// Key: `${gameMode}:${entryFee}:${chainId}` → [{socketId, address}]
+const matchmakingQueues = new Map()
+const matchmakingTimers = new Map()
+
+function doMatch(key, gameMode, entryFee, chainId) {
+  const queue = matchmakingQueues.get(key) || []
+  if (queue.length < 2) return
+  const matched = queue.splice(0)
+  matchmakingQueues.set(key, [])
+  if (matchmakingTimers.has(key)) { clearTimeout(matchmakingTimers.get(key)); matchmakingTimers.delete(key) }
+
+  const cfg  = GAME_MODES[gameMode]
+  const code = generateCode()
+  const room = {
+    code, gameMode,
+    entryFee,
+    chainId,
+    maxPlayers: Math.min(matched.length, cfg.maxP),
+    host:    matched[0].address,
+    players: matched.map(p => ({ id: p.socketId, address: p.address, score: 0, answered: false, correct: null, sealedPick: null, deposited: false })),
+    status: 'waiting',
+    round: 0, question: null, roundTimer: null, roundStartAt: null,
+  }
+  rooms.set(code, room)
+
+  matched.forEach(p => {
+    const s = io.sockets.sockets.get(p.socketId)
+    if (s) { s.join(code); s.data.roomCode = code; s.data.address = p.address; s.data.matchmakingKey = null }
+    io.to(p.socketId).emit('matchmaking:matched', { code, entryFee, gameMode, chainId })
+  })
+  console.log(`[Matchmaking] ${matched.length} players → room ${code} [${gameMode}] $${entryFee}`)
+}
+
 // ── Room persistence (survives server restarts) ────────────────────────────
 async function saveRoomToDb(room) {
   if (!supabase) return
@@ -651,6 +685,14 @@ io.on('connection', (socket) => {
     const room = rooms.get((code || '').toUpperCase())
     if (!room) return cb({ error: 'Room not found' })
 
+    // Pre-matched player (already in room via matchmaking — skip auth, just sync socket)
+    const preMatched = room.players.find(p => p.address === address && !p.disconnected)
+    if (preMatched) {
+      preMatched.id = socket.id
+      socket.join(room.code); socket.data.roomCode = room.code; socket.data.address = address
+      return cb({ ok: true, room: roomPublic(room) })
+    }
+
     // Verify wallet ownership (skip for reconnects — they already proved it)
     const reconnecting = room.players.find(p => p.address === address && p.disconnected)
     if (!reconnecting) {
@@ -842,6 +884,60 @@ io.on('connection', (socket) => {
     }
   })
 
+  // ── Matchmaking ────────────────────────────────────────────────────────
+  socket.on('matchmaking:join', ({ gameMode, entryFee, chainId, address, authSig }, cb) => {
+    if (typeof cb !== 'function') return
+    if (!rateLimit(socket.id)) return cb({ error: 'Too many requests' })
+    if (!GAME_MODES[gameMode])        return cb({ error: 'Invalid game mode' })
+    if (!VALID_FEES.has(entryFee))    return cb({ error: 'Invalid entry fee' })
+    if (!VALID_ADDRESS.test(address)) return cb({ error: 'Invalid address' })
+    if (!authSig) return cb({ error: 'Authentication required' })
+    try {
+      const recovered = ethers.verifyMessage(`Arena Games: ${address.toLowerCase()}`, authSig)
+      if (recovered.toLowerCase() !== address.toLowerCase()) return cb({ error: 'Signature mismatch' })
+    } catch { return cb({ error: 'Invalid auth signature' }) }
+
+    const cId = Number(chainId) || 137
+    const key = `${gameMode}:${entryFee}:${cId}`
+    if (!matchmakingQueues.has(key)) matchmakingQueues.set(key, [])
+    const queue = matchmakingQueues.get(key)
+
+    // Replace if already in queue (reconnected browser tab)
+    const idx = queue.findIndex(p => p.address === address)
+    if (idx >= 0) queue.splice(idx, 1)
+    queue.push({ socketId: socket.id, address })
+    socket.data.matchmakingKey = key
+
+    // Notify all waiting of new queue size
+    queue.forEach(p => io.to(p.socketId).emit('matchmaking:queue_update', { size: queue.length }))
+    cb({ ok: true, queueSize: queue.length })
+
+    if (queue.length >= 2) { doMatch(key, gameMode, entryFee, cId); return }
+
+    // Start 30s timeout on first joiner
+    if (queue.length === 1) {
+      if (matchmakingTimers.has(key)) clearTimeout(matchmakingTimers.get(key))
+      matchmakingTimers.set(key, setTimeout(() => {
+        matchmakingTimers.delete(key)
+        const q = matchmakingQueues.get(key) || []
+        if (q.length >= 2) { doMatch(key, gameMode, entryFee, cId); return }
+        q.forEach(p => io.to(p.socketId).emit('matchmaking:timeout', { reason: 'No opponents found. Try creating a room.' }))
+        matchmakingQueues.set(key, [])
+      }, 30_000))
+    }
+  })
+
+  socket.on('matchmaking:leave', (_, cb) => {
+    const key = socket.data.matchmakingKey
+    if (key) {
+      const queue = (matchmakingQueues.get(key) || []).filter(p => p.socketId !== socket.id)
+      matchmakingQueues.set(key, queue)
+      socket.data.matchmakingKey = null
+      queue.forEach(p => io.to(p.socketId).emit('matchmaking:queue_update', { size: queue.length }))
+    }
+    if (typeof cb === 'function') cb({ ok: true })
+  })
+
   // Chat (lobby/queue only)
   socket.on('chat:send', ({ code, text }) => {
     if (!rateLimit(socket.id, 3)) return
@@ -864,6 +960,14 @@ io.on('connection', (socket) => {
 
   // Disconnect handling
   socket.on('disconnect', () => {
+    // Clean up matchmaking queue
+    const mqKey = socket.data.matchmakingKey
+    if (mqKey) {
+      const queue = (matchmakingQueues.get(mqKey) || []).filter(p => p.socketId !== socket.id)
+      matchmakingQueues.set(mqKey, queue)
+      queue.forEach(p => io.to(p.socketId).emit('matchmaking:queue_update', { size: queue.length }))
+    }
+
     const code    = socket.data.roomCode
     const address = socket.data.address
     if (!code || !address) return

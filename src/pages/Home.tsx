@@ -158,8 +158,6 @@ const STEPS = [
 ]
 
 export default function Home() {
-  const navigate = useNavigate()
-
   return (
     <div style={{ background: '#0a0a0f', minHeight: '100vh' }}>
       <style>{`
