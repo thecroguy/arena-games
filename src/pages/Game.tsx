@@ -385,12 +385,15 @@ export default function Game() {
     if (isBotMode) return
     const socket = connectSocket()
 
-    if (myAddr) {
-      socket.emit('room:join', { code: roomCode, address: myAddr }, (res: { ok?: boolean; error?: string; room?: { players: PlayerState[]; gameMode?: string } }) => {
+    function rejoin() {
+      if (!myAddr) return
+      socket.emit('room:join', { code: roomCode, address: myAddr }, (res: { ok?: boolean; error?: string; reconnected?: boolean; room?: { players: PlayerState[]; gameMode?: string } }) => {
         if (res.error && res.error !== 'Already in room') setError(res.error)
         if (res.room) { setPlayers(res.room.players); if (res.room.gameMode) setGameMode(res.room.gameMode) }
       })
     }
+    rejoin()
+    socket.on('connect', rejoin)
 
     socket.on('room:update', (room: { players: PlayerState[]; status: string; gameMode?: string }) => {
       setPlayers(room.players)
@@ -480,6 +483,7 @@ export default function Game() {
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
+      socket.off('connect', rejoin)
       socket.off('room:update'); socket.off('game:countdown'); socket.off('game:question')
       socket.off('game:player_answered'); socket.off('game:sealed_submitted')
       socket.off('game:round_end'); socket.off('game:over'); socket.off('game:refund_sig')

@@ -240,7 +240,7 @@ export default function Profile() {
 
     setBuyStatus('paying')
     try {
-      await writeContractAsync({
+      const avatarTxHash = await writeContractAsync({
         address: USDT_POLYGON,
         abi: USDT_ABI,
         functionName: 'transfer',
@@ -255,7 +255,7 @@ export default function Profile() {
     setBuyStatus('saving')
     try {
       const sig = await signMessageAsync({ message: `Arena avatar unlock: ${baseKey}\n${address.toLowerCase()}` })
-      await unlockAvatarStyle(address, baseKey, ownedBases, sig)
+      await unlockAvatarStyle(address, baseKey, ownedBases, sig, avatarTxHash)
       const newBases = Array.from(new Set([...ownedBases, baseKey]))
       setOwnedBases(newBases)
       setAvatarStyle(entry.id)

@@ -84,11 +84,11 @@ export async function upsertProfile(address: string, updates: Partial<Omit<Playe
   if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Profile save failed') }
 }
 
-export async function unlockAvatarStyle(address: string, style: string, currentStyles: string[], sig: string) {
+export async function unlockAvatarStyle(address: string, style: string, currentStyles: string[], sig: string, txHash?: string) {
   const res = await fetch(`${SERVER_URL}/api/avatar-unlock`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ address, sig, style, currentStyles }),
+    body: JSON.stringify({ address, sig, style, currentStyles, txHash }),
   })
   if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Avatar unlock failed') }
 }

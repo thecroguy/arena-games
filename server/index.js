@@ -69,6 +69,7 @@ const CHAIN_CONFIG = {
 }
 
 const SERVER_SIGNING_KEY = process.env.SERVER_SIGNING_KEY
+const HOUSE_WALLET = (process.env.HOUSE_WALLET || '').toLowerCase()
 
 /** Returns the escrow address for a chain, or '' if not configured. */
 function getChainEscrowAddress(chainId) {
@@ -594,7 +595,7 @@ io.on('connection', (socket) => {
     cb(room ? { code: room.code, status: room.status } : null)
   })
 
-  socket.on('room:create', ({ gameMode, entryFee, maxPlayers, address, chainId, txHash }, cb) => {
+  socket.on('room:create', ({ gameMode, entryFee, maxPlayers, address, chainId, txHash, authSig }, cb) => {
     if (typeof cb !== 'function') return
     if (!rateLimit(socket.id)) return cb({ error: 'Too many requests' })
 
@@ -603,6 +604,13 @@ io.on('connection', (socket) => {
     if (!VALID_FEES.has(entryFee))     return cb({ error: 'Invalid entry fee' })
     if (!VALID_ADDRESS.test(address))  return cb({ error: 'Invalid wallet address' })
     if (txHash && !VALID_TX_HASH.test(txHash)) return cb({ error: 'Invalid transaction hash' })
+
+    // Verify wallet ownership
+    if (!authSig) return cb({ error: 'Authentication required — please sign the wallet challenge' })
+    try {
+      const recovered = ethers.verifyMessage(`Arena Games: ${address.toLowerCase()}`, authSig)
+      if (recovered.toLowerCase() !== address.toLowerCase()) return cb({ error: 'Signature does not match wallet address' })
+    } catch { return cb({ error: 'Invalid auth signature' }) }
 
     // Room creation cap — max 3 active rooms per address
     const hostRooms = addressRooms.get(address) || new Set()
@@ -633,7 +641,7 @@ io.on('connection', (socket) => {
     console.log(`Room ${code} [${gameMode}] created by ${address.slice(0, 8)} on chain ${resolvedChainId}`)
   })
 
-  socket.on('room:join', ({ code, address, txHash }, cb) => {
+  socket.on('room:join', ({ code, address, txHash, authSig }, cb) => {
     if (typeof cb !== 'function') return
     if (!rateLimit(socket.id)) return cb({ error: 'Too many requests' })
 
@@ -643,8 +651,16 @@ io.on('connection', (socket) => {
     const room = rooms.get((code || '').toUpperCase())
     if (!room) return cb({ error: 'Room not found' })
 
-    // Reconnect check — player disconnected during active game
+    // Verify wallet ownership (skip for reconnects — they already proved it)
     const reconnecting = room.players.find(p => p.address === address && p.disconnected)
+    if (!reconnecting) {
+      if (!authSig) return cb({ error: 'Authentication required' })
+      try {
+        const recovered = ethers.verifyMessage(`Arena Games: ${address.toLowerCase()}`, authSig)
+        if (recovered.toLowerCase() !== address.toLowerCase()) return cb({ error: 'Signature does not match wallet address' })
+      } catch { return cb({ error: 'Invalid auth signature' }) }
+    }
+
     if (reconnecting) {
       const key = `${room.code}:${address}`
       clearTimeout(disconnectTimers.get(key))
@@ -973,13 +989,37 @@ app.post('/api/profile', express.json(), async (req, res) => {
 
 app.post('/api/avatar-unlock', express.json(), async (req, res) => {
   try {
-    const { address, sig, style, currentStyles } = req.body || {}
+    const { address, sig, style, currentStyles, txHash } = req.body || {}
     if (!address || !sig || !style) return res.status(400).json({ error: 'Missing fields' })
     if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
 
     const msg = `Arena avatar unlock: ${style}\n${address.toLowerCase()}`
     const recovered = ethers.verifyMessage(msg, sig)
     if (recovered.toLowerCase() !== address.toLowerCase()) return res.status(401).json({ error: 'Invalid signature' })
+
+    // Verify the USDT payment on-chain if txHash provided
+    if (txHash) {
+      if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) return res.status(400).json({ error: 'Invalid transaction hash' })
+      if (!HOUSE_WALLET) return res.status(503).json({ error: 'Server not configured for avatar purchases' })
+      try {
+        const provider = new ethers.JsonRpcProvider(CHAIN_CONFIG[137].rpc)
+        const receipt = await provider.getTransactionReceipt(txHash)
+        if (!receipt || receipt.status !== 1) return res.status(400).json({ error: 'Transaction not confirmed or failed' })
+        const USDT_POLYGON = '0xc2132d05d31c914a87c6611c10748aeb04b58e8f'
+        if (receipt.to?.toLowerCase() !== USDT_POLYGON) return res.status(400).json({ error: 'Not a USDT transaction' })
+        const transferTopic = ethers.id('Transfer(address,address,uint256)')
+        const log = receipt.logs.find(l =>
+          l.address.toLowerCase() === USDT_POLYGON &&
+          l.topics[0] === transferTopic &&
+          l.topics[2] && ('0x' + l.topics[2].slice(26)).toLowerCase() === HOUSE_WALLET
+        )
+        if (!log) return res.status(400).json({ error: 'No USDT transfer to house wallet found in transaction' })
+      } catch (e) {
+        if (e.message?.includes('Invalid address')) return res.status(400).json({ error: 'Invalid transaction hash' })
+        console.error('[avatar-unlock] RPC verify error:', e.message)
+        // RPC failure — fall through and allow (don't block users for infra issues)
+      }
+    }
 
     const merged = Array.from(new Set([...(Array.isArray(currentStyles) ? currentStyles : ['bottts']), style]))
     if (!supabase) return res.status(503).json({ error: 'DB not configured' })

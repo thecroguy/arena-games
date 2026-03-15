@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useAccount, useWriteContract, useChainId, useSwitchChain, useReadContract } from 'wagmi'
+import { useAccount, useWriteContract, useChainId, useSwitchChain, useReadContract, useSignMessage } from 'wagmi'
 import { parseUnits, formatUnits } from 'viem'
 import { connectSocket } from '../utils/socket'
 import { getUsername, shortAddr } from '../utils/profile'
@@ -40,6 +40,8 @@ export default function Lobby() {
   const currentChainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
+  const { signMessageAsync } = useSignMessage()
+  const authSigRef = useRef<string | null>(null)
 
   const [rooms, setRooms]           = useState<Room[]>([])
   const [selectedFee, setSelectedFee] = useState<number>(1)
@@ -80,6 +82,8 @@ export default function Lobby() {
     if (chain) setSelectedChain(chain)
   }, [currentChainId])
 
+  useEffect(() => { authSigRef.current = null }, [address])
+
   // Check if user already has a locked deposit in another room
   useEffect(() => {
     if (!address) return
@@ -88,6 +92,18 @@ export default function Lobby() {
       .then(data => { if (data.hasActive) setLockedInRoom(data.roomCode) })
       .catch(() => {})
   }, [address])
+
+  async function getAuthSig(): Promise<string | null> {
+    if (authSigRef.current) return authSigRef.current
+    try {
+      const sig = await signMessageAsync({ message: `Arena Games: ${address?.toLowerCase()}` })
+      authSigRef.current = sig
+      return sig
+    } catch {
+      showError('Wallet signature required to join — this proves you own the address.')
+      return null
+    }
+  }
 
   function showError(msg: string) {
     setError(msg)
@@ -207,6 +223,8 @@ export default function Lobby() {
     if (!isConnected || !address) { showError('Connect your wallet first'); return }
     if (lockedInRoom) { showError(`You have funds locked in room ${lockedInRoom}. Finish that game or claim a refund from your Profile first.`); return }
     setCreating(true); setError('')
+    const authSig = await getAuthSig()
+    if (!authSig) { setCreating(false); return }
 
     // Step 1 — create room on server first to get the room code
     // (needed so we can deposit into escrow with the correct roomId)
@@ -214,7 +232,7 @@ export default function Lobby() {
     const socket = connectSocket()
     const code = await new Promise<string | null>(resolve => {
       socket.emit('room:create',
-        { gameMode, entryFee: selectedFee, maxPlayers, address, chainId: selectedChain.id },
+        { gameMode, entryFee: selectedFee, maxPlayers, address, chainId: selectedChain.id, authSig },
         (res: { code?: string; error?: string }) => {
           if (res.error) { showError(res.error); resolve(null) }
           else resolve(res.code!)
@@ -248,6 +266,8 @@ export default function Lobby() {
     const room = rooms.find(r => r.code === code)
     const fee = room?.entry ?? 1
     setJoining(code); setError('')
+    const authSig = await getAuthSig()
+    if (!authSig) { setJoining(null); return }
 
     // Step 1 — pay entry fee into escrow (or legacy transfer) using the room code
     const txHash = await payEntryFee(fee, selectedChain, code)
@@ -256,7 +276,7 @@ export default function Lobby() {
     // Step 2 — join the room on the server
     const socket = connectSocket()
     socket.emit('room:join',
-      { code, address, chainId: selectedChain.id, txHash },
+      { code, address, chainId: selectedChain.id, txHash, authSig },
       (res: { ok?: boolean; error?: string; reconnected?: boolean }) => {
         setJoining(null); setPayStep('idle')
         if (res.error) { showError(res.error); return }
