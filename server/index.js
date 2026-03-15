@@ -824,11 +824,38 @@ io.on('connection', (socket) => {
   // Player confirms their escrow deposit — server verifies on-chain then marks them ready
   socket.on('room:deposit', async ({ code, txHash }, cb) => {
     if (typeof cb !== 'function') cb = () => {}
-    const room = rooms.get((code || '').toUpperCase())
+    let room = rooms.get((code || '').toUpperCase())
+    // On-demand DB recovery — same as room:join, handles server restart between create and deposit
+    if ((!room || room.status !== 'waiting') && supabase) {
+      const { data } = await supabase.from('active_rooms')
+        .select('*').eq('code', (code || '').toUpperCase()).eq('status', 'waiting').single()
+      if (data) {
+        room = {
+          code: data.code, gameMode: data.game_mode, entryFee: Number(data.entry_fee),
+          chainId: data.chain_id, maxPlayers: data.max_players, host: data.host,
+          players: (data.players || []).map(p => ({
+            id: null, address: p.address, score: 0,
+            answered: false, correct: null, sealedPick: null,
+            deposited: !!p.deposited, disconnected: true,
+          })),
+          status: 'waiting', round: 0, question: null, roundTimer: null, roundStartAt: null,
+        }
+        rooms.set(room.code, room)
+        // Re-join the socket to this room's channel
+        socket.join(room.code)
+        console.log(`[room:deposit] On-demand recovery of room ${room.code} from DB`)
+      }
+    }
     if (!room || room.status !== 'waiting') return cb({ error: 'Room not found or already started' })
 
     const address = socket.data.address
-    const player  = room.players.find(p => p.address === address)
+    let player = room.players.find(p => p.address === address)
+    // Player might not be in recovered room list yet — add them
+    if (!player && address) {
+      player = { id: socket.id, address, score: 0, answered: false, correct: null, sealedPick: null, deposited: false }
+      room.players.push(player)
+      io.to(room.code).emit('room:update', roomPublic(room))
+    }
     if (!player) return cb({ error: 'Not in room' })
     if (player.deposited) return cb({ ok: true }) // already confirmed
 
