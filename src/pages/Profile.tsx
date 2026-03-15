@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useAccount, useWriteContract, useChainId, useSwitchChain, useSignMessage } from 'wagmi'
 import { useNavigate } from 'react-router-dom'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
@@ -20,6 +20,21 @@ const USDT_ABI = [
     inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }],
     outputs: [{ name: '', type: 'bool' }] },
 ] as const
+const EMERGENCY_REFUND_ABI = [
+  { name: 'emergencyRefund', type: 'function', stateMutability: 'nonpayable',
+    inputs: [{ name: 'roomId', type: 'bytes32' }], outputs: [] },
+] as const
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
+
+type StuckDeposit = {
+  room_code: string
+  room_id_hash: string
+  chain_id: number
+  escrow_address: string
+  amount_usdt: number
+  deposited_at: string
+  refundable_at: string
+}
 
 type PriceFilter = 'all' | 0 | 1 | 2 | 3
 
@@ -53,6 +68,11 @@ export default function Profile() {
   const [confirmEntry, setConfirmEntry] = useState<AvatarEntry | null>(null)
   const [buyStatus, setBuyStatus]       = useState<'idle' | 'switching' | 'paying' | 'saving'>('idle')
 
+  // Stuck deposits
+  const [stuckDeposits, setStuckDeposits] = useState<StuckDeposit[]>([])
+  const [claimingRoom, setClaimingRoom]   = useState<string | null>(null)
+  const [now, setNow]                     = useState(Date.now())
+
   // Load profile from Supabase on connect
   useEffect(() => {
     if (!address) return
@@ -79,6 +99,21 @@ export default function Profile() {
       .catch(() => setError('Stats unavailable — play some games first!'))
       .finally(() => setLoading(false))
   }, [address])
+
+  const fetchStuck = useCallback(() => {
+    if (!address) return
+    fetch(`${SERVER_URL}/api/stuck-deposits/${address}`)
+      .then(r => r.json()).then(data => { if (Array.isArray(data)) setStuckDeposits(data) })
+      .catch(() => {})
+  }, [address])
+
+  useEffect(() => { fetchStuck() }, [fetchStuck])
+
+  // Tick every 30s so countdown updates
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000)
+    return () => clearInterval(t)
+  }, [])
 
   async function saveName() {
     if (!address || !nameInput.trim()) return
@@ -160,6 +195,29 @@ export default function Profile() {
       const sig = await signMessageAsync({ message: `Arena profile update\n${address.toLowerCase()}` })
       await upsertProfile(address, { avatar_style: pendingStyle.id }, sig)
     } catch { /* sig rejected — visual state already updated */ }
+  }
+
+  async function claimEmergencyRefund(deposit: StuckDeposit) {
+    setClaimingRoom(deposit.room_code)
+    try {
+      if (chainId !== deposit.chain_id) {
+        await switchChainAsync({ chainId: deposit.chain_id })
+      }
+      await writeContractAsync({
+        address: deposit.escrow_address as `0x${string}`,
+        abi: EMERGENCY_REFUND_ABI,
+        functionName: 'emergencyRefund',
+        args: [deposit.room_id_hash as `0x${string}`],
+        chainId: deposit.chain_id,
+      })
+      setStuckDeposits(prev => prev.filter(d => d.room_code !== deposit.room_code))
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      if (msg.includes('TooEarlyForEmergency')) setError('Too early — refund available 24h after deposit.')
+      else if (!msg.includes('rejected')) setError('Refund failed. Try again.')
+    } finally {
+      setClaimingRoom(null)
+    }
   }
 
   if (!isConnected) {
@@ -376,6 +434,53 @@ export default function Profile() {
           <button style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontWeight: 700, fontSize: 'inherit' }} onClick={() => navigate('/')}>
             play your first game →
           </button>
+        </div>
+      )}
+
+      {/* Stuck deposits */}
+      {stuckDeposits.length > 0 && (
+        <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: '16px', padding: '20px 24px', marginBottom: '24px' }}>
+          <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.7rem', color: '#f59e0b', letterSpacing: '0.1em', marginBottom: '14px' }}>
+            ⚠ PENDING DEPOSITS
+          </p>
+          {stuckDeposits.map(d => {
+            const refundableAt = new Date(d.refundable_at).getTime()
+            const ready = now >= refundableAt
+            const msLeft = refundableAt - now
+            const hLeft = Math.floor(msLeft / 3_600_000)
+            const mLeft = Math.floor((msLeft % 3_600_000) / 60_000)
+            const isClaiming = claimingRoom === d.room_code
+            return (
+              <div key={d.room_code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', padding: '12px 0', borderBottom: '1px solid rgba(245,158,11,0.1)' }}>
+                <div>
+                  <p style={{ color: '#e2e8f0', fontWeight: 700, fontFamily: 'Orbitron, sans-serif', fontSize: '0.85rem' }}>
+                    Room {d.room_code} &nbsp;<span style={{ color: '#f59e0b' }}>${d.amount_usdt} USDT</span>
+                  </p>
+                  <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '3px' }}>
+                    Deposited {new Date(d.deposited_at).toLocaleString()}
+                  </p>
+                  {!ready && (
+                    <p style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '2px' }}>
+                      Refundable in {hLeft}h {mLeft}m
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => claimEmergencyRefund(d)}
+                  disabled={!ready || isClaiming}
+                  style={{
+                    background: ready && !isClaiming ? 'linear-gradient(135deg,#f59e0b,#ef4444)' : '#1e1e30',
+                    border: 'none', borderRadius: '8px', padding: '8px 18px',
+                    color: ready && !isClaiming ? '#0a0a0f' : '#475569',
+                    fontWeight: 700, fontSize: '0.82rem',
+                    cursor: ready && !isClaiming ? 'pointer' : 'not-allowed',
+                    whiteSpace: 'nowrap',
+                  }}>
+                  {isClaiming ? 'Claiming…' : ready ? 'Claim Refund →' : 'Locked'}
+                </button>
+              </div>
+            )
+          })}
         </div>
       )}
 

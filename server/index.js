@@ -909,6 +909,52 @@ app.post('/api/avatar-unlock', express.json(), async (req, res) => {
   }
 })
 
+// ── Stuck deposits: deposits with no payout or refund yet ─────────────────
+// Used by Profile page to show pending funds + "Claim Refund" button after 24h
+app.get('/api/stuck-deposits/:address', async (req, res) => {
+  const { address } = req.params
+  if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
+  if (!supabase) return res.json([])
+  try {
+    const addr = address.toLowerCase()
+    // All deposit_confirmed events for this player
+    const { data: deposits } = await supabase
+      .from('escrow_events')
+      .select('room_code, room_id_hash, chain_id, escrow_address, amount_usdt, created_at')
+      .eq('event_type', 'deposit_confirmed')
+      .eq('player_address', addr)
+      .order('created_at', { ascending: false })
+
+    if (!deposits || deposits.length === 0) return res.json([])
+
+    // Rooms that already have a payout or refund
+    const roomCodes = [...new Set(deposits.map(d => d.room_code))]
+    const { data: settled } = await supabase
+      .from('escrow_events')
+      .select('room_code')
+      .in('event_type', ['claim_signed', 'refund_signed'])
+      .in('room_code', roomCodes)
+
+    const settledRooms = new Set((settled || []).map(s => s.room_code))
+
+    const stuck = deposits
+      .filter(d => !settledRooms.has(d.room_code))
+      .map(d => ({
+        room_code:      d.room_code,
+        room_id_hash:   d.room_id_hash,
+        chain_id:       d.chain_id,
+        escrow_address: d.escrow_address,
+        amount_usdt:    d.amount_usdt,
+        deposited_at:   d.created_at,
+        refundable_at:  new Date(new Date(d.created_at).getTime() + 24 * 60 * 60 * 1000).toISOString(),
+      }))
+
+    res.json(stuck)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ── Self keep-alive (prevents Render free tier from sleeping) ─────────────
 const SELF_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`
 setInterval(() => {
