@@ -1304,7 +1304,7 @@ app.get('/api/stuck-deposits/:address', async (req, res) => {
       })
       .map(d => ({
         room_code:      d.room_code,
-        room_id_hash:   d.room_id_hash,
+        room_id_hash:   (d.room_id_hash && d.room_id_hash.length === 66) ? d.room_id_hash : getRoomId(d.room_code),
         chain_id:       d.chain_id,
         escrow_address: d.escrow_address,
         amount_usdt:    d.amount_usdt,
