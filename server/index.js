@@ -1094,7 +1094,6 @@ app.get('/api/pending-claim/:address', async (req, res) => {
   if (!supabase) return res.json([])
   try {
     const addr = address.toLowerCase()
-    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() // last 7 days
     const { data } = await supabase
       .from('game_history')
       .select('room_code, game_mode, pot, entry_fee, claim_sig, escrow_address, room_id_hash, chain_id, played_at')
@@ -1102,10 +1101,28 @@ app.get('/api/pending-claim/:address', async (req, res) => {
       .eq('result', 'win')
       .eq('payout_mode', 'escrow')
       .not('claim_sig', 'is', null)
-      .gt('played_at', cutoff)
+      .is('claimed_at', null)   // only unclaimed wins
       .order('played_at', { ascending: false })
-      .limit(10)
+      .limit(50)
     res.json(data || [])
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// ── Mark win as claimed (called by frontend after successful on-chain claim) ─
+app.post('/api/mark-claimed', express.json(), async (req, res) => {
+  try {
+    const { address, room_code } = req.body || {}
+    if (!address || !room_code) return res.status(400).json({ error: 'Missing fields' })
+    if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
+    if (!supabase) return res.json({ ok: true })
+    await supabase.from('game_history')
+      .update({ claimed_at: new Date().toISOString() })
+      .eq('player_address', address.toLowerCase())
+      .eq('room_code', room_code)
+      .eq('result', 'win')
+    res.json({ ok: true })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }

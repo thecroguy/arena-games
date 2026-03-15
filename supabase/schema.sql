@@ -24,6 +24,7 @@ alter table game_history add column if not exists payout_mode   text    not null
 alter table game_history add column if not exists escrow_address text;          -- contract address (null = no escrow)
 alter table game_history add column if not exists room_id_hash   text;          -- keccak256(roomCode) used on-chain
 alter table game_history add column if not exists claim_sig      text;          -- server's ECDSA sig (winner row only)
+alter table game_history add column if not exists claimed_at     timestamptz;   -- set when winner calls claim() on-chain
 
 -- ── Escrow audit log ───────────────────────────────────────────────────────
 -- Full on-chain evidence for every deposit, payout authorization, and refund.

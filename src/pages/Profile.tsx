@@ -267,10 +267,20 @@ export default function Profile() {
         chainId: pending.chain_id,
       })
       setPendingClaims(prev => prev.filter(p => p.room_code !== pending.room_code))
+      // Mark as claimed in DB so it doesn't show up again
+      fetch(`${SERVER_URL}/api/mark-claimed`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, room_code: pending.room_code }),
+      }).catch(() => {})
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
       if (msg.includes('AlreadySettled')) {
+        // Already claimed on-chain — mark it and remove from list
         setPendingClaims(prev => prev.filter(p => p.room_code !== pending.room_code))
+        fetch(`${SERVER_URL}/api/mark-claimed`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address, room_code: pending.room_code }),
+        }).catch(() => {})
       } else if (!msg.includes('rejected')) {
         setError('Claim failed. Try again.')
       }
