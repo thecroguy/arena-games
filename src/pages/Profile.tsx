@@ -131,12 +131,34 @@ export default function Profile() {
   const fetchStuck = useCallback(() => {
     if (!address) return
     fetch(`${SERVER_URL}/api/stuck-deposits/${address}`)
-      .then(r => r.json()).then(data => { if (Array.isArray(data)) setStuckDeposits(data) })
+      .then(r => r.json())
+      .then(async (data: StuckDeposit[]) => {
+        if (!Array.isArray(data) || data.length === 0) { setStuckDeposits([]); return }
+        // On-chain verify: remove deposits the player already claimed (hasDeposited returns false)
+        const verified = await Promise.all(data.map(async d => {
+          if (!publicClient || !d.escrow_address || !d.room_id_hash || d.room_id_hash.length !== 66) return d
+          try {
+            const stillHeld = await publicClient.readContract({
+              address: d.escrow_address as `0x${string}`,
+              abi: [{ name: 'hasDeposited', type: 'function', stateMutability: 'view', inputs: [{ name: 'roomId', type: 'bytes32' }, { name: 'player', type: 'address' }], outputs: [{ type: 'bool' }] }],
+              functionName: 'hasDeposited',
+              args: [d.room_id_hash as `0x${string}`, address as `0x${string}`],
+            })
+            if (!stillHeld) {
+              // Already claimed on-chain — record it so server knows
+              fetch(`${SERVER_URL}/api/mark-refund-claimed`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roomCode: d.room_code, address }) }).catch(() => {})
+              return null
+            }
+          } catch { /* RPC fail — show it anyway */ }
+          return d
+        }))
+        setStuckDeposits(verified.filter(Boolean) as StuckDeposit[])
+      })
       .catch(() => {})
     fetch(`${SERVER_URL}/api/pending-claim/${address}`)
       .then(r => r.json()).then(data => { if (Array.isArray(data)) setPendingClaims(data) })
       .catch(() => {})
-  }, [address])
+  }, [address, publicClient])
 
   useEffect(() => { fetchStuck() }, [fetchStuck])
 
