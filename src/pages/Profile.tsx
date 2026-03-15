@@ -239,8 +239,9 @@ export default function Profile() {
     }
 
     setBuyStatus('paying')
+    let avatarTxHash: string | undefined
     try {
-      const avatarTxHash = await writeContractAsync({
+      avatarTxHash = await writeContractAsync({
         address: USDT_POLYGON,
         abi: USDT_ABI,
         functionName: 'transfer',
