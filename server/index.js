@@ -4,7 +4,64 @@ const http = require('http')
 const { Server } = require('socket.io')
 const cors = require('cors')
 const { createClient } = require('@supabase/supabase-js')
-const { ethers } = require('ethers')
+// Pure crypto — no provider, no network detection, no retry loops
+const { keccak_256 }              = require('@noble/hashes/sha3')
+const { bytesToHex, hexToBytes, concatBytes } = require('@noble/hashes/utils')
+const { secp256k1 }               = require('@noble/curves/secp256k1')
+
+/** keccak256(bytes) → 0x-hex */
+function keccak256(bytes)          { return '0x' + bytesToHex(keccak_256(bytes)) }
+/** hex/Buffer → Uint8Array */
+function getBytes(hex)             { return hexToBytes((hex || '').replace(/^0x/, '')) }
+/** keccak256 of UTF-8 string → 0x-hex (ethers.id equivalent) */
+function ethId(str)                { return keccak256(Buffer.from(str, 'utf8')) }
+
+/** solidityPackedKeccak256 — supports bytes32 / address / string types only */
+function solidityPackedKeccak256(types, values) {
+  const parts = types.map((t, i) => {
+    if (t === 'bytes32') return getBytes(values[i])          // 32 bytes
+    if (t === 'address') return getBytes(values[i])          // 20 bytes (packed, no padding)
+    if (t === 'string')  return Buffer.from(values[i], 'utf8')
+    throw new Error(`solidityPackedKeccak256: unsupported type ${t}`)
+  })
+  return keccak256(concatBytes(...parts))
+}
+
+/** Sign a pre-computed 32-byte message hash with EIP-191 prefix */
+async function signMessage(privateKeyHex, msgHashHex) {
+  const prefix    = Buffer.from('\x19Ethereum Signed Message:\n32')
+  const ethHash   = keccak_256(concatBytes(prefix, getBytes(msgHashHex)))
+  const privKey   = getBytes(privateKeyHex)
+  const sig       = secp256k1.sign(ethHash, privKey, { lowS: true })
+  const r = sig.r.toString(16).padStart(64, '0')
+  const s = sig.s.toString(16).padStart(64, '0')
+  const v = (sig.recovery + 27).toString(16).padStart(2, '0')
+  return '0x' + r + s + v
+}
+
+/** Recover signer address from EIP-191 personal_sign (string message) */
+function verifyMessage(message, sigHex) {
+  const msgBytes  = Buffer.from(message, 'utf8')
+  const prefix    = Buffer.from(`\x19Ethereum Signed Message:\n${msgBytes.length}`)
+  const ethHash   = keccak_256(concatBytes(prefix, msgBytes))
+  const sigBytes  = getBytes(sigHex)
+  const r         = BigInt('0x' + bytesToHex(sigBytes.slice(0, 32)))
+  const s         = BigInt('0x' + bytesToHex(sigBytes.slice(32, 64)))
+  const v         = sigBytes[64]
+  const recovery  = v >= 27 ? v - 27 : v
+  const sig       = new secp256k1.Signature(r, s).addRecoveryBit(recovery)
+  const pubKey    = sig.recoverPublicKey(ethHash)
+  const addrBytes = keccak_256(pubKey.toRawBytes(false).slice(1)).slice(12)
+  return '0x' + bytesToHex(addrBytes)
+}
+
+/** ABI-encode hasDeposited(bytes32,address) call data */
+function encodeHasDepositedCall(roomIdHex, playerAddress) {
+  const selector = keccak_256(Buffer.from('hasDeposited(bytes32,address)')).slice(0, 4)
+  const addr32   = new Uint8Array(32)
+  addr32.set(getBytes(playerAddress), 12)           // 20-byte address at offset 12
+  return '0x' + bytesToHex(concatBytes(selector, getBytes(roomIdHex), addr32))
+}
 
 // ── Config ─────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001
@@ -81,8 +138,7 @@ function getChainEscrowAddress(chainId) {
 async function hasDepositedOnChain(chainId, roomIdHex, playerAddress) {
   const cfg = CHAIN_CONFIG[chainId]
   if (!cfg || !cfg.escrow) return null // null = escrow not configured, can't verify
-  const iface = new ethers.Interface(['function hasDeposited(bytes32,address) view returns (bool)'])
-  const data = iface.encodeFunctionData('hasDeposited', [roomIdHex, playerAddress])
+  const data = encodeHasDepositedCall(roomIdHex, playerAddress)
   const res = await fetch(cfg.rpc, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -96,7 +152,7 @@ async function hasDepositedOnChain(chainId, roomIdHex, playerAddress) {
 
 /** keccak256 of the room code string — matches Solidity keccak256(abi.encodePacked(code)) */
 function getRoomId(code) {
-  return ethers.keccak256(ethers.toUtf8Bytes(code))
+  return keccak256(Buffer.from(code, 'utf8'))
 }
 
 if (SERVER_SIGNING_KEY) {
@@ -217,7 +273,6 @@ async function recoverStuckRooms() {
     const stuckCodes = roomCodes.filter(c => !settledRooms.has(c))
     if (stuckCodes.length === 0) return
 
-    const wallet = new ethers.Wallet(SERVER_SIGNING_KEY)
     for (const code of stuckCodes) {
       if (rooms.has(code)) continue // still in memory, handled normally
       try {
@@ -228,8 +283,8 @@ async function recoverStuckRooms() {
         const escrowAddr = first.escrow_address || getChainEscrowAddress(chainId)
         if (!escrowAddr) continue
 
-        const msgHash = ethers.solidityPackedKeccak256(['bytes32', 'string'], [roomId, 'REFUND'])
-        const refundSig = await wallet.signMessage(ethers.getBytes(msgHash))
+        const msgHash   = solidityPackedKeccak256(['bytes32', 'string'], [roomId, 'REFUND'])
+        const refundSig = await signMessage(SERVER_SIGNING_KEY, msgHash)
 
         await supabase.from('escrow_events').insert(
           roomDeposits.map(d => ({
@@ -501,9 +556,8 @@ async function endGame(room) {
   if (SERVER_SIGNING_KEY && getChainEscrowAddress(room.chainId)) {
     try {
       const roomId  = getRoomId(room.code)
-      const msgHash = ethers.solidityPackedKeccak256(['bytes32', 'address'], [roomId, winner.address])
-      const wallet  = new ethers.Wallet(SERVER_SIGNING_KEY)
-      claimSig      = await wallet.signMessage(ethers.getBytes(msgHash))
+      const msgHash = solidityPackedKeccak256(['bytes32', 'address'], [roomId, winner.address])
+      claimSig      = await signMessage(SERVER_SIGNING_KEY, msgHash)
       payoutMode    = 'escrow'
       console.log(`Signed claim for room ${room.code} → winner ${winner.address.slice(0, 8)} ($${pot})`)
     } catch (e) {
@@ -574,9 +628,8 @@ async function escrowRefund(room) {
   try {
     const roomId  = getRoomId(room.code)
     // Must match: keccak256(abi.encodePacked(roomId, "REFUND")) in the contract
-    const msgHash = ethers.solidityPackedKeccak256(['bytes32', 'string'], [roomId, 'REFUND'])
-    const wallet  = new ethers.Wallet(SERVER_SIGNING_KEY)
-    const refundSig = await wallet.signMessage(ethers.getBytes(msgHash))
+    const msgHash   = solidityPackedKeccak256(['bytes32', 'string'], [roomId, 'REFUND'])
+    const refundSig = await signMessage(SERVER_SIGNING_KEY, msgHash)
     io.to(room.code).emit('game:refund_sig', { refundSig })
     console.log(`Signed refund for abandoned room ${room.code}`)
 
@@ -646,7 +699,7 @@ io.on('connection', (socket) => {
     // Verify wallet ownership
     if (!authSig) return cb({ error: 'Authentication required — please sign the wallet challenge' })
     try {
-      const recovered = ethers.verifyMessage(`Arena Games: ${address.toLowerCase()}`, authSig)
+      const recovered = verifyMessage(`Arena Games: ${address.toLowerCase()}`, authSig)
       if (recovered.toLowerCase() !== address.toLowerCase()) return cb({ error: 'Signature does not match wallet address' })
     } catch { return cb({ error: 'Invalid auth signature' }) }
 
@@ -721,7 +774,7 @@ io.on('connection', (socket) => {
     if (!reconnecting) {
       if (!authSig) return cb({ error: 'Authentication required' })
       try {
-        const recovered = ethers.verifyMessage(`Arena Games: ${address.toLowerCase()}`, authSig)
+        const recovered = verifyMessage(`Arena Games: ${address.toLowerCase()}`, authSig)
         if (recovered.toLowerCase() !== address.toLowerCase()) return cb({ error: 'Signature does not match wallet address' })
       } catch { return cb({ error: 'Invalid auth signature' }) }
     }
@@ -913,7 +966,7 @@ io.on('connection', (socket) => {
     if (!VALID_ADDRESS.test(address)) return cb({ error: 'Invalid address' })
     if (!authSig) return cb({ error: 'Authentication required' })
     try {
-      const recovered = ethers.verifyMessage(`Arena Games: ${address.toLowerCase()}`, authSig)
+      const recovered = verifyMessage(`Arena Games: ${address.toLowerCase()}`, authSig)
       if (recovered.toLowerCase() !== address.toLowerCase()) return cb({ error: 'Signature mismatch' })
     } catch { return cb({ error: 'Invalid auth signature' }) }
 
@@ -1094,7 +1147,7 @@ app.post('/api/profile', express.json(), async (req, res) => {
     if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
 
     const msg = `Arena profile update\n${address.toLowerCase()}`
-    const recovered = ethers.verifyMessage(msg, sig)
+    const recovered = verifyMessage(msg, sig)
     if (recovered.toLowerCase() !== address.toLowerCase()) return res.status(401).json({ error: 'Invalid signature' })
 
     const safe = {}
@@ -1118,7 +1171,7 @@ app.post('/api/avatar-unlock', express.json(), async (req, res) => {
     if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
 
     const msg = `Arena avatar unlock: ${style}\n${address.toLowerCase()}`
-    const recovered = ethers.verifyMessage(msg, sig)
+    const recovered = verifyMessage(msg, sig)
     if (recovered.toLowerCase() !== address.toLowerCase()) return res.status(401).json({ error: 'Invalid signature' })
 
     // Verify the USDT payment on-chain if txHash provided
@@ -1138,7 +1191,7 @@ app.post('/api/avatar-unlock', express.json(), async (req, res) => {
         if (!receipt || receipt.status !== '0x1') return res.status(400).json({ error: 'Transaction not confirmed or failed' })
         const USDT_POLYGON = '0xc2132d05d31c914a87c6611c10748aeb04b58e8f'
         if (receipt.to?.toLowerCase() !== USDT_POLYGON) return res.status(400).json({ error: 'Not a USDT transaction' })
-        const transferTopic = ethers.id('Transfer(address,address,uint256)')
+        const transferTopic = ethId('Transfer(address,address,uint256)')
         const log = receipt.logs.find(l =>
           l.address.toLowerCase() === USDT_POLYGON &&
           l.topics[0] === transferTopic &&
