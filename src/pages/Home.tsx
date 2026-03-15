@@ -98,7 +98,7 @@ const GAMES = [
     players: '2–20',
     status: 'live' as const,
     glow: '#22c55e', glowRgb: '34,197,94',
-    botMode: false,
+    botMode: true,
   },
   {
     id: 'lowest-unique',
@@ -109,7 +109,7 @@ const GAMES = [
     players: '2–20',
     status: 'live' as const,
     glow: '#ec4899', glowRgb: '236,72,153',
-    botMode: false,
+    botMode: true,
   },
   {
     id: 'number-rush',
@@ -120,7 +120,7 @@ const GAMES = [
     players: '2–30',
     status: 'live' as const,
     glow: '#a78bfa', glowRgb: '167,139,250',
-    botMode: false,
+    botMode: true,
   },
 ]
 
@@ -197,7 +197,7 @@ export default function Home() {
             Play Now →
           </button>
           <button
-            onClick={() => navigate('/game/practice', { state: { bot: true, entry: 0 } })}
+            onClick={() => document.getElementById('games-grid')?.scrollIntoView({ behavior: 'smooth' })}
             style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: '12px', padding: '14px 32px', color: '#a78bfa', fontWeight: 700, fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s' }}
           >
             Practice vs Bot
@@ -220,7 +220,7 @@ export default function Home() {
       </div>
 
       {/* Games Grid */}
-      <div style={{ maxWidth: '1140px', margin: '0 auto', padding: '0 clamp(16px,4vw,32px) clamp(48px,8vw,80px)' }}>
+      <div id="games-grid" style={{ maxWidth: '1140px', margin: '0 auto', padding: '0 clamp(16px,4vw,32px) clamp(48px,8vw,80px)' }}>
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <h2 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1.4rem', color: '#e2e8f0', letterSpacing: '0.05em' }}>PICK YOUR GAME</h2>
           <p style={{ color: '#64748b', marginTop: '6px' }}>Six modes. One winner. Your skill decides.</p>
