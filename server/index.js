@@ -853,6 +853,12 @@ app.post('/api/avatar-unlock', express.json(), async (req, res) => {
   }
 })
 
+// ── Self keep-alive (prevents Render free tier from sleeping) ─────────────
+const SELF_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`
+setInterval(() => {
+  fetch(`${SELF_URL}/health`).catch(() => {})
+}, 10 * 60 * 1000) // ping every 10 minutes
+
 // ── Start ─────────────────────────────────────────────────────────────────
 server.listen(PORT, () => {
   console.log(`Join Arena server running on port ${PORT}`)
