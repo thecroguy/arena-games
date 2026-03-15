@@ -1228,32 +1228,30 @@ app.get('/api/stuck-deposits/:address', async (req, res) => {
 
     if (!deposits || deposits.length === 0) return res.json([])
 
-    // Rooms that already have a payout or refund
+    // Rooms that already have a claim payout (fully settled — don't show)
     const roomCodes = [...new Set(deposits.map(d => d.room_code))]
-    const { data: settled } = await supabase
+    const { data: claimed } = await supabase
       .from('escrow_events')
       .select('room_code')
-      .in('event_type', ['claim_signed', 'refund_signed'])
+      .eq('event_type', 'claim_signed')
       .in('room_code', roomCodes)
 
-    // Also fetch refund sigs for these rooms (issued by server on restart or abandonment)
+    // Fetch refund sigs — rooms with refund_signed still need player to call claimRefund
     const { data: refundSigs } = await supabase
       .from('escrow_events')
       .select('room_code, sig')
       .eq('event_type', 'refund_signed')
       .in('room_code', roomCodes)
 
-    const settledRooms = new Set((settled || []).map(s => s.room_code))
+    const claimedRooms = new Set((claimed || []).map(s => s.room_code))
     const refundSigMap = {}
-    for (const r of (refundSigs || [])) {
-      if (!settledRooms.has(r.room_code)) refundSigMap[r.room_code] = r.sig
-    }
+    for (const r of (refundSigs || [])) refundSigMap[r.room_code] = r.sig
 
     // Deduplicate by room_code (take most recent deposit per room)
     const seenCodes = new Set()
     const stuck = deposits
       .filter(d => {
-        if (settledRooms.has(d.room_code)) return false
+        if (claimedRooms.has(d.room_code)) return false
         if (seenCodes.has(d.room_code)) return false
         seenCodes.add(d.room_code)
         return true
