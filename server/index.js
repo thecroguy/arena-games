@@ -13,10 +13,9 @@ const configuredOrigins = (process.env.CLIENT_URL || '')
   .split(',').map(o => o.trim()).filter(Boolean)
 
 function isAllowedOrigin(origin) {
-  if (!origin) return true
-  if (configuredOrigins.length === 0) return true
-  if (configuredOrigins.includes(origin)) return true
-  if (/^https:\/\/[a-z0-9-]+(\.vercel\.app)$/.test(origin)) return true
+  if (!origin) return true                                                           // server-to-server
+  if (configuredOrigins.includes(origin)) return true                               // CLIENT_URL env
+  if (/^https:\/\/[a-z0-9-]+(\.vercel\.app)$/.test(origin)) return true            // preview deploys
   if (origin === 'https://joinarena.space' || origin === 'https://www.joinarena.space') return true
   return false
 }
@@ -96,8 +95,7 @@ function getRoomId(code) {
 }
 
 if (SERVER_SIGNING_KEY) {
-  const w = new ethers.Wallet(SERVER_SIGNING_KEY)
-  console.log('Escrow signing wallet (needs ZERO MATIC):', w.address)
+  console.log('Escrow signing wallet configured ✓')
 } else {
   console.warn('SERVER_SIGNING_KEY not set — claim signatures disabled (manual payouts only)')
 }
@@ -805,6 +803,54 @@ app.get('/rooms/:gameMode', (req, res) => {
     }
   }
   res.json(list)
+})
+
+// ── Profile API (wallet-sig verified, service key writes) ─────────────────
+const VALID_ADDR = /^0x[0-9a-fA-F]{40}$/
+
+app.post('/api/profile', express.json(), async (req, res) => {
+  try {
+    const { address, sig, updates } = req.body || {}
+    if (!address || !sig || !updates) return res.status(400).json({ error: 'Missing fields' })
+    if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
+
+    const msg = `Arena profile update\n${address.toLowerCase()}`
+    const recovered = ethers.verifyMessage(msg, sig)
+    if (recovered.toLowerCase() !== address.toLowerCase()) return res.status(401).json({ error: 'Invalid signature' })
+
+    const safe = {}
+    if (typeof updates.username === 'string')     safe.username     = updates.username.replace(/[^a-zA-Z0-9_\- ]/g, '').slice(0, 20)
+    if (typeof updates.avatar_style === 'string') safe.avatar_style = updates.avatar_style.slice(0, 50)
+
+    if (!supabase) return res.status(503).json({ error: 'DB not configured' })
+    const { error } = await supabase.from('player_profiles')
+      .upsert({ address: address.toLowerCase(), ...safe, updated_at: new Date().toISOString() }, { onConflict: 'address' })
+    if (error) return res.status(500).json({ error: error.message })
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+app.post('/api/avatar-unlock', express.json(), async (req, res) => {
+  try {
+    const { address, sig, style, currentStyles } = req.body || {}
+    if (!address || !sig || !style) return res.status(400).json({ error: 'Missing fields' })
+    if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
+
+    const msg = `Arena avatar unlock: ${style}\n${address.toLowerCase()}`
+    const recovered = ethers.verifyMessage(msg, sig)
+    if (recovered.toLowerCase() !== address.toLowerCase()) return res.status(401).json({ error: 'Invalid signature' })
+
+    const merged = Array.from(new Set([...(Array.isArray(currentStyles) ? currentStyles : ['bottts']), style]))
+    if (!supabase) return res.status(503).json({ error: 'DB not configured' })
+    const { error } = await supabase.from('player_profiles')
+      .upsert({ address: address.toLowerCase(), purchased_styles: merged, avatar_style: style, updated_at: new Date().toISOString() }, { onConflict: 'address' })
+    if (error) return res.status(500).json({ error: error.message })
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
 })
 
 // ── Start ─────────────────────────────────────────────────────────────────

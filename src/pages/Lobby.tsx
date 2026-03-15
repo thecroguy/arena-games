@@ -7,7 +7,7 @@ import { getUsername, shortAddr } from '../utils/profile'
 import { SUPPORTED_CHAINS, USDT_ABI, getChain, type SupportedChain } from '../utils/chains'
 import { getEscrowAddress, getRoomId, ESCROW_ABI, USDT_APPROVE_ABI } from '../utils/escrow'
 
-const HOUSE_WALLET = (import.meta.env.VITE_HOUSE_WALLET || '0x0000000000000000000000000000000000000000') as `0x${string}`
+const HOUSE_WALLET = import.meta.env.VITE_HOUSE_WALLET as `0x${string}` | undefined
 const ACTIVE_ROOM_KEY = 'ag_active_room'
 
 const GAME_META: Record<string, { title: string; emoji: string; desc: string; minPlayers: number; maxPlayers: number }> = {
@@ -144,13 +144,17 @@ export default function Lobby() {
       // ── Legacy fallback: direct transfer to house wallet ─────────────────
       // Used on chains where the escrow contract isn't deployed yet.
       // Winner is paid manually by the team within 24h.
+      if (!HOUSE_WALLET) {
+        showError('Payments are not configured for this network yet.')
+        return null
+      }
       setPayStep('paying')
       try {
         const hash = await writeContractAsync({
           address: chain.usdt,
           abi: USDT_ABI,
           functionName: 'transfer',
-          args: [HOUSE_WALLET, amount],
+          args: [HOUSE_WALLET as `0x${string}`, amount],
           chainId: chain.id,
         })
         return hash

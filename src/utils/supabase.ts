@@ -73,16 +73,24 @@ export async function fetchProfile(address: string): Promise<PlayerProfile | nul
   return data ?? null
 }
 
-export async function upsertProfile(address: string, updates: Partial<Omit<PlayerProfile, 'address'>>) {
-  const { error } = await supabase
-    .from('player_profiles')
-    .upsert({ address: address.toLowerCase(), ...updates, updated_at: new Date().toISOString() }, { onConflict: 'address' })
-  if (error) throw error
+const SERVER_URL = import.meta.env.VITE_SOCKET_URL || ''
+
+export async function upsertProfile(address: string, updates: Partial<Omit<PlayerProfile, 'address'>>, sig: string) {
+  const res = await fetch(`${SERVER_URL}/api/profile`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address, sig, updates }),
+  })
+  if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Profile save failed') }
 }
 
-export async function unlockAvatarStyle(address: string, style: string, currentStyles: string[]) {
-  const merged = Array.from(new Set([...currentStyles, style]))
-  await upsertProfile(address, { purchased_styles: merged, avatar_style: style })
+export async function unlockAvatarStyle(address: string, style: string, currentStyles: string[], sig: string) {
+  const res = await fetch(`${SERVER_URL}/api/avatar-unlock`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address, sig, style, currentStyles }),
+  })
+  if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Avatar unlock failed') }
 }
 
 // ── Player stats ────────────────────────────────────────────────────────────

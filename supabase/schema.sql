@@ -138,9 +138,8 @@ drop policy if exists "Public read profiles" on player_profiles;
 create policy "Public read profiles"
   on player_profiles for select using (true);
 
--- Anyone can upsert their own profile (frontend uses anon key + address check)
+-- Writes go through server API (service key bypasses RLS, wallet sig verified server-side)
 drop policy if exists "Owner upsert profile" on player_profiles;
-create policy "Owner upsert profile"
-  on player_profiles for all using (true) with check (true);
+revoke insert, update, delete on player_profiles from anon;
 
-grant select, insert, update on player_profiles to anon;
+grant select on player_profiles to anon;

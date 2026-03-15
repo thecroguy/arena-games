@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useAccount, useWriteContract, useChainId, useSwitchChain } from 'wagmi'
+import { useAccount, useWriteContract, useChainId, useSwitchChain, useSignMessage } from 'wagmi'
 import { useNavigate } from 'react-router-dom'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { parseUnits } from 'viem'
@@ -12,7 +12,8 @@ import {
 } from '../utils/avatar'
 import { getUsername, setUsername, shortAddr } from '../utils/profile'
 
-const HOUSE_WALLET = (import.meta.env.VITE_HOUSE_WALLET || '0x0000000000000000000000000000000000000000') as `0x${string}`
+const HOUSE_WALLET = import.meta.env.VITE_HOUSE_WALLET as `0x${string}` | undefined
+const HOUSE_CONFIGURED = !!HOUSE_WALLET && HOUSE_WALLET !== '0x0000000000000000000000000000000000000000'
 const USDT_POLYGON = '0xc2132D05D31c914a87C6611C10748AEb04B58e8F' as `0x${string}`
 const USDT_ABI = [
   { name: 'transfer', type: 'function', stateMutability: 'nonpayable',
@@ -28,6 +29,7 @@ export default function Profile() {
   const chainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
+  const { signMessageAsync } = useSignMessage()
 
   const [history, setHistory]   = useState<GameHistory[]>([])
   const [stats, setStats]       = useState<{ played: number; wins: number; winRate: number; totalEarned: number; totalSpent: number } | null>(null)
@@ -85,7 +87,10 @@ export default function Profile() {
     setDisplayName(clean)
     setNameInput(clean)
     setEditingName(false)
-    await upsertProfile(address, { username: clean }).catch(() => null)
+    try {
+      const sig = await signMessageAsync({ message: `Arena profile update\n${address.toLowerCase()}` })
+      await upsertProfile(address, { username: clean }, sig)
+    } catch { /* sig rejected or save failed — local state already updated */ }
   }
 
   async function handleBuyStyle(entry: AvatarEntry) {
@@ -95,9 +100,17 @@ export default function Profile() {
     if (price === 0 || isStyleOwned(entry.id, ownedBases)) {
       // Free or already owned — just switch
       setAvatarStyle(entry.id)
-      await upsertProfile(address, { avatar_style: entry.id }).catch(() => null)
       setConfirmEntry(null)
+      try {
+        const sig = await signMessageAsync({ message: `Arena profile update\n${address.toLowerCase()}` })
+        await upsertProfile(address, { avatar_style: entry.id }, sig)
+      } catch { /* sig rejected — visual state already updated */ }
       return
+    }
+
+    if (!HOUSE_CONFIGURED) {
+      setError('Avatar purchases are not available right now.')
+      setConfirmEntry(null); return
     }
 
     setBuying(baseKey)
@@ -117,7 +130,7 @@ export default function Profile() {
         address: USDT_POLYGON,
         abi: USDT_ABI,
         functionName: 'transfer',
-        args: [HOUSE_WALLET, parseUnits(String(price), 6)],
+        args: [HOUSE_WALLET as `0x${string}`, parseUnits(String(price), 6)],
         chainId: polygon.id,
       })
     } catch {
@@ -127,11 +140,11 @@ export default function Profile() {
 
     setBuyStatus('saving')
     try {
-      await unlockAvatarStyle(address, baseKey, ownedBases)
+      const sig = await signMessageAsync({ message: `Arena avatar unlock: ${baseKey}\n${address.toLowerCase()}` })
+      await unlockAvatarStyle(address, baseKey, ownedBases, sig)
       const newBases = Array.from(new Set([...ownedBases, baseKey]))
       setOwnedBases(newBases)
       setAvatarStyle(entry.id)
-      await upsertProfile(address, { avatar_style: entry.id }).catch(() => null)
     } catch {
       setError('Paid but failed to save — refresh and it may appear.')
     } finally {
@@ -143,7 +156,10 @@ export default function Profile() {
     if (!pendingStyle || !address) return
     setAvatarStyle(pendingStyle.id)
     setPendingStyle(null)
-    await upsertProfile(address, { avatar_style: pendingStyle.id }).catch(() => null)
+    try {
+      const sig = await signMessageAsync({ message: `Arena profile update\n${address.toLowerCase()}` })
+      await upsertProfile(address, { avatar_style: pendingStyle.id }, sig)
+    } catch { /* sig rejected — visual state already updated */ }
   }
 
   if (!isConnected) {
