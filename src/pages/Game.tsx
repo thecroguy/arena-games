@@ -386,7 +386,7 @@ export default function Game() {
   function sendChat() {
     const text = chatInput.trim()
     if (!text) return
-    connectSocket().emit('chat:send', { code: roomCode, text })
+    connectSocket().emit('chat:send', { code: roomCode, text, address: myAddr })
     setChatInput('')
   }
 
@@ -399,7 +399,14 @@ export default function Game() {
       if (!myAddr) return
       socket.emit('room:join', { code: roomCode, address: myAddr }, (res: { ok?: boolean; error?: string; reconnected?: boolean; room?: { players: PlayerState[]; gameMode?: string } }) => {
         if (res.error && res.error !== 'Already in room') setError(res.error)
-        if (res.room) { setPlayers(res.room.players); if (res.room.gameMode) setGameMode(res.room.gameMode) }
+        if (res.room) {
+          setPlayers(res.room.players)
+          if (res.room.gameMode) setGameMode(res.room.gameMode)
+          // Restore countdown timer if any player already deposited
+          if (res.room.players.some((p: PlayerState & { deposited?: boolean }) => p.deposited)) {
+            setDepositedAt(prev => prev || Date.now())
+          }
+        }
       })
     }
     rejoin()

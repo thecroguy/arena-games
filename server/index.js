@@ -822,7 +822,7 @@ io.on('connection', (socket) => {
   })
 
   // Player confirms their escrow deposit — server verifies on-chain then marks them ready
-  socket.on('room:deposit', async ({ code, txHash }, cb) => {
+  socket.on('room:deposit', async ({ code, txHash, address: payloadAddress }, cb) => {
     if (typeof cb !== 'function') cb = () => {}
     let room = rooms.get((code || '').toUpperCase())
     // On-demand DB recovery — same as room:join, handles server restart between create and deposit
@@ -848,7 +848,9 @@ io.on('connection', (socket) => {
     }
     if (!room || room.status !== 'waiting') return cb({ error: 'Room not found or already started' })
 
-    const address = socket.data.address
+    // After server restart socket.data.address is lost — accept it from the payload as fallback
+    const address = socket.data.address || (VALID_ADDRESS.test(payloadAddress) ? payloadAddress : null)
+    if (address && !socket.data.address) socket.data.address = address  // restore for future events
     let player = room.players.find(p => p.address === address)
     // Player might not be in recovered room list yet — add them
     if (!player && address) {
@@ -1039,13 +1041,15 @@ io.on('connection', (socket) => {
   })
 
   // Chat (lobby/queue only)
-  socket.on('chat:send', ({ code, text }) => {
+  socket.on('chat:send', ({ code, text, address: payloadAddress }) => {
     if (!rateLimit(socket.id, 3)) return
     const room = rooms.get(code)
     if (!room) return
     const clean = String(text || '').replace(/[<>]/g, '').slice(0, 120).trim()
     if (!clean) return
-    io.to(code).emit('chat:message', { address: socket.data.address, text: clean, ts: Date.now() })
+    const sender = socket.data.address || (VALID_ADDRESS.test(payloadAddress) ? payloadAddress : null)
+    if (!sender) return
+    io.to(code).emit('chat:message', { address: sender, text: clean, ts: Date.now() })
   })
 
   // Emoji reactions (in-game)

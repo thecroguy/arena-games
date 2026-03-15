@@ -321,7 +321,7 @@ export default function Lobby() {
     if (!txHash) { setCreating(false); setPayStep('idle'); return }
 
     // Step 3 — confirm deposit with server (marks host as ready)
-    socket.emit('room:deposit', { code, txHash }, () => {})
+    socket.emit('room:deposit', { code, txHash, address }, () => {})
     // Also report to REST API as permanent record (survives server restarts)
     fetch(`${SERVER_URL}/api/report-deposit`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -356,7 +356,7 @@ export default function Lobby() {
         setJoining(null); setPayStep('idle')
         if (res.error) { showError(res.error); return }
         // Step 3 — confirm deposit so server marks player as ready
-        socket.emit('room:deposit', { code, txHash }, () => {})
+        socket.emit('room:deposit', { code, txHash, address }, () => {})
         // Also report to REST API as permanent record
         fetch(`${SERVER_URL}/api/report-deposit`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
