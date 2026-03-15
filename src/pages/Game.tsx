@@ -134,6 +134,9 @@ export default function Game() {
   const [showHelp, setShowHelp] = useState(false)
   const [abandonReason, setAbandonReason] = useState('')
   const [disconnectedPlayers, setDisconnectedPlayers] = useState<string[]>([])
+  // deposit timeout countdown
+  const [depositedAt, setDepositedAt] = useState(0) // timestamp when first deposit confirmed
+  const [waitNow, setWaitNow] = useState(Date.now())
   // emoji reactions
   const [floatingReactions, setFloatingReactions] = useState<Array<{id: number; emoji: string; name: string; x: number}>>([])
   const reactionIdRef = useRef(0)
@@ -154,6 +157,13 @@ export default function Game() {
 
   // ── Auto-scroll chat ───────────────────────────────────────────────────
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chatMessages])
+
+  // ── Waiting room countdown tick ────────────────────────────────────────
+  useEffect(() => {
+    if (phase !== 'waiting' || !depositedAt) return
+    const t = setInterval(() => setWaitNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [phase, depositedAt])
 
   // ── Bot mode ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -399,6 +409,10 @@ export default function Game() {
       setPlayers(room.players)
       if (room.gameMode) setGameMode(room.gameMode)
       setCanStart(room.players.length >= 2 && room.status === 'waiting')
+      // Start countdown when first deposit is confirmed
+      if (room.players.some((p: PlayerState & { deposited?: boolean }) => p.deposited)) {
+        setDepositedAt(prev => prev || Date.now())
+      }
     })
     socket.on('game:countdown', (n: number) => { setPhase('countdown'); setCountdown(n) })
     socket.on('game:question', (q: Question) => {
@@ -442,8 +456,14 @@ export default function Game() {
     socket.on('room:timeout', (data: { message: string }) => {
       if (timerRef.current) clearInterval(timerRef.current)
       localStorage.removeItem('ag_active_room')
-      setAbandonReason(data.message)
-      setPhase('abandoned')
+      // If player deposited, show abandoned screen (refund button); otherwise go back to lobby
+      const myPlayer = scoresRef.current.find(p => p.address === myAddr)
+      if ((myPlayer as PlayerState & { deposited?: boolean })?.deposited) {
+        setAbandonReason(data.message)
+        setPhase('abandoned')
+      } else {
+        navigate(`/lobby/${gameModeLS}`)
+      }
     })
     socket.on('game:abandoned', (data: { reason: string }) => {
       if (timerRef.current) clearInterval(timerRef.current)
@@ -679,9 +699,19 @@ export default function Game() {
             </div>
           ))}
         </div>
-        <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '10px', padding: '12px 18px', marginBottom: '20px', fontSize: '0.85rem', color: '#64748b' }}>
+        <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '10px', padding: '12px 18px', marginBottom: '12px', fontSize: '0.85rem', color: '#64748b' }}>
           Share code <strong style={{ color: '#a78bfa', fontFamily: 'Orbitron, sans-serif' }}>{roomCode}</strong> with friends
         </div>
+        {depositedAt > 0 && (() => {
+          const secsLeft = Math.max(0, Math.round((depositedAt + 10 * 60 * 1000 - waitNow) / 1000))
+          const mm = String(Math.floor(secsLeft / 60)).padStart(2, '0')
+          const ss = String(secsLeft % 60).padStart(2, '0')
+          return (
+            <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '8px', padding: '7px 14px', marginBottom: '16px', fontSize: '0.78rem', color: '#f59e0b', textAlign: 'center' }}>
+              Room closes in {mm}:{ss} if game doesn't start
+            </div>
+          )
+        })()}
         {error && <p style={{ color: '#ef4444', marginBottom: '12px', fontSize: '0.9rem' }}>{error}</p>}
         {isHost && canStart && (
           <button onClick={handleStart} style={{ width: '100%', background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '10px', padding: '14px', color: '#fff', fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1rem', cursor: 'pointer', letterSpacing: '0.05em' }}>

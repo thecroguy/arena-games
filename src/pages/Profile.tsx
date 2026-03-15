@@ -662,13 +662,13 @@ export default function Profile() {
       )}
 
       {/* On-chain deposits found in room history but not in server records */}
-      {onChainDeposits.length > 0 && (
+      {onChainDeposits.filter(d => !stuckDeposits.some(s => s.room_code === d.code)).length > 0 && (
         <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '16px', padding: '20px 24px', marginBottom: '24px' }}>
           <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.7rem', color: '#ef4444', letterSpacing: '0.1em', marginBottom: '4px' }}>
             🔍 FOUND ON-CHAIN (not yet in server records)
           </p>
           <p style={{ color: '#64748b', fontSize: '0.75rem', marginBottom: '14px' }}>These deposits exist on the blockchain but the server has no record. If 24h has passed since deposit, you can claim a full refund.</p>
-          {onChainDeposits.map(d => {
+          {onChainDeposits.filter(d => !stuckDeposits.some(s => s.room_code === d.code)).map(d => {
             const isClaiming = claimingRoom === d.code
             return (
               <div key={d.code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', padding: '12px 0', borderBottom: '1px solid rgba(239,68,68,0.1)' }}>

@@ -77,17 +77,21 @@ function getChainEscrowAddress(chainId) {
   return cfg && cfg.escrow ? cfg.escrow : ''
 }
 
-/** Returns a read-only contract for hasDeposited() verification, or null. */
-function getReadEscrow(chainId) {
+/** One-shot on-chain hasDeposited check — no persistent provider, no retry loop. */
+async function hasDepositedOnChain(chainId, roomIdHex, playerAddress) {
   const cfg = CHAIN_CONFIG[chainId]
-  if (!cfg || !cfg.escrow) return null
-  try {
-    const provider = new ethers.JsonRpcProvider(cfg.rpc)
-    return new ethers.Contract(cfg.escrow, ['function hasDeposited(bytes32,address) view returns (bool)'], provider)
-  } catch (e) {
-    console.error('Escrow read init error:', e.message)
-    return null
-  }
+  if (!cfg || !cfg.escrow) return null // null = escrow not configured, can't verify
+  const iface = new ethers.Interface(['function hasDeposited(bytes32,address) view returns (bool)'])
+  const data = iface.encodeFunctionData('hasDeposited', [roomIdHex, playerAddress])
+  const res = await fetch(cfg.rpc, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_call', params: [{ to: cfg.escrow, data }, 'latest'], id: 1 }),
+    signal: AbortSignal.timeout(8000),
+  })
+  const json = await res.json()
+  if (json.error) throw new Error(json.error.message)
+  return json.result !== '0x' && BigInt(json.result) !== 0n
 }
 
 /** keccak256 of the room code string — matches Solidity keccak256(abi.encodePacked(code)) */
@@ -775,12 +779,11 @@ io.on('connection', (socket) => {
     if (!player) return cb({ error: 'Not in room' })
     if (player.deposited) return cb({ ok: true }) // already confirmed
 
-    const escrow = getReadEscrow(room.chainId)
-    if (escrow) {
+    const escrowAddr = getChainEscrowAddress(room.chainId)
+    if (escrowAddr) {
       // Verify on-chain that this player actually deposited
       try {
-        const roomId    = getRoomId(code)
-        const confirmed = await escrow.hasDeposited(roomId, address)
+        const confirmed = await hasDepositedOnChain(room.chainId, getRoomId(code), address)
         if (!confirmed) return cb({ error: 'Deposit not found on-chain. Please wait a moment and try again.' })
       } catch (e) {
         console.error('Escrow verification error:', e.message)
@@ -813,7 +816,6 @@ io.on('connection', (socket) => {
     }
 
     // Log deposit confirmation — evidence player paid; dispute-proof if they deny depositing
-    const escrowAddr = getChainEscrowAddress(room.chainId)
     if (supabase && escrowAddr) {
       supabase.from('escrow_events').insert({
         event_type:     'deposit_confirmed',
@@ -837,8 +839,7 @@ io.on('connection', (socket) => {
     if (room.status !== 'waiting')         return
 
     // Check all players have deposited (only enforced when escrow is configured)
-    const escrow = getReadEscrow(room.chainId)
-    if (escrow) {
+    if (getChainEscrowAddress(room.chainId)) {
       const notReady = room.players.filter(p => !p.deposited)
       if (notReady.length > 0) {
         const names = notReady.map(p => p.address.slice(0, 6) + '…').join(', ')
@@ -1125,9 +1126,16 @@ app.post('/api/avatar-unlock', express.json(), async (req, res) => {
       if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) return res.status(400).json({ error: 'Invalid transaction hash' })
       if (!HOUSE_WALLET) return res.status(503).json({ error: 'Server not configured for avatar purchases' })
       try {
-        const provider = new ethers.JsonRpcProvider(CHAIN_CONFIG[137].rpc)
-        const receipt = await provider.getTransactionReceipt(txHash)
-        if (!receipt || receipt.status !== 1) return res.status(400).json({ error: 'Transaction not confirmed or failed' })
+        const rpcRes = await fetch(CHAIN_CONFIG[137].rpc, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_getTransactionReceipt', params: [txHash], id: 1 }),
+          signal: AbortSignal.timeout(10000),
+        })
+        const rpcJson = await rpcRes.json()
+        if (rpcJson.error) throw new Error(rpcJson.error.message)
+        const receipt = rpcJson.result
+        if (!receipt || receipt.status !== '0x1') return res.status(400).json({ error: 'Transaction not confirmed or failed' })
         const USDT_POLYGON = '0xc2132d05d31c914a87c6611c10748aeb04b58e8f'
         if (receipt.to?.toLowerCase() !== USDT_POLYGON) return res.status(400).json({ error: 'Not a USDT transaction' })
         const transferTopic = ethers.id('Transfer(address,address,uint256)')
