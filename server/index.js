@@ -676,14 +676,33 @@ io.on('connection', (socket) => {
     console.log(`Room ${code} [${gameMode}] created by ${address.slice(0, 8)} on chain ${resolvedChainId}`)
   })
 
-  socket.on('room:join', ({ code, address, txHash, authSig }, cb) => {
+  socket.on('room:join', async ({ code, address, txHash, authSig }, cb) => {
     if (typeof cb !== 'function') return
     if (!rateLimit(socket.id)) return cb({ error: 'Too many requests' })
 
     if (!VALID_ADDRESS.test(address))   return cb({ error: 'Invalid wallet address' })
     if (txHash && !VALID_TX_HASH.test(txHash)) return cb({ error: 'Invalid transaction hash' })
 
-    const room = rooms.get((code || '').toUpperCase())
+    let room = rooms.get((code || '').toUpperCase())
+    // On-demand DB recovery — handles race condition on server cold start
+    if (!room && supabase) {
+      const { data } = await supabase.from('active_rooms')
+        .select('*').eq('code', (code || '').toUpperCase()).eq('status', 'waiting').single()
+      if (data) {
+        room = {
+          code: data.code, gameMode: data.game_mode, entryFee: Number(data.entry_fee),
+          chainId: data.chain_id, maxPlayers: data.max_players, host: data.host,
+          players: (data.players || []).map(p => ({
+            id: null, address: p.address, score: 0,
+            answered: false, correct: null, sealedPick: null,
+            deposited: !!p.deposited, disconnected: true,
+          })),
+          status: 'waiting', round: 0, question: null, roundTimer: null, roundStartAt: null,
+        }
+        rooms.set(room.code, room)
+        console.log(`[room:join] On-demand recovery of room ${room.code} from DB`)
+      }
+    }
     if (!room) return cb({ error: 'Room not found' })
 
     // Pre-matched player (already in room via matchmaking — skip auth, just sync socket)
