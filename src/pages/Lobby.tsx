@@ -10,7 +10,7 @@ import { getEscrowAddress, getRoomId, ESCROW_ABI, USDT_APPROVE_ABI } from '../ut
 const HOUSE_WALLET = import.meta.env.VITE_HOUSE_WALLET as `0x${string}` | undefined
 const ACTIVE_ROOM_KEY = 'ag_active_room'
 const ROOM_HISTORY_KEY = 'ag_room_history'
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
 
 function addToRoomHistory(code: string, chainId: number) {
   try {

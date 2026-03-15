@@ -33,7 +33,7 @@ const CLAIM_ABI = [
   { name: 'claim', type: 'function', stateMutability: 'nonpayable',
     inputs: [{ name: 'roomId', type: 'bytes32' }, { name: 'winner', type: 'address' }, { name: 'sig', type: 'bytes' }], outputs: [] },
 ] as const
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
 
 type StuckDeposit = {
   room_code: string
@@ -140,15 +140,30 @@ export default function Profile() {
 
   useEffect(() => { fetchStuck() }, [fetchStuck])
 
-  // Scan room history from localStorage against the contract on-chain
+  // Scan room history against the contract on-chain
+  // Primary source: server's escrow_events table (persistent, cross-device)
+  // Fallback: localStorage ag_room_history (for deposits made while server was down)
   const scanOnChain = useCallback(async () => {
     if (!address || !publicClient) return
     try {
-      const history: { code: string; chainId: number }[] = JSON.parse(localStorage.getItem('ag_room_history') || '[]')
-      if (history.length === 0) return
       setScanningChain(true)
+      // 1. Fetch from server (escrow_events — reliable, survives browser clears)
+      let serverRooms: { code: string; chainId: number }[] = []
+      try {
+        const r = await fetch(`${SERVER_URL}/api/room-history/${address}`)
+        if (r.ok) serverRooms = await r.json()
+      } catch { /* server unreachable — fall through to localStorage */ }
+
+      // 2. Merge with localStorage (catches deposits made when server was down)
+      const localRooms: { code: string; chainId: number }[] = (() => {
+        try { return JSON.parse(localStorage.getItem('ag_room_history') || '[]') } catch { return [] }
+      })()
+      const serverCodes = new Set(serverRooms.map(r => r.code))
+      const combined = [...serverRooms, ...localRooms.filter(r => !serverCodes.has(r.code))]
+
+      if (combined.length === 0) { setScanningChain(false); return }
       const found: OnChainDeposit[] = []
-      for (const { code, chainId: rChainId } of history) {
+      for (const { code, chainId: rChainId } of combined) {
         const escrow = getEscrowAddress(rChainId)
         if (!escrow) continue
         try {
@@ -273,6 +288,7 @@ export default function Profile() {
           functionName: 'claimRefund',
           args: [deposit.room_id_hash as `0x${string}`, deposit.refund_sig as `0x${string}`],
           chainId: deposit.chain_id,
+          gas: 300000n,
         })
       } else {
         // No sig yet — use emergencyRefund() (requires 24h)
@@ -282,6 +298,7 @@ export default function Profile() {
           functionName: 'emergencyRefund',
           args: [deposit.room_id_hash as `0x${string}`],
           chainId: deposit.chain_id,
+          gas: 300000n,
         })
       }
       setStuckDeposits(prev => prev.filter(d => d.room_code !== deposit.room_code))
@@ -305,6 +322,7 @@ export default function Profile() {
         functionName: 'claim',
         args: [pending.room_id_hash as `0x${string}`, address, pending.claim_sig as `0x${string}`],
         chainId: pending.chain_id,
+        gas: 300000n,
       })
       setPendingClaims(prev => prev.filter(p => p.room_code !== pending.room_code))
       // Mark as claimed in DB so it doesn't show up again
@@ -633,7 +651,7 @@ export default function Profile() {
                   setClaimingRoom(d.code)
                   try {
                     if (chainId !== d.chainId) await switchChainAsync({ chainId: d.chainId })
-                    await writeContractAsync({ address: d.escrow, abi: EMERGENCY_REFUND_ABI, functionName: 'emergencyRefund', args: [d.roomId], chainId: d.chainId })
+                    await writeContractAsync({ address: d.escrow, abi: EMERGENCY_REFUND_ABI, functionName: 'emergencyRefund', args: [d.roomId], chainId: d.chainId, gas: 300000n })
                     setOnChainDeposits(prev => prev.filter(x => x.code !== d.code))
                   } catch (e: unknown) {
                     const msg = e instanceof Error ? e.message : String(e)

@@ -1154,6 +1154,34 @@ app.post('/api/report-deposit', express.json(), async (req, res) => {
   }
 })
 
+// ── Room history: all rooms a player deposited in (from escrow_events) ────────
+// Used by Profile to build the on-chain scan list without relying on localStorage.
+app.get('/api/room-history/:address', async (req, res) => {
+  const { address } = req.params
+  if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
+  if (!supabase) return res.json([])
+  try {
+    const addr = address.toLowerCase()
+    const { data } = await supabase
+      .from('escrow_events')
+      .select('room_code, chain_id')
+      .eq('event_type', 'deposit_confirmed')
+      .eq('player_address', addr)
+      .order('created_at', { ascending: false })
+      .limit(100)
+    // Deduplicate by room_code
+    const seen = new Set()
+    const rooms = (data || []).filter(r => {
+      if (seen.has(r.room_code)) return false
+      seen.add(r.room_code)
+      return true
+    })
+    res.json(rooms)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ── Mark win as claimed (called by frontend after successful on-chain claim) ─
 app.post('/api/mark-claimed', express.json(), async (req, res) => {
   try {
