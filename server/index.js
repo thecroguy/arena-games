@@ -1068,8 +1068,7 @@ app.get('/admin/rooms', (req, res) => {
 })
 
 app.get('/health', (_, res) => {
-  const signerAddress = SERVER_SIGNING_KEY ? new ethers.Wallet(SERVER_SIGNING_KEY).address : null
-  res.json({ ok: true, rooms: rooms.size, uptime: Math.round(process.uptime()), signerAddress })
+  res.json({ ok: true, rooms: rooms.size, uptime: Math.round(process.uptime()) })
 })
 
 app.get('/rooms/:gameMode', (req, res) => {
