@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAccount, useWriteContract, useChainId, useSwitchChain, useReadContract, useSignMessage, usePublicClient } from 'wagmi'
 import { parseUnits, formatUnits } from 'viem'
 import { connectSocket } from '../utils/socket'
-import { getUsername, shortAddr } from '../utils/profile'
+import { getUsername } from '../utils/profile'
 import { SUPPORTED_CHAINS, USDT_ABI, getChain, type SupportedChain } from '../utils/chains'
 import { getEscrowAddress, getRoomId, ESCROW_ABI, USDT_APPROVE_ABI } from '../utils/escrow'
 
