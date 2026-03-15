@@ -1,6 +1,6 @@
 # Arena Games — Project Context (LOCAL ONLY — DO NOT COMMIT)
 
-> Last updated: 2026-03-15 (session 3)
+> Last updated: 2026-03-15 (session 4)
 
 ---
 
@@ -53,7 +53,7 @@ Skill-based multiplayer crypto gaming platform on Polygon. Players connect walle
 Player → USDT.approve(escrow, amount) → escrow.deposit(roomId, entryFee)
                                                         |
                                           Server watches deposit events
-                                          (reads hasDeposited via ethers read-only)
+                                          (reads hasDeposited via eth_call raw fetch)
                                                         |
                                           Game ends → Server signs claimSig
                                           keccak256(roomId, winnerAddress)
@@ -84,7 +84,7 @@ Server signs keccak256(roomId, "REFUND")
 
 ## Signature Scheme (EIP-191)
 
-- Server never sends on-chain transactions — only calls `wallet.signMessage()`
+- Server uses `@noble/hashes/sha3` + `@noble/curves/secp256k1` — NO ethers.js (removed to stop JsonRpcProvider spam)
 - **Claim sig:** `keccak256(abi.encodePacked(roomId, winner))` — signed by `SERVER_SIGNING_KEY` wallet
 - **Refund sig:** `keccak256(abi.encodePacked(roomId, "REFUND"))` — signed by `SERVER_SIGNING_KEY` wallet
 - **Auth sig:** `signMessage("Arena Games: {address}")` — signed by player, proves address ownership
@@ -121,6 +121,7 @@ Server signs keccak256(roomId, "REFUND")
 | `VITE_ESCROW_POLYGON` | `0x2a5ee961bCC775B40556524072A09584844f147c` |
 | `VITE_USDT_AMOY` | `0x2a5ee961bCC775B40556524072A09584844f147c` (MockUSDT) |
 | `VITE_USDT_POLYGON` | `0xc2132D05D31c914a87C6611C10748AEb04B58e8F` (real USDT) |
+| `VITE_ANALYTICS_PASSWORD` | Password for `/analytics` admin page (default: `arena2026`) |
 
 ---
 
@@ -137,7 +138,7 @@ Server signs keccak256(roomId, "REFUND")
 
 All modes have bot practice (client-side only, no socket, no money). Bot accuracy: Reaction 80%, Math 70%, Word 60%.
 
-**Matchmaking queue (implemented 2026-03-15):**
+**Matchmaking queue:**
 - Queue key: `${gameMode}:${entryFee}:${chainId}`
 - 2+ players in queue triggers `doMatch()` — creates room, joins all to socket room, emits `matchmaking:matched`
 - 30s timeout if only 1 player — emits `matchmaking:timeout`
@@ -172,11 +173,13 @@ All modes have bot practice (client-side only, no socket, no money). Bot accurac
 | `src/pages/Game.tsx` | Game UI — claim/refund buttons, bot mode, reconnect handling |
 | `src/pages/Lobby.tsx` | Room browser, deposit flow, wallet auth sig challenge |
 | `src/pages/Profile.tsx` | Profile, avatar, stats, stuck deposit viewer, self-serve refund/claim |
+| `src/pages/Analytics.tsx` | Admin analytics dashboard — password gated, at `/analytics` (not in nav) |
 | `src/components/Navbar.tsx` | Navbar — persistent active-room return banner |
 | `src/pages/Home.tsx` | Landing page — 6 game cards, Practice vs Bot CTA |
 | `src/utils/escrow.ts` | ABI, address helpers, getRoomId() |
 | `src/utils/supabase.ts` | Supabase client, profile/avatar/history helpers |
 | `src/utils/socket.ts` | Singleton socket with auto-reconnect (5 attempts, 1s delay) |
+| `src/utils/profile.ts` | getUsername() — reads localStorage, falls back to deterministic addrName() |
 | `contracts/contracts/ArenaEscrow.sol` | Escrow contract (claim, claimRefund, emergencyRefund) |
 | `contracts/scripts/emergency-refund.js` | Manual emergency refund for stuck rooms (run after 24h) |
 | `supabase/schema.sql` | Full DB schema — safe to re-run (uses IF NOT EXISTS) |
@@ -197,6 +200,14 @@ All modes have bot practice (client-side only, no socket, no money). Bot accurac
 | `POST /api/avatar-unlock` | Wallet-sig verified avatar unlock + on-chain tx receipt verification |
 | `GET /health` | Keep-alive + room count |
 | `GET /admin/rooms` | Admin room snapshot (requires `ADMIN_KEY` header) |
+
+---
+
+## Username System
+
+Usernames are stored in `localStorage` per device under key `ag_un_{address}`. Since other players' usernames aren't known cross-device, every address has a **deterministic fallback name** generated from the wallet address hash (e.g. `CyberWolf42`, `SwiftShark07`). Same address → same name on any device. Set in `src/utils/profile.ts → addrName()`.
+
+Player profiles (including custom usernames) are also stored in Supabase `player_profiles` table but the frontend currently reads localStorage first — full cross-device sync via Supabase profile fetch is a future improvement.
 
 ---
 
@@ -231,9 +242,22 @@ Previously fixed critical issues (all resolved):
 |----------|-------|
 | Game completes normally — winner claims | Instant — winner clicks Claim, pays ~$0.01 gas |
 | Game abandoned (players leave) | Instant — server signs refund, each player clicks button |
-| Room timed out (5 min, no game start) | Instant — server auto-issues refund sigs |
+| Room timed out (10 min, no game start) | Instant — server auto-issues refund sigs |
 | Server restarted mid-game | Instant after restart — recoverStuckRooms() signs refunds on startup |
 | Server offline >24h | 24h — emergencyRefund() on Profile page, no server needed |
+
+---
+
+## Known Bugs Fixed (Session 4 — 2026-03-15)
+
+| Bug | Root Cause | Fix |
+|-----|-----------|-----|
+| Server crashed on every room creation | `saveRoomToDb` called `.catch()` on Supabase query builder (not a full Promise in v2) — unhandled rejection crashed Node v22 | Replaced with `try/catch + await` in saveRoomToDb, deleteRoomFromDb, escrow_events insert |
+| "Room not found" immediately after create | Server crash wiped room from memory before room was saved to DB | Fixed by above crash fix |
+| Deposit stuck as "Pending" indefinitely | `hasDepositedOnChain` called before tx confirmed (tx pending in mempool) | Added retry loop: 3× 10s retries before giving up |
+| Game started while player still in MetaMask | Auto-start fired on room:join when room hit maxPlayers, regardless of deposit status | Removed auto-start from room:join; now auto-starts only when room full AND all players deposited |
+| Winner/leaderboard showed wallet addresses | `getUsername()` fell back to `shortAddr()` (cross-device localStorage miss) | Added deterministic `addrName()` fallback — consistent name from address hash |
+| Lobby "Host:" showed raw address | Direct `shortAddr()` call | Replaced with `getUsername()` |
 
 ---
 
@@ -246,24 +270,26 @@ Root cause: Render free tier restarted mid-deposit, rooms lost from memory, USDT
 - Both rooms manually inserted into Supabase `escrow_events` as `deposit_confirmed`
 - Recovery: After 1:42pm on 2026-03-16 (24h after deposit) → Profile page → Emergency Refund buttons
 - Backup: `cd contracts && npm run emergency-refund` (requires private key in `contracts/.env`, clear after use)
-- Previous failure: Emergency Refund showed "gas limit too high" — fixed with `gas: 300000n` and SERVER_URL fallback fix
 
 ---
 
-## Fix Priorities
+## Live Test Results (2026-03-15)
 
-1. [x] CORS fail-open fixed
-2. [x] HOUSE_WALLET zero-address guard
-3. [x] RLS — anon is read-only, writes verified server-side with wallet sig
-4. [x] Signing key address removed from logs
-5. [x] Wallet sig challenge on room create/join
-6. [x] Avatar purchase verified on-chain via Polygon RPC receipt
-7. [x] Socket reconnect — rejoin() on connect event + server 30s window
-8. [x] Auto matchmaking queue with 30s timeout + Lobby autoJoin flow
-9. [ ] Add `HOUSE_WALLET` env var on Render (needed for avatar tx verification)
-10. [ ] Recover stuck USDT — after 1:42pm Mar 16 2026, Profile page → Emergency Refund for JPE9 + YJC6
-11. [ ] Retry mainnet escrow test end-to-end (create → deposit → play → claim)
-12. [ ] Add nonce/expiry to claim signatures (issue #2)
+End-to-end test on Polygon mainnet PASSED:
+- Both players deposited $0.50 USDT each → $1.00 pot
+- Highest Unique game played 8 rounds
+- Account 1 won 6/8, Account 2 won 1/8
+- Winner claimed: $0.85 USDT to winner + $0.15 USDT to house wallet (same address in test)
+- All escrow contract interactions confirmed on-chain ✅
+
+---
+
+## Fix Priorities (Open)
+
+1. [ ] Recover JPE9 + YJC6 stuck USDT — after 1:42pm Mar 16 2026, Profile → Emergency Refund
+2. [ ] Add nonce/expiry to claim signatures (security issue #2)
+3. [ ] Cross-device username sync via Supabase `player_profiles` table
+4. [ ] Analytics dashboard at `/analytics` — page built (`src/pages/Analytics.tsx`), route not yet wired in App.tsx
 
 ---
 
@@ -281,11 +307,10 @@ Root cause: Render free tier restarted mid-deposit, rooms lost from memory, USDT
 - [x] Room persistence to Supabase (active_rooms)
 - [x] UptimeRobot keep-alive + server self-ping
 - [x] Emergency refund script (contracts/scripts/emergency-refund.js)
-- [x] 5-min deposit timeout with auto-refund
+- [x] 10-min deposit timeout with auto-refund
 - [x] Block double-joining if user has active locked deposit
 - [x] Persistent return-to-room banner in Navbar
 - [x] Profile page — stuck deposits, pending claims, on-chain scan
-- [x] Profile on-chain scan uses server escrow_events (cross-device) + localStorage fallback
 - [x] SERVER_URL falls back to VITE_SOCKET_URL
 - [x] gas: 300000n on all emergencyRefund/claimRefund/claim calls
 - [x] recoverStuckRooms() on server startup
@@ -293,6 +318,11 @@ Root cause: Render free tier restarted mid-deposit, rooms lost from memory, USDT
 - [x] Socket reconnect handling
 - [x] Avatar purchase tx verified on-chain
 - [x] Auto matchmaking queue (30s timeout, doMatch creates room, autoJoin flow in Lobby)
-- [ ] Add `HOUSE_WALLET` env var on Render
+- [x] ethers.js removed — replaced with @noble/hashes + @noble/curves (no JsonRpcProvider spam)
+- [x] saveRoomToDb crash fix (Supabase .catch bug on Node v22)
+- [x] Deposit retry loop (3×10s) for pending tx confirmation
+- [x] Auto-start only when room full AND all deposited
+- [x] Deterministic username fallback (addrName from address hash)
+- [x] End-to-end mainnet test PASSED (create → deposit → play → claim)
 - [ ] Recover JPE9 + YJC6 after 1:42pm Mar 16 2026
-- [ ] Retry mainnet escrow test
+- [ ] Analytics route wired in App.tsx
