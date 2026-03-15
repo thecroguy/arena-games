@@ -96,7 +96,8 @@ function getRoomId(code) {
 }
 
 if (SERVER_SIGNING_KEY) {
-  console.log('Escrow signing wallet configured ✓')
+  const _signerAddr = new ethers.Wallet(SERVER_SIGNING_KEY).address
+  console.log(`Escrow signing wallet: ${_signerAddr}`)
 } else {
   console.warn('SERVER_SIGNING_KEY not set — claim signatures disabled (manual payouts only)')
 }
@@ -1049,7 +1050,8 @@ app.get('/admin/rooms', (req, res) => {
 })
 
 app.get('/health', (_, res) => {
-  res.json({ ok: true, rooms: rooms.size, uptime: Math.round(process.uptime()) })
+  const signerAddress = SERVER_SIGNING_KEY ? new ethers.Wallet(SERVER_SIGNING_KEY).address : null
+  res.json({ ok: true, rooms: rooms.size, uptime: Math.round(process.uptime()), signerAddress })
 })
 
 app.get('/rooms/:gameMode', (req, res) => {
