@@ -233,7 +233,7 @@ async function recoverStuckRooms() {
       try {
         const roomDeposits = deposits.filter(d => d.room_code === code)
         const first = roomDeposits[0]
-        const roomId = first.room_id_hash || getRoomId(code)
+        const roomId = (first.room_id_hash && first.room_id_hash.length === 66) ? first.room_id_hash : getRoomId(code)
         const chainId = first.chain_id || 137
         const escrowAddr = first.escrow_address || getChainEscrowAddress(chainId)
         if (!escrowAddr) continue
