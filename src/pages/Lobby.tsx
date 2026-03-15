@@ -173,6 +173,20 @@ export default function Lobby() {
     setActiveRoom('')
   }
 
+  async function quickMatch() {
+    if (!isConnected || !address) { showError('Connect your wallet first'); return }
+    const socket = connectSocket()
+    socket.emit('rooms:list', gameMode, async (list: Room[]) => {
+      const open = list.find(r => r.status === 'waiting' && r.players < r.max)
+      if (open) {
+        await handleJoinRoom(open.code)
+      } else {
+        setTab('create')
+        showError('No open rooms found — create the first one!')
+      }
+    })
+  }
+
   const createBtnLabel = () => {
     if (payStep === 'switching') return `Switching to ${selectedChain.name}…`
     if (payStep === 'paying')    return `Sending $${selectedFee} USDT…`
@@ -286,6 +300,10 @@ export default function Lobby() {
       {/* Browse */}
       {tab === 'browse' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <button onClick={quickMatch}
+            style={{ background: 'linear-gradient(135deg, #22c55e, #06b6d4)', border: 'none', borderRadius: '10px', padding: '12px', color: '#0a0a0f', fontWeight: 800, fontSize: '0.92rem', fontFamily: 'Orbitron, sans-serif', cursor: 'pointer', letterSpacing: '0.04em' }}>
+            ⚡ Quick Match — Auto-join best open room
+          </button>
           {loading && <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', textAlign: 'center', color: '#64748b', padding: '48px' }}>Loading rooms…</div>}
           {!loading && rooms.length === 0 && (
             <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', textAlign: 'center', color: '#64748b', padding: '48px' }}>

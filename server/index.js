@@ -58,7 +58,9 @@ if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
 }
 
 // ── In-memory room store ──────────────────────────────────────────────────
-const rooms = new Map()
+const rooms           = new Map()
+const addressRooms    = new Map() // address → Set of room codes they created
+const disconnectTimers = new Map() // `${code}:${address}` → reconnect timer
 
 // ── Simple per-socket rate limiter ────────────────────────────────────────
 const rateLimits = new Map()
@@ -187,12 +189,31 @@ function roomPublic(room) {
     entryFee:   room.entryFee,
     maxPlayers: room.maxPlayers,
     status:     room.status,
-    players:    room.players.map(p => ({ address: p.address, score: p.score })),
+    players:    room.players.map(p => ({ address: p.address, score: p.score, disconnected: !!p.disconnected })),
   }
 }
 
 function generateCode() {
   return Math.random().toString(36).substring(2, 6).toUpperCase()
+}
+
+function cleanupRoom(code) {
+  const room = rooms.get(code)
+  if (!room) return
+  clearTimeout(room.roundTimer)
+  // Cancel any pending reconnect timers for this room
+  for (const p of room.players) {
+    const key = `${code}:${p.address}`
+    clearTimeout(disconnectTimers.get(key))
+    disconnectTimers.delete(key)
+  }
+  // Decrement host's active room count
+  const hostSet = addressRooms.get(room.host)
+  if (hostSet) {
+    hostSet.delete(code)
+    if (hostSet.size === 0) addressRooms.delete(room.host)
+  }
+  rooms.delete(code)
 }
 
 // ── Game flow ─────────────────────────────────────────────────────────────
@@ -299,7 +320,7 @@ async function endGame(room) {
     }
   }
 
-  setTimeout(() => rooms.delete(room.code), 60_000)
+  setTimeout(() => cleanupRoom(room.code), 60_000)
 }
 
 // ── Socket events ─────────────────────────────────────────────────────────
@@ -335,6 +356,10 @@ io.on('connection', (socket) => {
     if (!VALID_ADDRESS.test(address))  return cb({ error: 'Invalid wallet address' })
     if (txHash && !VALID_TX_HASH.test(txHash)) return cb({ error: 'Invalid transaction hash' })
 
+    // Room creation cap — max 3 active rooms per address
+    const hostRooms = addressRooms.get(address) || new Set()
+    if (hostRooms.size >= 3) return cb({ error: 'You already have 3 active rooms. Please close one first.' })
+
     const cfg = GAME_MODES[gameMode]
     const clampedMax = Math.min(Math.max(maxPlayers || cfg.maxP, cfg.minP), cfg.maxP)
 
@@ -348,6 +373,8 @@ io.on('connection', (socket) => {
       round: 0, question: null, roundTimer: null, roundStartAt: null,
     }
     rooms.set(code, room)
+    hostRooms.add(code)
+    addressRooms.set(address, hostRooms)
     socket.join(code)
     socket.data.roomCode = code
     socket.data.address  = address
@@ -363,7 +390,35 @@ io.on('connection', (socket) => {
     if (txHash && !VALID_TX_HASH.test(txHash)) return cb({ error: 'Invalid transaction hash' })
 
     const room = rooms.get((code || '').toUpperCase())
-    if (!room)                            return cb({ error: 'Room not found' })
+    if (!room) return cb({ error: 'Room not found' })
+
+    // Reconnect check — player disconnected during active game
+    const reconnecting = room.players.find(p => p.address === address && p.disconnected)
+    if (reconnecting) {
+      const key = `${room.code}:${address}`
+      clearTimeout(disconnectTimers.get(key))
+      disconnectTimers.delete(key)
+      reconnecting.id = socket.id
+      reconnecting.disconnected = false
+      socket.join(room.code)
+      socket.data.roomCode = room.code
+      socket.data.address  = address
+      const cfg = GAME_MODES[room.gameMode] || GAME_MODES['math-arena']
+      const publicQ = room.question ? (({ answer: _a, ...rest }) => rest)(room.question) : null
+      socket.emit('game:reconnected', {
+        round:    room.round,
+        total:    cfg.rounds,
+        scores:   room.players.map(p => ({ address: p.address, score: p.score })),
+        question: publicQ,
+        timeMs:   room.question ? Math.max(0, cfg.roundMs - (Date.now() - room.roundStartAt)) : 0,
+        status:   room.status,
+        gameMode: room.gameMode,
+      })
+      io.to(room.code).emit('game:player_reconnected', { address })
+      console.log(`+ ${address} reconnected to ${room.code}`)
+      return cb({ ok: true, reconnected: true, room: roomPublic(room) })
+    }
+
     if (room.status !== 'waiting')        return cb({ error: 'Game already started' })
     if (room.players.length >= room.maxPlayers) return cb({ error: 'Room is full' })
     if (room.players.find(p => p.address === address)) return cb({ error: 'Already in room' })
@@ -420,7 +475,7 @@ io.on('connection', (socket) => {
       })
 
       // If all submitted, end round early
-      if (room.players.every(p => p.answered)) {
+      if (room.players.every(p => p.answered || p.disconnected)) {
         clearTimeout(room.roundTimer)
         endRound(room)
       }
@@ -437,7 +492,7 @@ io.on('connection', (socket) => {
         scores: room.players.map(p => ({ address: p.address, score: p.score })),
       })
 
-      if (room.players.every(p => p.answered)) {
+      if (room.players.every(p => p.answered || p.disconnected)) {
         clearTimeout(room.roundTimer)
         endRound(room)
       }
@@ -466,40 +521,76 @@ io.on('connection', (socket) => {
 
   // Disconnect handling
   socket.on('disconnect', () => {
-    const code = socket.data.roomCode
-    if (!code) return
+    const code    = socket.data.roomCode
+    const address = socket.data.address
+    if (!code || !address) return
     const room = rooms.get(code)
     if (!room) return
 
     const wasActive = room.status === 'playing' || room.status === 'countdown'
-    room.players = room.players.filter(p => p.id !== socket.id)
-    console.log(`- ${socket.data.address} left ${code} (${room.players.length} remaining, was ${room.status})`)
 
-    if (room.players.length === 0) {
-      clearTimeout(room.roundTimer)
-      rooms.delete(code)
+    if (!wasActive) {
+      // Waiting phase — remove immediately
+      room.players = room.players.filter(p => p.id !== socket.id)
+      console.log(`- ${address} left ${code} (${room.players.length} remaining, waiting)`)
+      if (room.players.length === 0) { cleanupRoom(code); return }
+      if (room.host === address) room.host = room.players[0].address
+      io.to(code).emit('room:update', roomPublic(room))
+      io.to(code).emit('game:player_left', { address })
       return
     }
 
-    if (wasActive) {
-      // Game was in progress → abandon
-      clearTimeout(room.roundTimer)
-      io.to(code).emit('game:abandoned', {
-        address: socket.data.address,
-        reason:  'A player disconnected — game abandoned',
-      })
-      rooms.delete(code)
-    } else {
-      if (room.host === socket.data.address) {
-        room.host = room.players[0].address
+    // Active game — 30-second reconnect window instead of instant abandon
+    const player = room.players.find(p => p.id === socket.id)
+    if (!player) return
+    player.disconnected = true
+    player.id = null
+    console.log(`- ${address} disconnected from active game ${code} — 30s to reconnect`)
+    io.to(code).emit('game:player_disconnected', { address, reconnectSecs: 30 })
+
+    const key = `${code}:${address}`
+    const timer = setTimeout(() => {
+      disconnectTimers.delete(key)
+      const r = rooms.get(code)
+      if (!r) return
+      r.players = r.players.filter(p => p.address !== address)
+      console.log(`- ${address} forfeited from ${code} (reconnect timeout)`)
+      const activePlayers = r.players.filter(p => !p.disconnected)
+      if (activePlayers.length === 0) { cleanupRoom(code); return }
+      // If all remaining connected players already answered, end round now
+      if (r.status === 'playing' && r.players.every(p => p.answered || p.disconnected)) {
+        clearTimeout(r.roundTimer)
+        endRound(r)
       }
-      io.to(code).emit('room:update', roomPublic(room))
-      io.to(code).emit('game:player_left', { address: socket.data.address })
-    }
+      io.to(code).emit('game:player_left', { address, reason: 'timeout' })
+    }, 30_000)
+    disconnectTimers.set(key, timer)
   })
 })
 
 // ── REST endpoints ────────────────────────────────────────────────────────
+
+// Admin: snapshot of active games for crash recovery audit
+const ADMIN_KEY = process.env.ADMIN_KEY
+app.get('/admin/rooms', (req, res) => {
+  if (ADMIN_KEY && req.headers['x-admin-key'] !== ADMIN_KEY) {
+    return res.status(403).json({ error: 'Forbidden' })
+  }
+  const snapshot = []
+  for (const [, room] of rooms) {
+    snapshot.push({
+      code:       room.code,
+      gameMode:   room.gameMode,
+      entryFee:   room.entryFee,
+      status:     room.status,
+      round:      room.round,
+      players:    room.players.map(p => ({ address: p.address, score: p.score, disconnected: !!p.disconnected })),
+      pot:        (room.entryFee * room.players.length * 0.85).toFixed(2),
+    })
+  }
+  res.json({ rooms: snapshot, timestamp: new Date().toISOString() })
+})
+
 app.get('/health', (_, res) => {
   res.json({ ok: true, rooms: rooms.size, uptime: Math.round(process.uptime()) })
 })

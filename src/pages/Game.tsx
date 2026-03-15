@@ -125,6 +125,7 @@ export default function Game() {
   const [botThinking, setBotThinking] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [abandonReason, setAbandonReason] = useState('')
+  const [disconnectedPlayers, setDisconnectedPlayers] = useState<string[]>([])
   // emoji reactions
   const [floatingReactions, setFloatingReactions] = useState<Array<{id: number; emoji: string; name: string; x: number}>>([])
   const reactionIdRef = useRef(0)
@@ -422,12 +423,36 @@ export default function Game() {
     })
     socket.on('game:player_left', (data: { address: string }) => {
       setPlayers(prev => prev.filter(p => p.address !== data.address))
+      setDisconnectedPlayers(prev => prev.filter(a => a !== data.address))
     })
     socket.on('game:abandoned', (data: { reason: string }) => {
       if (timerRef.current) clearInterval(timerRef.current)
       localStorage.removeItem('ag_active_room')
       setAbandonReason(data.reason)
       setPhase('abandoned')
+    })
+    socket.on('game:player_disconnected', ({ address: addr, reconnectSecs }: { address: string; reconnectSecs: number }) => {
+      setDisconnectedPlayers(prev => prev.includes(addr) ? prev : [...prev, addr])
+      setTimeout(() => setDisconnectedPlayers(prev => prev.filter(a => a !== addr)), reconnectSecs * 1000)
+    })
+    socket.on('game:player_reconnected', ({ address: addr }: { address: string }) => {
+      setDisconnectedPlayers(prev => prev.filter(a => a !== addr))
+    })
+    socket.on('game:reconnected', (data: { round: number; total: number; scores: PlayerState[]; question: Question | null; timeMs: number; status: string; gameMode: string }) => {
+      setPlayers(data.scores)
+      if (data.gameMode) setGameMode(data.gameMode)
+      if (data.status === 'playing' && data.question) {
+        const restoredQ = { ...data.question, round: data.round, total: data.total, timeMs: data.timeMs }
+        setQuestion(restoredQ)
+        setPhase('playing')
+        setTimeLeft(Math.round(data.timeMs / 1000))
+        if (timerRef.current) clearInterval(timerRef.current)
+        timerRef.current = setInterval(() => {
+          setTimeLeft(t => { if (t <= 1) { clearInterval(timerRef.current!); return 0 } return t - 1 })
+        }, 1000)
+      } else if (data.status === 'round_end') {
+        setPhase('round_end')
+      }
     })
     socket.on('reaction:message', ({ address, emoji }: { address: string; emoji: string }) => {
       spawnReaction(emoji, displayName(address))
@@ -442,6 +467,8 @@ export default function Game() {
       socket.off('game:player_answered'); socket.off('game:sealed_submitted')
       socket.off('game:round_end'); socket.off('game:over')
       socket.off('game:player_left'); socket.off('game:abandoned')
+      socket.off('game:player_disconnected'); socket.off('game:player_reconnected')
+      socket.off('game:reconnected')
       socket.off('reaction:message')
       socket.off('chat:message')
     }
@@ -515,6 +542,13 @@ export default function Game() {
   const myPlayer      = players.find(p => p.address === myAddr)
   const roundTimeS    = question ? Math.round(question.timeMs / 1000) : ROUND_TIME_S
   const help          = GAME_HELP[gameMode] ?? GAME_HELP['math-arena']
+
+  // ── Disconnect banner ─────────────────────────────────────────────────
+  const disconnectBanner = disconnectedPlayers.length > 0 ? (
+    <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '8px', padding: '8px 14px', marginBottom: '10px', color: '#f87171', fontSize: '0.8rem', textAlign: 'center' }}>
+      ⚠️ {disconnectedPlayers.map(a => displayName(a)).join(', ')} disconnected — 30s to reconnect
+    </div>
+  ) : null
 
   // ── Emoji bar (shown during playing/round_end) ─────────────────────────
   const showEmojiBar = phase === 'playing' || phase === 'round_end'
@@ -921,6 +955,9 @@ export default function Game() {
           </div>
         ))}
       </div>
+
+      {/* Disconnect banner */}
+      {disconnectBanner}
 
       {/* Emoji bar */}
       {emojiBar}
