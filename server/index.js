@@ -98,6 +98,19 @@ function getRoomId(code) {
 if (SERVER_SIGNING_KEY) {
   const _signerAddr = new ethers.Wallet(SERVER_SIGNING_KEY).address
   console.log(`Escrow signing wallet: ${_signerAddr}`)
+  // Verify signer matches contract's server address on Polygon mainnet
+  const _escrowPolygon = process.env.ESCROW_POLYGON
+  if (_escrowPolygon) {
+    const _provider = new ethers.JsonRpcProvider('https://polygon-rpc.com')
+    const _contract = new ethers.Contract(_escrowPolygon, ['function server() view returns (address)'], _provider)
+    _contract.server().then(contractServer => {
+      if (contractServer.toLowerCase() === _signerAddr.toLowerCase()) {
+        console.log(`Contract server address verified ✓ (${contractServer})`)
+      } else {
+        console.error(`CONTRACT SERVER MISMATCH! Contract has ${contractServer} but signing with ${_signerAddr} — claimRefund will always fail!`)
+      }
+    }).catch(() => {})
+  }
 } else {
   console.warn('SERVER_SIGNING_KEY not set — claim signatures disabled (manual payouts only)')
 }
