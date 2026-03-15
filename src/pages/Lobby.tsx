@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAccount, useWriteContract, useChainId, useSwitchChain, useReadContract } from 'wagmi'
-import { parseUnits, formatUnits, parseEther } from 'viem'
+import { parseUnits, formatUnits } from 'viem'
 import { connectSocket } from '../utils/socket'
 import { getUsername, shortAddr } from '../utils/profile'
 import { SUPPORTED_CHAINS, USDT_ABI, getChain, type SupportedChain } from '../utils/chains'
