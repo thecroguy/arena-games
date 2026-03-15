@@ -13,6 +13,11 @@ dist-ssr
 *.local
 .env
 server/.env
+contracts/.env
+contracts/node_modules
+contracts/artifacts
+contracts/cache
+contracts/typechain-types
 
 # Editor directories and files
 .vscode/*

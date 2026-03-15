@@ -8,6 +8,9 @@ module.exports = {
     version: '0.8.24',
     settings: { optimizer: { enabled: true, runs: 200 } },
   },
+  paths: {
+    sources: './contracts',
+  },
   networks: {
     // Polygon Amoy testnet — deploy here first to verify everything works
     amoy: {

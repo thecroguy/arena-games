@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
-import { useAccount } from 'wagmi'
+import { useAccount, useWriteContract, useChainId, useSwitchChain } from 'wagmi'
 import { connectSocket } from '../utils/socket'
 import { getAvatarUrl, getAvatarColor } from '../utils/avatar'
 import { getUsername } from '../utils/profile'
+import { getEscrowAddress, getRoomId, ESCROW_ABI } from '../utils/escrow'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Phase = 'waiting' | 'countdown' | 'playing' | 'round_end' | 'finished' | 'abandoned'
@@ -95,11 +96,16 @@ export default function Game() {
   const navigate      = useNavigate()
   const { address }   = useAccount()
 
-  const isBotMode  = location.state?.bot === true
-  const isHost     = location.state?.host    ?? false
-  const entryFee   = location.state?.entry   ?? 1
-  const gameModeLS = location.state?.gameMode ?? 'math-arena'
-  const myAddr     = isBotMode ? (address || 'YOU') : (address ?? '')
+  const isBotMode    = location.state?.bot === true
+  const isHost       = location.state?.host    ?? false
+  const entryFee     = location.state?.entry   ?? 1
+  const gameModeLS   = location.state?.gameMode ?? 'math-arena'
+  const roomChainId  = location.state?.chainId  ?? 137
+  const myAddr       = isBotMode ? (address || 'YOU') : (address ?? '')
+
+  const currentChainId    = useChainId()
+  const { switchChainAsync } = useSwitchChain()
+  const { writeContractAsync } = useWriteContract()
 
   const [phase, setPhase]       = useState<Phase>(isBotMode ? 'countdown' : 'waiting')
   const [countdown, setCountdown] = useState(3)
@@ -117,9 +123,11 @@ export default function Game() {
   const [sealedCount, setSealedCount]   = useState(0)
   const [selectedCell, setSelectedCell] = useState<number | null>(null)
   const [gameOver, setGameOver]   = useState<{
-    winner: string; pot: string; payoutMode?: string; payoutTx?: string;
+    winner: string; pot: string; payoutMode?: string; claimSig?: string;
     scores: Array<{ address: string; score: number; rank: number }>
   } | null>(null)
+  const [refundSig, setRefundSig] = useState<string | null>(null)
+  const [claimState, setClaimState] = useState<'idle' | 'pending' | 'done' | 'error'>('idle')
   const [error, setError]       = useState('')
   const [canStart, setCanStart] = useState(false)
   const [botThinking, setBotThinking] = useState(false)
@@ -416,10 +424,13 @@ export default function Game() {
       setPhase('round_end'); setRoundAnswer(data.answer); setPlayers(data.scores)
       if (data.sealedResult) setSealedResult(data.sealedResult)
     })
-    socket.on('game:over', (data: { winner: string; pot: string; payoutMode?: string; payoutTx?: string; scores: Array<{ address: string; score: number; rank: number }> }) => {
+    socket.on('game:over', (data: { winner: string; pot: string; payoutMode?: string; claimSig?: string; scores: Array<{ address: string; score: number; rank: number }> }) => {
       if (timerRef.current) clearInterval(timerRef.current)
       localStorage.removeItem('ag_active_room')
       setPhase('finished'); setGameOver(data)
+    })
+    socket.on('game:refund_sig', ({ refundSig: sig }: { refundSig: string }) => {
+      setRefundSig(sig)
     })
     socket.on('game:player_left', (data: { address: string }) => {
       setPlayers(prev => prev.filter(p => p.address !== data.address))
@@ -465,7 +476,7 @@ export default function Game() {
       if (timerRef.current) clearInterval(timerRef.current)
       socket.off('room:update'); socket.off('game:countdown'); socket.off('game:question')
       socket.off('game:player_answered'); socket.off('game:sealed_submitted')
-      socket.off('game:round_end'); socket.off('game:over')
+      socket.off('game:round_end'); socket.off('game:over'); socket.off('game:refund_sig')
       socket.off('game:player_left'); socket.off('game:abandoned')
       socket.off('game:player_disconnected'); socket.off('game:player_reconnected')
       socket.off('game:reconnected')
@@ -474,6 +485,46 @@ export default function Game() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode, myAddr])
+
+  // ── Claim payout (winner calls contract from their own wallet) ────────────
+  async function handleClaim() {
+    if (!gameOver?.claimSig || !myAddr) return
+    const escrowAddr = getEscrowAddress(roomChainId)
+    if (!escrowAddr) return
+    setClaimState('pending')
+    try {
+      if (currentChainId !== roomChainId) await switchChainAsync({ chainId: roomChainId })
+      await writeContractAsync({
+        address: escrowAddr,
+        abi: ESCROW_ABI,
+        functionName: 'claim',
+        args: [getRoomId(roomCode ?? ''), gameOver.winner as `0x${string}`, gameOver.claimSig as `0x${string}`],
+      })
+      setClaimState('done')
+    } catch {
+      setClaimState('error')
+    }
+  }
+
+  // ── Claim refund (each player calls contract, pays own ~$0.01 gas) ────────
+  async function handleClaimRefund() {
+    if (!refundSig || !myAddr) return
+    const escrowAddr = getEscrowAddress(roomChainId)
+    if (!escrowAddr) return
+    setClaimState('pending')
+    try {
+      if (currentChainId !== roomChainId) await switchChainAsync({ chainId: roomChainId })
+      await writeContractAsync({
+        address: escrowAddr,
+        abi: ESCROW_ABI,
+        functionName: 'claimRefund',
+        args: [getRoomId(roomCode ?? ''), refundSig as `0x${string}`],
+      })
+      setClaimState('done')
+    } catch {
+      setClaimState('error')
+    }
+  }
 
   function handleStart() { connectSocket().emit('room:start', { code: roomCode }) }
 
@@ -569,7 +620,26 @@ export default function Game() {
       <div style={{ textAlign: 'center', maxWidth: '400px', padding: '0 16px' }}>
         <div style={{ fontSize: '3rem', marginBottom: '12px' }}>⚠️</div>
         <h2 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1.2rem', color: '#ef4444', marginBottom: '8px' }}>Game Abandoned</h2>
-        <p style={{ color: '#94a3b8', marginBottom: '24px', fontSize: '0.95rem' }}>{abandonReason || 'A player disconnected.'}</p>
+        <p style={{ color: '#94a3b8', marginBottom: '16px', fontSize: '0.95rem' }}>{abandonReason || 'A player disconnected.'}</p>
+        {refundSig && getEscrowAddress(roomChainId) && (
+          claimState === 'done' ? (
+            <div style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', fontSize: '0.82rem', color: '#86efac' }}>
+              ✅ Your ${entryFee} USDT entry fee has been refunded!
+            </div>
+          ) : (
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.25)', borderRadius: '8px', padding: '8px 14px', marginBottom: '10px', fontSize: '0.78rem', color: '#a78bfa' }}>
+                Your ${entryFee} USDT is locked in the contract — click below to claim it back.
+                <br /><span style={{ color: '#475569' }}>You pay ~$0.01 gas to reclaim 100% of your entry fee.</span>
+              </div>
+              <button onClick={handleClaimRefund} disabled={claimState === 'pending'}
+                style={{ width: '100%', background: claimState === 'pending' ? '#1e1e30' : 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '10px', padding: '13px', color: claimState === 'pending' ? '#64748b' : '#fff', fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.9rem', cursor: claimState === 'pending' ? 'not-allowed' : 'pointer', marginBottom: '6px' }}>
+                {claimState === 'pending' ? 'Confirm in wallet…' : `Claim Refund $${entryFee} USDT`}
+              </button>
+              {claimState === 'error' && <p style={{ color: '#ef4444', fontSize: '0.78rem', margin: 0 }}>Transaction failed — please try again.</p>}
+            </div>
+          )
+        )}
         <button onClick={() => navigate(`/lobby/${gameMode}`)} style={{ background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '10px', padding: '12px 28px', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem' }}>
           Back to Lobby →
         </button>
@@ -676,13 +746,34 @@ export default function Game() {
               {gameOver.winner === myAddr ? `+$${gameOver.pot} USDT` : 'Better luck next time'}
             </p>
             {/* Payout status — fully transparent */}
-            {gameOver.payoutMode === 'escrow' && gameOver.payoutTx ? (
-              <div style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '8px', padding: '8px 14px', marginBottom: '20px', fontSize: '0.78rem', color: '#86efac' }}>
-                ✅ ${gameOver.pot} USDT sent automatically on-chain
-                {' · '}
-                <a href={`https://polygonscan.com/tx/${gameOver.payoutTx}`} target="_blank" rel="noopener noreferrer" style={{ color: '#22c55e' }}>View TX →</a>
-                <br /><span style={{ color: '#475569' }}>Winner: 85% of pot · Platform fee: 15% (covers gas)</span>
-              </div>
+            {gameOver.payoutMode === 'escrow' && gameOver.claimSig ? (
+              gameOver.winner === myAddr ? (
+                <div style={{ marginBottom: '20px' }}>
+                  {claimState === 'done' ? (
+                    <div style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.82rem', color: '#86efac' }}>
+                      ✅ ${gameOver.pot} USDT claimed to your wallet!
+                      <br /><span style={{ color: '#475569' }}>Winner: 85% of pot · Platform fee: 15% (covers gas)</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '8px', padding: '8px 14px', marginBottom: '10px', fontSize: '0.78rem', color: '#86efac' }}>
+                        🏆 You won <strong>${gameOver.pot} USDT</strong>! Click below to claim it to your wallet.
+                        <br /><span style={{ color: '#475569' }}>You pay ~$0.01 gas · Winner: 85% · Platform: 15%</span>
+                      </div>
+                      <button onClick={handleClaim} disabled={claimState === 'pending'}
+                        style={{ width: '100%', background: claimState === 'pending' ? '#1e1e30' : 'linear-gradient(135deg, #22c55e, #16a34a)', border: 'none', borderRadius: '10px', padding: '14px', color: claimState === 'pending' ? '#64748b' : '#fff', fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.95rem', cursor: claimState === 'pending' ? 'not-allowed' : 'pointer', marginBottom: '6px' }}>
+                        {claimState === 'pending' ? 'Confirm in wallet…' : `Claim $${gameOver.pot} USDT →`}
+                      </button>
+                      {claimState === 'error' && <p style={{ color: '#ef4444', fontSize: '0.78rem', margin: 0 }}>Transaction failed — please try again.</p>}
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '8px', padding: '8px 14px', marginBottom: '20px', fontSize: '0.78rem', color: '#86efac' }}>
+                  🏆 Winner is claiming ${gameOver.pot} USDT from the smart contract.
+                  <br /><span style={{ color: '#475569' }}>Funds locked in escrow — auto-released on claim</span>
+                </div>
+              )
             ) : !isBotMode && (
               <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '8px', padding: '8px 14px', marginBottom: '20px', fontSize: '0.78rem', color: '#fcd34d' }}>
                 ⏳ Team will manually send ${gameOver.pot} USDT to winner within 24h.

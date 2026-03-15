@@ -3,11 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "compile": "hardhat compile",
-    "deploy:amoy":    "hardhat run scripts/deploy.js --network amoy",
-    "deploy:polygon": "hardhat run scripts/deploy.js --network polygon",
-    "verify:amoy":    "hardhat verify --network amoy",
-    "verify:polygon": "hardhat verify --network polygon"
+    "compile":           "hardhat compile",
+    "deploy:amoy":       "hardhat run scripts/deploy-amoy.js --network amoy",
+    "deploy:polygon":    "hardhat run scripts/deploy.js --network polygon",
+    "mint":              "hardhat run scripts/mint.js --network amoy",
+    "verify:amoy":       "hardhat verify --network amoy",
+    "verify:polygon":    "hardhat verify --network polygon"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

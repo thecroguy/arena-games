@@ -36,6 +36,27 @@ export const ESCROW_ABI = [
     outputs: [],
   },
   {
+    name: 'claim',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'roomId', type: 'bytes32' },
+      { name: 'winner', type: 'address' },
+      { name: 'sig',    type: 'bytes'   },
+    ],
+    outputs: [],
+  },
+  {
+    name: 'claimRefund',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'roomId', type: 'bytes32' },
+      { name: 'sig',    type: 'bytes'   },
+    ],
+    outputs: [],
+  },
+  {
     name: 'emergencyRefund',
     type: 'function',
     stateMutability: 'nonpayable',

@@ -58,14 +58,7 @@ if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
   console.log('Supabase connected')
 }
 
-// ── Escrow auto-payout ────────────────────────────────────────────────────
-// Minimal ABI — only what the server needs to call
-const ESCROW_ABI_MIN = [
-  'function release(bytes32 roomId, address winner) external',
-  'function refund(bytes32 roomId) external',
-  'function hasDeposited(bytes32 roomId, address player) external view returns (bool)',
-]
-
+// ── Escrow signing (server never sends on-chain transactions) ─────────────
 // Per-chain config: RPC + deployed escrow contract address
 const CHAIN_CONFIG = {
   137:   { rpc: process.env.POLYGON_RPC  || 'https://polygon-rpc.com',              escrow: process.env.ESCROW_POLYGON  || '' },
@@ -78,16 +71,21 @@ const CHAIN_CONFIG = {
 
 const SERVER_SIGNING_KEY = process.env.SERVER_SIGNING_KEY
 
-/** Returns an ethers Contract instance for the escrow on a given chain, or null if not configured. */
-function getEscrowContract(chainId) {
+/** Returns the escrow address for a chain, or '' if not configured. */
+function getChainEscrowAddress(chainId) {
   const cfg = CHAIN_CONFIG[chainId]
-  if (!cfg || !cfg.escrow || !SERVER_SIGNING_KEY) return null
+  return cfg && cfg.escrow ? cfg.escrow : ''
+}
+
+/** Returns a read-only contract for hasDeposited() verification, or null. */
+function getReadEscrow(chainId) {
+  const cfg = CHAIN_CONFIG[chainId]
+  if (!cfg || !cfg.escrow) return null
   try {
     const provider = new ethers.JsonRpcProvider(cfg.rpc)
-    const wallet   = new ethers.Wallet(SERVER_SIGNING_KEY, provider)
-    return new ethers.Contract(cfg.escrow, ESCROW_ABI_MIN, wallet)
+    return new ethers.Contract(cfg.escrow, ['function hasDeposited(bytes32,address) view returns (bool)'], provider)
   } catch (e) {
-    console.error('Escrow contract init error:', e.message)
+    console.error('Escrow read init error:', e.message)
     return null
   }
 }
@@ -99,9 +97,9 @@ function getRoomId(code) {
 
 if (SERVER_SIGNING_KEY) {
   const w = new ethers.Wallet(SERVER_SIGNING_KEY)
-  console.log('Escrow signing wallet:', w.address)
+  console.log('Escrow signing wallet (needs ZERO MATIC):', w.address)
 } else {
-  console.warn('SERVER_SIGNING_KEY not set — escrow auto-payout disabled (manual payouts only)')
+  console.warn('SERVER_SIGNING_KEY not set — claim signatures disabled (manual payouts only)')
 }
 
 // ── In-memory room store ──────────────────────────────────────────────────
@@ -342,35 +340,36 @@ async function endGame(room) {
   const winner = sorted[0]
   const pot    = (room.entryFee * room.players.length * 0.85).toFixed(2)
 
-  // ── Escrow auto-payout ────────────────────────────────────────────────
-  let payoutTx   = null
+  // ── Sign claim authorization (server never sends a transaction) ──────────
+  // Winner calls claim(roomId, winner, sig) from their own wallet, paying ~$0.01 gas.
+  let claimSig   = null
   let payoutMode = 'manual' // 'escrow' | 'manual'
-  const escrow = getEscrowContract(room.chainId)
-  if (escrow) {
+  if (SERVER_SIGNING_KEY && getChainEscrowAddress(room.chainId)) {
     try {
-      const roomId = getRoomId(room.code)
-      const tx     = await escrow.release(roomId, winner.address)
-      await tx.wait(1) // wait for 1 confirmation
-      payoutTx   = tx.hash
-      payoutMode = 'escrow'
-      console.log(`Escrow payout TX ${tx.hash} → ${winner.address} ($${pot})`)
+      const roomId  = getRoomId(room.code)
+      const msgHash = ethers.solidityPackedKeccak256(['bytes32', 'address'], [roomId, winner.address])
+      const wallet  = new ethers.Wallet(SERVER_SIGNING_KEY)
+      claimSig      = await wallet.signMessage(ethers.getBytes(msgHash))
+      payoutMode    = 'escrow'
+      console.log(`Signed claim for room ${room.code} → winner ${winner.address.slice(0, 8)} ($${pot})`)
     } catch (e) {
-      console.error(`Escrow release failed for room ${room.code}:`, e.message)
-      // Fall through — emit game:over with payoutMode=manual so team knows to pay manually
+      console.error(`Claim signing failed for room ${room.code}:`, e.message)
     }
   }
 
   io.to(room.code).emit('game:over', {
     winner: winner.address,
     pot,
-    payoutMode,  // client shows "Paid automatically" vs "Team will pay within 24h"
-    payoutTx,    // tx hash if escrow payout succeeded
+    payoutMode,  // 'escrow' = winner can claim via button; 'manual' = team pays within 24h
+    claimSig,    // winner passes this to claim() on the contract
     scores: sorted.map((p, i) => ({ address: p.address, score: p.score, rank: i + 1 })),
   })
 
   if (supabase) {
     try {
-      const cfg  = GAME_MODES[room.gameMode] || GAME_MODES['math-arena']
+      const cfg          = GAME_MODES[room.gameMode] || GAME_MODES['math-arena']
+      const roomIdHash   = getRoomId(room.code)
+      const escrowAddr   = getChainEscrowAddress(room.chainId) || null
       const rows = room.players.map(p => ({
         room_code:      room.code,
         game_mode:      room.gameMode,
@@ -382,10 +381,28 @@ async function endGame(room) {
         earned:         p.address === winner.address ? parseFloat(pot) : -room.entryFee,
         players_count:  room.players.length,
         chain_id:       room.chainId || 137,
-        payout_tx:      payoutTx,
         payout_mode:    payoutMode,
+        escrow_address: escrowAddr,
+        room_id_hash:   roomIdHash,
+        // Store the claim signature on the winner's row — cryptographic proof of who server declared winner
+        claim_sig:      p.address === winner.address ? claimSig : null,
       }))
       await supabase.from('game_history').insert(rows)
+
+      // Log claim authorization to escrow_events for full dispute audit trail
+      if (claimSig && escrowAddr) {
+        await supabase.from('escrow_events').insert({
+          event_type:     'claim_signed',
+          room_code:      room.code,
+          room_id_hash:   roomIdHash,
+          chain_id:       room.chainId || 137,
+          escrow_address: escrowAddr,
+          player_address: winner.address.toLowerCase(),
+          amount_usdt:    parseFloat(pot),
+          sig:            claimSig,
+          note:           `Server authorized ${winner.address.slice(0, 8)} to claim $${pot} USDT`,
+        })
+      }
     } catch (e) {
       console.error('Supabase insert error:', e.message)
     }
@@ -394,20 +411,42 @@ async function endGame(room) {
   setTimeout(() => cleanupRoom(room.code), 60_000)
 }
 
-// ── Escrow refund helper — called on abandon/forfeit ──────────────────────
+// ── Escrow refund helper — signs a refund authorization, players claim individually ──
+// Server never sends a transaction. Each player calls claimRefund(roomId, sig) from
+// their own wallet, paying ~$0.01 gas to receive 100% of their entry fee back.
 async function escrowRefund(room) {
-  const escrow = getEscrowContract(room.chainId)
-  if (!escrow) return
+  const escrowAddr = getChainEscrowAddress(room.chainId)
+  if (!SERVER_SIGNING_KEY || !escrowAddr) return
   try {
-    const roomId = getRoomId(room.code)
-    const tx     = await escrow.refund(roomId)
-    await tx.wait(1)
-    console.log(`Escrow refund TX ${tx.hash} for abandoned room ${room.code}`)
-  } catch (e) {
-    // Room may not have had any deposits yet (e.g., abandoned before anyone paid)
-    if (!e.message.includes('AlreadySettled')) {
-      console.error(`Escrow refund failed for room ${room.code}:`, e.message)
+    const roomId  = getRoomId(room.code)
+    // Must match: keccak256(abi.encodePacked(roomId, "REFUND")) in the contract
+    const msgHash = ethers.solidityPackedKeccak256(['bytes32', 'string'], [roomId, 'REFUND'])
+    const wallet  = new ethers.Wallet(SERVER_SIGNING_KEY)
+    const refundSig = await wallet.signMessage(ethers.getBytes(msgHash))
+    io.to(room.code).emit('game:refund_sig', { refundSig })
+    console.log(`Signed refund for abandoned room ${room.code}`)
+
+    // Log refund authorization for every deposited player — dispute evidence
+    if (supabase) {
+      const depositedPlayers = room.players.filter(p => p.deposited)
+      if (depositedPlayers.length > 0) {
+        await supabase.from('escrow_events').insert(
+          depositedPlayers.map(p => ({
+            event_type:     'refund_signed',
+            room_code:      room.code,
+            room_id_hash:   roomId,
+            chain_id:       room.chainId || 137,
+            escrow_address: escrowAddr,
+            player_address: p.address.toLowerCase(),
+            amount_usdt:    room.entryFee,
+            sig:            refundSig, // same sig — each player uses it individually
+            note:           `Refund authorized for abandoned room ${room.code}`,
+          }))
+        )
+      }
     }
+  } catch (e) {
+    console.error(`Refund signing failed for room ${room.code}:`, e.message)
   }
 }
 
@@ -537,7 +576,7 @@ io.on('connection', (socket) => {
     if (!player) return cb({ error: 'Not in room' })
     if (player.deposited) return cb({ ok: true }) // already confirmed
 
-    const escrow = getEscrowContract(room.chainId)
+    const escrow = getReadEscrow(room.chainId)
     if (escrow) {
       // Verify on-chain that this player actually deposited
       try {
@@ -558,6 +597,22 @@ io.on('connection', (socket) => {
     io.to(code).emit('room:update', roomPublic(room))
     cb({ ok: true })
     console.log(`${address.slice(0, 8)} deposited for room ${code} (chain ${room.chainId})`)
+
+    // Log deposit confirmation — evidence player paid; dispute-proof if they deny depositing
+    const escrowAddr = getChainEscrowAddress(room.chainId)
+    if (supabase && escrowAddr) {
+      supabase.from('escrow_events').insert({
+        event_type:     'deposit_confirmed',
+        room_code:      code,
+        room_id_hash:   getRoomId(code),
+        chain_id:       room.chainId || 137,
+        escrow_address: escrowAddr,
+        player_address: address.toLowerCase(),
+        amount_usdt:    room.entryFee,
+        tx_hash:        txHash || null,
+        note:           `On-chain deposit verified for room ${code}`,
+      }).catch(e => console.error('escrow_events insert error:', e.message))
+    }
   })
 
   socket.on('room:start', ({ code }) => {
@@ -568,7 +623,7 @@ io.on('connection', (socket) => {
     if (room.status !== 'waiting')         return
 
     // Check all players have deposited (only enforced when escrow is configured)
-    const escrow = getEscrowContract(room.chainId)
+    const escrow = getReadEscrow(room.chainId)
     if (escrow) {
       const notReady = room.players.filter(p => !p.deposited)
       if (notReady.length > 0) {

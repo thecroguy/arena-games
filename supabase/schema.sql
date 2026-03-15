@@ -13,8 +13,52 @@ create table if not exists game_history (
   entry_fee     numeric     not null,
   earned        numeric     not null,  -- positive = profit, negative = loss
   players_count integer     not null,
+  chain_id      integer     not null default 137,
+  payout_mode   text        not null default 'manual', -- 'escrow' | 'manual'
   played_at     timestamptz not null default now()
 );
+
+-- Migration: add columns if table already exists
+alter table game_history add column if not exists chain_id      integer not null default 137;
+alter table game_history add column if not exists payout_mode   text    not null default 'manual';
+alter table game_history add column if not exists escrow_address text;          -- contract address (null = no escrow)
+alter table game_history add column if not exists room_id_hash   text;          -- keccak256(roomCode) used on-chain
+alter table game_history add column if not exists claim_sig      text;          -- server's ECDSA sig (winner row only)
+
+-- ── Escrow audit log ───────────────────────────────────────────────────────
+-- Full on-chain evidence for every deposit, payout authorization, and refund.
+-- Use this table to resolve any "I never got paid" or "I deposited but no refund" disputes.
+create table if not exists escrow_events (
+  id             bigserial   primary key,
+  event_type     text        not null,  -- see below
+  room_code      text        not null,
+  room_id_hash   text        not null,  -- bytes32 keccak256(roomCode) — query on Polygonscan
+  chain_id       integer     not null,
+  escrow_address text        not null,  -- which contract holds the funds
+  player_address text        not null,  -- who this event is about
+  amount_usdt    numeric,               -- entry fee involved
+  tx_hash        text,                  -- on-chain tx hash (when known)
+  sig            text,                  -- ECDSA sig server issued (claim_signed / refund_signed)
+  note           text,                  -- human-readable context
+  created_at     timestamptz not null default now()
+);
+-- event_type values:
+--   'deposit_confirmed'  — server verified player's on-chain deposit
+--   'claim_signed'       — server signed winner authorization (claimSig issued)
+--   'refund_signed'      — server signed refund authorization (refundSig issued)
+
+create index if not exists idx_escrow_events_room    on escrow_events (room_code);
+create index if not exists idx_escrow_events_player  on escrow_events (player_address);
+create index if not exists idx_escrow_events_type    on escrow_events (event_type);
+create index if not exists idx_escrow_events_created on escrow_events (created_at desc);
+
+alter table escrow_events enable row level security;
+
+drop policy if exists "Public read escrow_events" on escrow_events;
+create policy "Public read escrow_events"
+  on escrow_events for select using (true);
+
+grant select on escrow_events to anon;
 
 create index if not exists idx_game_history_address  on game_history (player_address);
 create index if not exists idx_game_history_played_at on game_history (played_at desc);
