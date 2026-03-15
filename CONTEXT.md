@@ -286,7 +286,7 @@ End-to-end test on Polygon mainnet PASSED:
 
 ## Fix Priorities (Open)
 
-1. [ ] Recover JPE9 + YJC6 stuck USDT — after 1:42pm Mar 16 2026, Profile → Emergency Refund
+1. [x] Recover JPE9 + YJC6 stuck USDT — refunded via Profile → Stuck Deposits (2026-03-15)
 2. [ ] Add nonce/expiry to claim signatures (security issue #2)
 3. [ ] Cross-device username sync via Supabase `player_profiles` table
 4. [ ] Analytics dashboard at `/analytics` — page built (`src/pages/Analytics.tsx`), route not yet wired in App.tsx
@@ -324,5 +324,5 @@ End-to-end test on Polygon mainnet PASSED:
 - [x] Auto-start only when room full AND all deposited
 - [x] Deterministic username fallback (addrName from address hash)
 - [x] End-to-end mainnet test PASSED (create → deposit → play → claim)
-- [ ] Recover JPE9 + YJC6 after 1:42pm Mar 16 2026
+- [x] Recover JPE9 + YJC6 — refunded ✅
 - [ ] Analytics route wired in App.tsx
