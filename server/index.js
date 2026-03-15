@@ -152,6 +152,70 @@ async function loadRoomsFromDb() {
 }
 loadRoomsFromDb()
 
+// ── Startup recovery: auto-issue refund sigs for rooms stuck mid-game ─────
+// Handles the case where server restarted while a game was in progress.
+// Finds all rooms with confirmed deposits but no settlement, signs refund
+// authorizations, and stores them in Supabase so players can claim instantly.
+async function recoverStuckRooms() {
+  if (!supabase || !SERVER_SIGNING_KEY) return
+  try {
+    const { data: deposits } = await supabase
+      .from('escrow_events')
+      .select('room_code, room_id_hash, chain_id, escrow_address, player_address, amount_usdt')
+      .eq('event_type', 'deposit_confirmed')
+      .order('created_at', { ascending: false })
+      .limit(500)
+    if (!deposits || deposits.length === 0) return
+
+    const roomCodes = [...new Set(deposits.map(d => d.room_code))]
+    const { data: settled } = await supabase
+      .from('escrow_events')
+      .select('room_code')
+      .in('event_type', ['claim_signed', 'refund_signed'])
+      .in('room_code', roomCodes)
+
+    const settledRooms = new Set((settled || []).map(s => s.room_code))
+    const stuckCodes = roomCodes.filter(c => !settledRooms.has(c))
+    if (stuckCodes.length === 0) return
+
+    const wallet = new ethers.Wallet(SERVER_SIGNING_KEY)
+    for (const code of stuckCodes) {
+      if (rooms.has(code)) continue // still in memory, handled normally
+      try {
+        const roomDeposits = deposits.filter(d => d.room_code === code)
+        const first = roomDeposits[0]
+        const roomId = first.room_id_hash || getRoomId(code)
+        const chainId = first.chain_id || 137
+        const escrowAddr = first.escrow_address || getChainEscrowAddress(chainId)
+        if (!escrowAddr) continue
+
+        const msgHash = ethers.solidityPackedKeccak256(['bytes32', 'string'], [roomId, 'REFUND'])
+        const refundSig = await wallet.signMessage(ethers.getBytes(msgHash))
+
+        await supabase.from('escrow_events').insert(
+          roomDeposits.map(d => ({
+            event_type:     'refund_signed',
+            room_code:      code,
+            room_id_hash:   roomId,
+            chain_id:       chainId,
+            escrow_address: escrowAddr,
+            player_address: d.player_address,
+            amount_usdt:    d.amount_usdt,
+            sig:            refundSig,
+            note:           `Auto-refund on server restart — room ${code} was in progress`,
+          }))
+        )
+        console.log(`[recovery] Issued refund sig for stuck room ${code} (${roomDeposits.length} player(s))`)
+      } catch (e) {
+        console.error(`[recovery] Failed for room ${code}:`, e.message)
+      }
+    }
+  } catch (e) {
+    console.error('[recovery] recoverStuckRooms error:', e.message)
+  }
+}
+recoverStuckRooms()
+
 // ── Simple per-socket rate limiter ────────────────────────────────────────
 const rateLimits = new Map()
 function rateLimit(socketId, maxPerSec = 5) {
@@ -983,10 +1047,28 @@ app.get('/api/stuck-deposits/:address', async (req, res) => {
       .in('event_type', ['claim_signed', 'refund_signed'])
       .in('room_code', roomCodes)
 
-    const settledRooms = new Set((settled || []).map(s => s.room_code))
+    // Also fetch refund sigs for these rooms (issued by server on restart or abandonment)
+    const { data: refundSigs } = await supabase
+      .from('escrow_events')
+      .select('room_code, sig')
+      .eq('event_type', 'refund_signed')
+      .in('room_code', roomCodes)
 
+    const settledRooms = new Set((settled || []).map(s => s.room_code))
+    const refundSigMap = {}
+    for (const r of (refundSigs || [])) {
+      if (!settledRooms.has(r.room_code)) refundSigMap[r.room_code] = r.sig
+    }
+
+    // Deduplicate by room_code (take most recent deposit per room)
+    const seenCodes = new Set()
     const stuck = deposits
-      .filter(d => !settledRooms.has(d.room_code))
+      .filter(d => {
+        if (settledRooms.has(d.room_code)) return false
+        if (seenCodes.has(d.room_code)) return false
+        seenCodes.add(d.room_code)
+        return true
+      })
       .map(d => ({
         room_code:      d.room_code,
         room_id_hash:   d.room_id_hash,
@@ -994,10 +1076,36 @@ app.get('/api/stuck-deposits/:address', async (req, res) => {
         escrow_address: d.escrow_address,
         amount_usdt:    d.amount_usdt,
         deposited_at:   d.created_at,
+        refund_sig:     refundSigMap[d.room_code] || null, // instant claimRefund if available
         refundable_at:  new Date(new Date(d.created_at).getTime() + 24 * 60 * 60 * 1000).toISOString(),
       }))
 
     res.json(stuck)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// ── Pending claims: wins where player has claim sig but may not have claimed ─
+// Winner closes browser before clicking Claim → comes back to Profile → sees it here
+app.get('/api/pending-claim/:address', async (req, res) => {
+  const { address } = req.params
+  if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
+  if (!supabase) return res.json([])
+  try {
+    const addr = address.toLowerCase()
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() // last 7 days
+    const { data } = await supabase
+      .from('game_history')
+      .select('room_code, game_mode, pot, entry_fee, claim_sig, escrow_address, room_id_hash, chain_id, played_at')
+      .eq('player_address', addr)
+      .eq('result', 'win')
+      .eq('payout_mode', 'escrow')
+      .not('claim_sig', 'is', null)
+      .gt('played_at', cutoff)
+      .order('played_at', { ascending: false })
+      .limit(10)
+    res.json(data || [])
   } catch (e) {
     res.status(500).json({ error: e.message })
   }
