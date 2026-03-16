@@ -16,6 +16,25 @@ function getBytes(hex)             { return hexToBytes((hex || '').replace(/^0x/
 /** keccak256 of UTF-8 string → 0x-hex (ethers.id equivalent) */
 function ethId(str)                { return keccak256(Buffer.from(str, 'utf8')) }
 
+// ── Deterministic username fallback (mirrors frontend addrName) ─────────────
+const _ADJS  = ['Brave','Swift','Dark','Iron','Bold','Sly','Wild','Frost','Storm','Blaze','Cyber','Neon','Pixel','Steel','Ghost','Nova','Lunar','Solar','Turbo','Hyper','Shadow','Crimson','Savage','Rogue','Sigma']
+const _NOUNS = ['Fox','Wolf','Bear','Hawk','Lion','Tiger','Shark','Eagle','Viper','Dragon','Phoenix','Panda','Ninja','Rider','Coder','Sniper','Ranger','Hunter','Wizard','Knight','Pirate','Bandit','Nomad','Titan','Blade']
+function addrName(address) {
+  const hex = (address || '').replace(/^0x/i, '').toLowerCase().padEnd(10, '0')
+  const a = parseInt(hex.slice(0, 4), 16) % _ADJS.length
+  const n = parseInt(hex.slice(4, 8), 16) % _NOUNS.length
+  const num = parseInt(hex.slice(8, 10), 16) % 100
+  return `${_ADJS[a]}${_NOUNS[n]}${String(num).padStart(2, '0')}`
+}
+async function getPlayerUsername(address) {
+  if (!supabase || !address) return addrName(address)
+  try {
+    const { data } = await supabase.from('player_profiles')
+      .select('username').eq('address', address.toLowerCase()).maybeSingle()
+    return data?.username || addrName(address)
+  } catch { return addrName(address) }
+}
+
 /** solidityPackedKeccak256 — supports bytes32 / address / string types only */
 function solidityPackedKeccak256(types, values) {
   const parts = types.map((t, i) => {
@@ -443,7 +462,7 @@ function roomPublic(room) {
     maxPlayers: room.maxPlayers,
     status:     room.status,
     chainId:    room.chainId || 137,
-    players:    room.players.map(p => ({ address: p.address, score: p.score, disconnected: !!p.disconnected, deposited: !!p.deposited })),
+    players:    room.players.map(p => ({ address: p.address, username: p.username || addrName(p.address), score: p.score, disconnected: !!p.disconnected, deposited: !!p.deposited })),
   }
 }
 
@@ -537,7 +556,7 @@ function endRound(room) {
 
   io.to(room.code).emit('game:round_end', {
     answer:       isSealed ? null : String(room.question.answer),
-    scores:       room.players.map(p => ({ address: p.address, score: p.score })),
+    scores:       room.players.map(p => ({ address: p.address, username: p.username || addrName(p.address), score: p.score })),
     sealedResult: sealedResult,
   })
 
@@ -717,12 +736,13 @@ io.on('connection', (socket) => {
     const resolvedChainId = Number(chainId) || 137
 
     const code = generateCode()
+    const hostUsername = await getPlayerUsername(address)
     const room = {
       code, gameMode, entryFee,
       chainId: resolvedChainId,
       maxPlayers: clampedMax,
       host: address,
-      players: [{ id: socket.id, address, score: 0, answered: false, correct: null, sealedPick: null, deposited: false }],
+      players: [{ id: socket.id, address, username: hostUsername, score: 0, answered: false, correct: null, sealedPick: null, deposited: false }],
       status: 'waiting',
       round: 0, question: null, roundTimer: null, roundStartAt: null,
     }
@@ -813,7 +833,8 @@ io.on('connection', (socket) => {
     if (room.players.length >= room.maxPlayers) return cb({ error: 'Room is full' })
     if (room.players.find(p => p.address === address)) return cb({ error: 'Already in room' })
 
-    room.players.push({ id: socket.id, address, score: 0, answered: false, correct: null, sealedPick: null, deposited: false })
+    const joinerUsername = await getPlayerUsername(address)
+    room.players.push({ id: socket.id, address, username: joinerUsername, score: 0, answered: false, correct: null, sealedPick: null, deposited: false })
     socket.join(code)
     socket.data.roomCode = code
     socket.data.address  = address
@@ -855,7 +876,8 @@ io.on('connection', (socket) => {
     let player = room.players.find(p => p.address === address)
     // Player might not be in recovered room list yet — add them
     if (!player && address) {
-      player = { id: socket.id, address, score: 0, answered: false, correct: null, sealedPick: null, deposited: false }
+      const depositUsername = await getPlayerUsername(address)
+      player = { id: socket.id, address, username: depositUsername, score: 0, answered: false, correct: null, sealedPick: null, deposited: false }
       room.players.push(player)
       io.to(room.code).emit('room:update', roomPublic(room))
     }

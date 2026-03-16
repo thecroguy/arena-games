@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAccount } from 'wagmi'
-import { fetchLeaderboard, type LeaderboardEntry } from '../utils/supabase'
+import { fetchLeaderboard, fetchUsernames, type LeaderboardEntry } from '../utils/supabase'
 import { getAvatarUrl, getAvatarColor } from '../utils/avatar'
 import { getUsername } from '../utils/profile'
 
@@ -11,15 +11,24 @@ const MEDAL: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' }
 export default function Leaderboard() {
   const [period, setPeriod]   = useState<Period>('alltime')
   const [data, setData]       = useState<LeaderboardEntry[]>([])
+  const [usernames, setUsernames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
   const { address } = useAccount()
+
+  function displayName(addr: string) {
+    return usernames[addr.toLowerCase()] || getUsername(addr)
+  }
 
   useEffect(() => {
     setLoading(true)
     setError('')
     fetchLeaderboard(period)
-      .then(setData)
+      .then(async rows => {
+        setData(rows)
+        const names = await fetchUsernames(rows.map(r => r.player_address))
+        setUsernames(names)
+      })
       .catch(() => setError('Leaderboard unavailable — backend not configured yet'))
       .finally(() => setLoading(false))
   }, [period])
@@ -91,7 +100,7 @@ export default function Leaderboard() {
                     <img src={getAvatarUrl(p.player_address)} alt="avatar" width={48} height={48} style={{ borderRadius: '50%', border: `3px solid ${actualRank === 1 ? '#f59e0b' : getAvatarColor(p.player_address)}`, background: '#1e1e30' }} />
                     <div style={{ fontSize: '1.4rem' }}>{MEDAL[actualRank]}</div>
                     <div style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.72rem', color: actualRank === 1 ? '#f59e0b' : '#94a3b8', letterSpacing: '0.05em', wordBreak: 'break-all' }}>
-                      {getUsername(p.player_address)}
+                      {displayName(p.player_address)}
                     </div>
                     <div style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 900, fontSize: '1.1rem', color: '#e2e8f0' }}>
                       {p.wins} <span style={{ fontSize: '0.6rem', color: '#64748b' }}>WINS</span>
@@ -130,7 +139,7 @@ export default function Leaderboard() {
                         <td style={{ padding: '14px 20px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <img src={getAvatarUrl(p.player_address)} alt="avatar" width={28} height={28} style={{ borderRadius: '50%', border: `2px solid ${getAvatarColor(p.player_address)}`, background: '#1e1e30', flexShrink: 0 }} />
-                            <span style={{ fontWeight: 600, color: isMe ? '#a78bfa' : '#e2e8f0', fontSize: '0.9rem' }}>{getUsername(p.player_address)}</span>
+                            <span style={{ fontWeight: 600, color: isMe ? '#a78bfa' : '#e2e8f0', fontSize: '0.9rem' }}>{displayName(p.player_address)}</span>
                             {isMe && <span style={{ fontSize: '0.65rem', background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa', borderRadius: '4px', padding: '1px 6px', fontWeight: 700 }}>YOU</span>}
                           </div>
                         </td>

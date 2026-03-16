@@ -9,7 +9,7 @@ import { getEscrowAddress, getRoomId, ESCROW_ABI } from '../utils/escrow'
 // ── Types ──────────────────────────────────────────────────────────────────
 type Phase = 'waiting' | 'countdown' | 'playing' | 'round_end' | 'finished' | 'abandoned'
 
-interface PlayerState { address: string; score: number; answered?: boolean; correct?: boolean | null }
+interface PlayerState { address: string; username?: string; score: number; answered?: boolean; correct?: boolean | null }
 
 interface Question {
   round: number; total: number; timeMs: number
@@ -35,10 +35,13 @@ const ROUND_TIME_S   = 12
 const TOTAL_BOT_ROUNDS = 10
 const BOT_ADDR       = '0xB07B07B07B07B07B07B07B07B07B07B07B07B07B'
 
+// usernameCache is populated from server-broadcast player objects (Supabase source of truth)
+const usernameCache = new Map<string, string>()
+
 function displayName(addr: string): string {
   if (addr === BOT_ADDR) return 'Bot'
   if (addr === 'YOU') return 'You'
-  return getUsername(addr)
+  return usernameCache.get(addr.toLowerCase()) || getUsername(addr)
 }
 
 function makeMathQ(round: number): Question {
@@ -407,6 +410,7 @@ export default function Game() {
         }
         if (res.error && res.error !== 'Already in room') setError(res.error)
         if (res.room) {
+          res.room.players.forEach((p: PlayerState) => { if (p.username) usernameCache.set(p.address.toLowerCase(), p.username) })
           setPlayers(res.room.players)
           if (res.room.gameMode) setGameMode(res.room.gameMode)
           // Restore countdown timer if any player already deposited
@@ -420,6 +424,7 @@ export default function Game() {
     socket.on('connect', rejoin)
 
     socket.on('room:update', (room: { players: PlayerState[]; status: string; gameMode?: string }) => {
+      room.players.forEach(p => { if (p.username) usernameCache.set(p.address.toLowerCase(), p.username) })
       setPlayers(room.players)
       if (room.gameMode) setGameMode(room.gameMode)
       setCanStart(room.players.length >= 2 && room.status === 'waiting')
@@ -452,6 +457,7 @@ export default function Game() {
     })
     socket.on('game:round_end', (data: { answer: string | null; scores: PlayerState[]; sealedResult?: SealedResult }) => {
       if (timerRef.current) clearInterval(timerRef.current)
+      data.scores.forEach((p: PlayerState) => { if (p.username) usernameCache.set(p.address.toLowerCase(), p.username) })
       setPhase('round_end'); setRoundAnswer(data.answer); setPlayers(data.scores)
       if (data.sealedResult) setSealedResult(data.sealedResult)
     })

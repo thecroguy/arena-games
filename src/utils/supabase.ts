@@ -64,6 +64,19 @@ export type PlayerProfile = {
   purchased_styles: string[]
 }
 
+export async function fetchUsernames(addresses: string[]): Promise<Record<string, string>> {
+  if (!addresses.length) return {}
+  const { data } = await supabase
+    .from('player_profiles')
+    .select('address, username')
+    .in('address', addresses.map(a => a.toLowerCase()))
+  const map: Record<string, string> = {}
+  for (const row of data ?? []) {
+    if (row.username) map[row.address.toLowerCase()] = row.username
+  }
+  return map
+}
+
 export async function fetchProfile(address: string): Promise<PlayerProfile | null> {
   const { data } = await supabase
     .from('player_profiles')
