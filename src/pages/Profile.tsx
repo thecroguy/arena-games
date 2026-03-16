@@ -219,14 +219,17 @@ export default function Profile() {
   async function saveName() {
     if (!address || !nameInput.trim()) return
     const clean = nameInput.trim().replace(/[^a-zA-Z0-9_\- ]/g, '').slice(0, 20)
-    setUsername(address, clean)
-    setDisplayName(clean)
-    setNameInput(clean)
-    setEditingName(false)
     try {
       const sig = await signMessageAsync({ message: `Arena profile update\n${address.toLowerCase()}` })
       await upsertProfile(address, { username: clean }, sig)
-    } catch { /* sig rejected or save failed — local state already updated */ }
+      setUsername(address, clean)
+      setDisplayName(clean)
+      setNameInput(clean)
+      setEditingName(false)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      if (!msg.includes('rejected') && !msg.includes('denied')) alert('Failed to save username — please try again')
+    }
   }
 
   async function handleBuyStyle(entry: AvatarEntry) {
