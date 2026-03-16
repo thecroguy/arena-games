@@ -710,7 +710,7 @@ io.on('connection', (socket) => {
     cb(room ? { code: room.code, status: room.status } : null)
   })
 
-  socket.on('room:create', ({ gameMode, entryFee, maxPlayers, address, chainId, txHash, authSig }, cb) => {
+  socket.on('room:create', async ({ gameMode, entryFee, maxPlayers, address, chainId, txHash, authSig }, cb) => {
     if (typeof cb !== 'function') return
     if (!rateLimit(socket.id)) return cb({ error: 'Too many requests' })
 
