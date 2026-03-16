@@ -31,7 +31,13 @@ async function getPlayerUsername(address) {
   try {
     const { data } = await supabase.from('player_profiles')
       .select('username').eq('address', address.toLowerCase()).maybeSingle()
-    return data?.username || addrName(address)
+    if (data) return data.username || addrName(address)
+    // No profile yet — auto-create with deterministic name so leaderboard shows consistent name
+    const name = addrName(address)
+    supabase.from('player_profiles')
+      .insert({ address: address.toLowerCase(), username: name, avatar_style: 'adventurer', purchased_styles: [] })
+      .then(() => {}).catch(() => {})
+    return name
   } catch { return addrName(address) }
 }
 
