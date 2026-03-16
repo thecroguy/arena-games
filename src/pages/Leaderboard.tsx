@@ -105,9 +105,11 @@ export default function Leaderboard() {
                     <div style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 900, fontSize: '1.1rem', color: '#e2e8f0' }}>
                       {p.wins} <span style={{ fontSize: '0.6rem', color: '#64748b' }}>WINS</span>
                     </div>
-                    <div style={{ color: '#22c55e', fontSize: '0.85rem', fontWeight: 700 }}>
-                      {Number(p.net_earned) >= 0 ? '+' : ''}${Number(p.net_earned).toFixed(2)}
-                    </div>
+                    {address && p.player_address === address.toLowerCase() && (
+                      <div style={{ color: '#22c55e', fontSize: '0.85rem', fontWeight: 700 }}>
+                        {Number(p.net_earned) >= 0 ? '+' : ''}${Number(p.net_earned).toFixed(2)}
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -120,7 +122,7 @@ export default function Leaderboard() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #1e1e30' }}>
-                    {['Rank', 'Player', 'Wins', 'Games', 'Win Rate', 'Net Earned'].map(h => (
+                    {['Rank', 'Player', 'Wins', 'Games', 'Win Rate'].map(h => (
                       <th key={h} style={{ padding: '12px 20px', textAlign: 'left', color: '#64748b', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', whiteSpace: 'nowrap', fontFamily: 'Orbitron, sans-serif' }}>{h}</th>
                     ))}
                   </tr>
@@ -153,9 +155,11 @@ export default function Leaderboard() {
                             <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>{wr}%</span>
                           </div>
                         </td>
-                        <td style={{ padding: '14px 20px', fontWeight: 700, color: Number(p.net_earned) >= 0 ? '#22c55e' : '#ef4444', fontSize: '0.9rem' }}>
-                          {Number(p.net_earned) >= 0 ? '+' : ''}${Number(p.net_earned).toFixed(2)}
-                        </td>
+                        {isMe && (
+                          <td style={{ padding: '14px 20px', fontWeight: 700, color: Number(p.net_earned) >= 0 ? '#22c55e' : '#ef4444', fontSize: '0.9rem' }}>
+                            {Number(p.net_earned) >= 0 ? '+' : ''}${Number(p.net_earned).toFixed(2)}
+                          </td>
+                        )}
                       </tr>
                     )
                   })}
