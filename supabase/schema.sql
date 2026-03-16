@@ -167,3 +167,48 @@ create policy "Public read active_rooms"
   on active_rooms for select using (true);
 
 grant select on active_rooms to anon;
+
+-- ── Referral program ─────────────────────────────────────────────────────────
+alter table player_profiles
+  add column if not exists referral_code text unique;
+
+create unique index if not exists idx_player_profiles_referral_code
+  on player_profiles (referral_code);
+
+alter table game_history
+  add column if not exists referral_credited boolean not null default false;
+
+create table if not exists referrals (
+  id               bigserial    primary key,
+  referrer_address text         not null,
+  referee_address  text         not null unique,
+  games_counted    integer      not null default 0 check (games_counted <= 20),
+  earned_usdt      numeric(10,4) not null default 0,
+  created_at       timestamptz  not null default now(),
+  updated_at       timestamptz  not null default now()
+);
+
+create index if not exists idx_referrals_referrer on referrals (referrer_address);
+
+alter table referrals enable row level security;
+drop policy if exists "Public read referrals" on referrals;
+create policy "Public read referrals" on referrals for select using (true);
+grant select on referrals to anon;
+
+create table if not exists referral_payouts (
+  id               bigserial    primary key,
+  referrer_address text         not null,
+  amount_usdt      numeric(10,4) not null,
+  status           text         not null default 'pending' check (status in ('pending','paid')),
+  requested_at     timestamptz  not null default now(),
+  paid_at          timestamptz,
+  tx_hash          text
+);
+
+create index if not exists idx_referral_payouts_referrer on referral_payouts (referrer_address);
+create index if not exists idx_referral_payouts_status   on referral_payouts (status);
+
+alter table referral_payouts enable row level security;
+drop policy if exists "Public read referral_payouts" on referral_payouts;
+create policy "Public read referral_payouts" on referral_payouts for select using (true);
+grant select on referral_payouts to anon;

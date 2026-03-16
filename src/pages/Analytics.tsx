@@ -49,6 +49,7 @@ export default function Analytics() {
   const [activeRooms, setActiveRooms] = useState<number>(0)
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState('')
+  const [payouts, setPayouts]     = useState<{id:number;referrer_address:string;amount_usdt:number;status:string;requested_at:string;tx_hash:string|null}[]>([])
 
   function tryLogin() {
     if (pass === ANALYTICS_PASS) {
@@ -66,10 +67,12 @@ export default function Analytics() {
     Promise.all([
       supabase.from('game_history').select('game_mode,result,entry_fee,earned,players_count,played_at,player_address,room_code').order('played_at', { ascending: false }).limit(500),
       fetch(`${SERVER_URL}/health`).then(r => r.json()).catch(() => ({})),
-    ]).then(([{ data, error: err }, health]) => {
+      supabase.from('referral_payouts').select('id,referrer_address,amount_usdt,status,requested_at,tx_hash').order('requested_at', { ascending: false }).limit(100),
+    ]).then(([{ data, error: err }, health, { data: payoutData }]) => {
       if (err) { setError(err.message); return }
       setRows((data as Row[]) ?? [])
       setActiveRooms(health?.rooms ?? 0)
+      setPayouts((payoutData as typeof payouts) ?? [])
     }).finally(() => setLoading(false))
   }, [authed])
 
@@ -279,6 +282,49 @@ export default function Analytics() {
               </table>
             </div>
           </div>
+        {/* Referral Payouts */}
+        <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '16px', overflow: 'hidden', marginTop: '24px' }}>
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid #1e1e30', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.7rem', color: '#64748b', letterSpacing: '0.1em' }}>REFERRAL PAYOUTS</span>
+            <span style={{ color: '#64748b', fontSize: '0.8rem' }}>{payouts.filter(p => p.status === 'pending').length} pending</span>
+          </div>
+          {payouts.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#475569' }}>No payout requests yet</div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #1e1e30' }}>
+                    {['Referrer', 'Amount', 'Status', 'Requested', 'TX Hash / Action'].map(h => (
+                      <th key={h} style={{ padding: '10px 20px', textAlign: 'left', color: '#64748b', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', whiteSpace: 'nowrap', fontFamily: 'Orbitron, sans-serif' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {payouts.map((p, idx) => (
+                    <tr key={p.id} style={{ borderBottom: idx < payouts.length - 1 ? '1px solid #0d0d14' : 'none', background: p.status === 'pending' ? 'rgba(245,158,11,0.04)' : 'transparent' }}>
+                      <td style={{ padding: '12px 20px', color: '#94a3b8', fontSize: '0.82rem', fontFamily: 'monospace' }}>{p.referrer_address.slice(0, 8)}…{p.referrer_address.slice(-6)}</td>
+                      <td style={{ padding: '12px 20px', color: '#22c55e', fontWeight: 700 }}>${Number(p.amount_usdt).toFixed(2)}</td>
+                      <td style={{ padding: '12px 20px' }}>
+                        <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '0.72rem', fontWeight: 700, background: p.status === 'pending' ? 'rgba(245,158,11,0.15)' : 'rgba(34,197,94,0.15)', color: p.status === 'pending' ? '#f59e0b' : '#22c55e', border: `1px solid ${p.status === 'pending' ? 'rgba(245,158,11,0.3)' : 'rgba(34,197,94,0.3)'}` }}>
+                          {p.status.toUpperCase()}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 20px', color: '#475569', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{fmtDate(p.requested_at)}</td>
+                      <td style={{ padding: '12px 20px', fontSize: '0.78rem' }}>
+                        {p.tx_hash ? (
+                          <span style={{ color: '#06b6d4', fontFamily: 'monospace' }}>{p.tx_hash.slice(0, 10)}…</span>
+                        ) : (
+                          <span style={{ color: '#475569' }}>Send USDT to {p.referrer_address.slice(0, 8)}… then call POST /api/referral/mark-paid with id={p.id}</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
         </>
       )}
     </div>

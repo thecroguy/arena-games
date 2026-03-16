@@ -59,6 +59,15 @@ type PendingClaim = {
 
 type PriceFilter = 'all' | 0 | 1 | 2 | 3
 
+type ReferralStats = {
+  referral_code: string | null
+  referees: { referee_address: string; games_counted: number; earned_usdt: number }[]
+  total_earned: number
+  total_paid: number
+  available: number
+  pending_payout: { amount_usdt: number; status: string; requested_at: string } | null
+}
+
 export default function Profile() {
   const { address, isConnected } = useAccount()
   const navigate = useNavigate()
@@ -101,6 +110,12 @@ export default function Profile() {
   const [onChainDeposits, setOnChainDeposits] = useState<OnChainDeposit[]>([])
   const [scanningChain, setScanningChain]     = useState(false)
 
+  const [referralStats, setReferralStats]       = useState<ReferralStats | null>(null)
+  const [generatingCode, setGeneratingCode]     = useState(false)
+  const [requestingPayout, setRequestingPayout] = useState(false)
+  const [referralCopied, setReferralCopied]     = useState(false)
+  const [referralError, setReferralError]       = useState('')
+
   // Load profile from Supabase on connect
   useEffect(() => {
     if (!address) return
@@ -117,6 +132,8 @@ export default function Profile() {
         setOwnedBases(p.purchased_styles ?? ['bottts'])
       }
     })
+    fetch(`${SERVER_URL}/api/referral/stats/${address}`)
+      .then(r => r.json()).then(setReferralStats).catch(() => {})
   }, [address])
 
   useEffect(() => {
@@ -215,6 +232,43 @@ export default function Profile() {
     const t = setInterval(() => setNow(Date.now()), 30_000)
     return () => clearInterval(t)
   }, [])
+
+  async function generateReferralCode() {
+    if (!address) return
+    setGeneratingCode(true); setReferralError('')
+    try {
+      const sig = await signMessageAsync({ message: `Arena referral code\n${address.toLowerCase()}` })
+      const res = await fetch(`${SERVER_URL}/api/referral/generate-code`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, sig }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed')
+      setReferralStats(prev => prev ? { ...prev, referral_code: data.code } : null)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      if (!msg.includes('rejected') && !msg.includes('denied')) setReferralError('Failed to generate code')
+    } finally { setGeneratingCode(false) }
+  }
+
+  async function requestReferralPayout() {
+    if (!address) return
+    setRequestingPayout(true); setReferralError('')
+    try {
+      const sig = await signMessageAsync({ message: `Arena referral payout\n${address.toLowerCase()}` })
+      const res = await fetch(`${SERVER_URL}/api/referral/request-payout`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, sig }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Request failed')
+      const updated = await fetch(`${SERVER_URL}/api/referral/stats/${address}`).then(r => r.json())
+      setReferralStats(updated)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      if (!msg.includes('rejected') && !msg.includes('denied')) setReferralError(msg)
+    } finally { setRequestingPayout(false) }
+  }
 
   async function saveName() {
     if (!address || !nameInput.trim()) return
@@ -704,6 +758,93 @@ export default function Profile() {
       {scanningChain && onChainDeposits.length === 0 && (
         <div style={{ color: '#475569', fontSize: '0.78rem', textAlign: 'center', marginBottom: '16px' }}>Scanning blockchain for deposits…</div>
       )}
+
+      {/* Referral Program */}
+      <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '16px', padding: '24px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div>
+            <div style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.7rem', color: '#64748b', letterSpacing: '0.1em', marginBottom: '4px' }}>REFERRAL PROGRAM</div>
+            <div style={{ color: '#94a3b8', fontSize: '0.82rem' }}>Earn 2% of every pot your referrals play — up to 20 games each</div>
+          </div>
+        </div>
+
+        {referralStats?.referral_code ? (
+          <div style={{ background: '#0d0d14', border: '1px solid #1e1e30', borderRadius: '10px', padding: '14px 18px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <span style={{ color: '#64748b', fontSize: '0.82rem', flexShrink: 0 }}>Your link:</span>
+            <span style={{ color: '#a78bfa', fontSize: '0.85rem', fontWeight: 600, flex: 1, wordBreak: 'break-all' }}>
+              {`${window.location.origin}?ref=${referralStats.referral_code}`}
+            </span>
+            <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}?ref=${referralStats.referral_code}`); setReferralCopied(true); setTimeout(() => setReferralCopied(false), 2000) }}
+              style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid #7c3aed', background: referralCopied ? 'rgba(34,197,94,0.15)' : 'rgba(124,58,237,0.15)', color: referralCopied ? '#22c55e' : '#a78bfa', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              {referralCopied ? 'Copied!' : 'Copy Link'}
+            </button>
+          </div>
+        ) : (
+          <button onClick={generateReferralCode} disabled={generatingCode}
+            style={{ marginBottom: '20px', padding: '10px 20px', borderRadius: '10px', border: '1px solid #7c3aed', background: 'rgba(124,58,237,0.15)', color: '#a78bfa', fontWeight: 700, fontSize: '0.85rem', cursor: generatingCode ? 'not-allowed' : 'pointer', opacity: generatingCode ? 0.6 : 1 }}>
+            {generatingCode ? 'Generating…' : 'Generate Referral Link'}
+          </button>
+        )}
+
+        {/* Stats row */}
+        {referralStats && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
+            {[
+              { label: 'REFERRALS', value: referralStats.referees.length },
+              { label: 'TOTAL EARNED', value: `$${referralStats.total_earned.toFixed(2)}` },
+              { label: 'AVAILABLE', value: `$${referralStats.available.toFixed(2)}`, highlight: referralStats.available >= 50 },
+            ].map(s => (
+              <div key={s.label} style={{ background: '#0d0d14', border: '1px solid #1e1e30', borderRadius: '10px', padding: '12px 16px', textAlign: 'center' }}>
+                <div style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.6rem', color: '#475569', letterSpacing: '0.1em', marginBottom: '6px' }}>{s.label}</div>
+                <div style={{ fontWeight: 800, fontSize: '1.1rem', color: s.highlight ? '#22c55e' : '#e2e8f0' }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Referee list */}
+        {referralStats && referralStats.referees.length > 0 && (
+          <div style={{ background: '#0d0d14', border: '1px solid #1e1e30', borderRadius: '10px', overflow: 'hidden', marginBottom: '20px' }}>
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid #1e1e30', display: 'grid', gridTemplateColumns: '1fr 100px 80px', gap: '8px' }}>
+              {['Player', 'Games', 'Earned'].map(h => (
+                <span key={h} style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.6rem', color: '#475569', letterSpacing: '0.08em' }}>{h}</span>
+              ))}
+            </div>
+            {referralStats.referees.map(r => (
+              <div key={r.referee_address} style={{ padding: '10px 16px', borderBottom: '1px solid #0a0a12', display: 'grid', gridTemplateColumns: '1fr 100px 80px', gap: '8px', alignItems: 'center' }}>
+                <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{r.referee_address.slice(0, 6)}…{r.referee_address.slice(-4)}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ flex: 1, height: '4px', background: '#1e1e30', borderRadius: '2px' }}>
+                    <div style={{ height: '100%', width: `${(r.games_counted / 20) * 100}%`, background: r.games_counted >= 20 ? '#475569' : '#7c3aed', borderRadius: '2px' }} />
+                  </div>
+                  <span style={{ color: r.games_counted >= 20 ? '#475569' : '#94a3b8', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>{r.games_counted}/20</span>
+                </div>
+                <span style={{ color: '#22c55e', fontSize: '0.8rem', fontWeight: 600 }}>${Number(r.earned_usdt).toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Payout */}
+        {referralStats && (
+          referralStats.pending_payout ? (
+            <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '10px', padding: '14px 18px', color: '#f59e0b', fontSize: '0.85rem' }}>
+              Payout of <strong>${Number(referralStats.pending_payout.amount_usdt).toFixed(2)} USDT</strong> requested — pending manual transfer from the platform.
+            </div>
+          ) : referralStats.available >= 50 ? (
+            <button onClick={requestReferralPayout} disabled={requestingPayout}
+              style={{ width: '100%', padding: '12px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: '#fff', fontWeight: 800, fontSize: '0.9rem', cursor: requestingPayout ? 'not-allowed' : 'pointer', opacity: requestingPayout ? 0.6 : 1 }}>
+              {requestingPayout ? 'Requesting…' : `Request Payout — $${referralStats.available.toFixed(2)} USDT`}
+            </button>
+          ) : referralStats.total_earned > 0 ? (
+            <div style={{ color: '#475569', fontSize: '0.82rem', textAlign: 'center' }}>
+              ${(50 - referralStats.available).toFixed(2)} more to reach the $50 payout threshold
+            </div>
+          ) : null
+        )}
+
+        {referralError && <div style={{ marginTop: '12px', color: '#ef4444', fontSize: '0.82rem' }}>{referralError}</div>}
+      </div>
 
       {/* Game history */}
       <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '16px', overflow: 'hidden' }}>

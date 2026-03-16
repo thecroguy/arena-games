@@ -627,6 +627,24 @@ async function endGame(room) {
       }))
       await supabase.from('game_history').insert(rows)
 
+      // ── Referral credits — 2% of pot per referee per game (up to 20 games) ──
+      try {
+        const totalPot = room.entryFee * room.players.length
+        for (const p of room.players) {
+          const addr = p.address.toLowerCase()
+          const { data: ref } = await supabase.from('referrals')
+            .select('id, games_counted').eq('referee_address', addr).maybeSingle()
+          if (ref && ref.games_counted < 20) {
+            const fee = parseFloat((totalPot * 0.02).toFixed(4))
+            const { data: cur } = await supabase.from('referrals').select('earned_usdt').eq('id', ref.id).single()
+            const newEarned = parseFloat(((cur?.earned_usdt || 0) + fee).toFixed(4))
+            await supabase.from('referrals')
+              .update({ games_counted: ref.games_counted + 1, earned_usdt: newEarned, updated_at: new Date().toISOString() })
+              .eq('id', ref.id).lt('games_counted', 20)
+          }
+        }
+      } catch (e) { console.error('Referral credit error:', e.message) }
+
       // Log claim authorization to escrow_events for full dispute audit trail
       if (claimSig && escrowAddr) {
         await supabase.from('escrow_events').insert({
@@ -1531,6 +1549,122 @@ const SELF_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`
 setInterval(() => {
   fetch(`${SELF_URL}/health`).catch(() => {})
 }, 10 * 60 * 1000) // ping every 10 minutes
+
+// ── Referral endpoints ────────────────────────────────────────────────────
+
+// Generate or return existing referral code
+app.post('/api/referral/generate-code', express.json(), async (req, res) => {
+  try {
+    const { address, sig } = req.body || {}
+    if (!address || !sig) return res.status(400).json({ error: 'Missing fields' })
+    if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
+    const recovered = verifyMessage(`Arena referral code\n${address.toLowerCase()}`, sig)
+    if (recovered.toLowerCase() !== address.toLowerCase()) return res.status(401).json({ error: 'Invalid signature' })
+    if (!supabase) return res.status(503).json({ error: 'DB not configured' })
+    // Return existing code if already generated
+    const { data: existing } = await supabase.from('player_profiles')
+      .select('referral_code').eq('address', address.toLowerCase()).maybeSingle()
+    if (existing?.referral_code) return res.json({ code: existing.referral_code })
+    // Generate new unique 8-char code
+    const makeCode = (salt) => {
+      const h = bytesToHex(keccak_256(Buffer.from(address + salt)))
+      return h.slice(2, 10).toUpperCase()
+    }
+    let code = makeCode(Date.now())
+    const { data: clash } = await supabase.from('player_profiles').select('address').eq('referral_code', code).maybeSingle()
+    if (clash) code = makeCode(Date.now() + 1)
+    await supabase.from('player_profiles')
+      .upsert({ address: address.toLowerCase(), referral_code: code }, { onConflict: 'address' })
+    res.json({ code })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+// Register a referee under a referrer (called on wallet connect with ?ref=CODE)
+app.post('/api/referral/register', express.json(), async (req, res) => {
+  try {
+    const { referee_address, referral_code } = req.body || {}
+    if (!referee_address || !referral_code) return res.status(400).json({ error: 'Missing fields' })
+    if (!VALID_ADDR.test(referee_address)) return res.status(400).json({ error: 'Invalid address' })
+    if (!/^[A-Z0-9]{6,12}$/.test(referral_code)) return res.status(400).json({ error: 'Invalid code' })
+    if (!supabase) return res.status(503).json({ error: 'DB not configured' })
+    const { data: referrer } = await supabase.from('player_profiles')
+      .select('address').eq('referral_code', referral_code).maybeSingle()
+    if (!referrer) return res.status(404).json({ error: 'Referral code not found' })
+    if (referrer.address === referee_address.toLowerCase()) return res.status(400).json({ error: 'Cannot refer yourself' })
+    // Check already registered
+    const { data: existing } = await supabase.from('referrals')
+      .select('id').eq('referee_address', referee_address.toLowerCase()).maybeSingle()
+    if (existing) return res.json({ ok: true, already: true })
+    await supabase.from('referrals').insert({
+      referrer_address: referrer.address,
+      referee_address: referee_address.toLowerCase(),
+    })
+    res.json({ ok: true })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+// Get referral stats for a referrer
+app.get('/api/referral/stats/:address', async (req, res) => {
+  try {
+    const address = (req.params.address || '').toLowerCase()
+    if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
+    if (!supabase) return res.json({ referral_code: null, referees: [], total_earned: 0, pending_payout: null })
+    const [{ data: profile }, { data: refs }, { data: payout }] = await Promise.all([
+      supabase.from('player_profiles').select('referral_code').eq('address', address).maybeSingle(),
+      supabase.from('referrals').select('referee_address, games_counted, earned_usdt').eq('referrer_address', address),
+      supabase.from('referral_payouts').select('amount_usdt, status, requested_at').eq('referrer_address', address).eq('status', 'pending').maybeSingle(),
+    ])
+    const total_earned = (refs || []).reduce((s, r) => s + parseFloat(r.earned_usdt || 0), 0)
+    const { data: paid } = await supabase.from('referral_payouts')
+      .select('amount_usdt').eq('referrer_address', address).eq('status', 'paid')
+    const total_paid = (paid || []).reduce((s, r) => s + parseFloat(r.amount_usdt || 0), 0)
+    res.json({
+      referral_code: profile?.referral_code || null,
+      referees: refs || [],
+      total_earned: parseFloat(total_earned.toFixed(4)),
+      total_paid: parseFloat(total_paid.toFixed(4)),
+      available: parseFloat((total_earned - total_paid - (payout ? parseFloat(payout.amount_usdt) : 0)).toFixed(4)),
+      pending_payout: payout || null,
+    })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+// Request payout (requires sig, min $50 available)
+app.post('/api/referral/request-payout', express.json(), async (req, res) => {
+  try {
+    const { address, sig } = req.body || {}
+    if (!address || !sig) return res.status(400).json({ error: 'Missing fields' })
+    if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
+    const recovered = verifyMessage(`Arena referral payout\n${address.toLowerCase()}`, sig)
+    if (recovered.toLowerCase() !== address.toLowerCase()) return res.status(401).json({ error: 'Invalid signature' })
+    if (!supabase) return res.status(503).json({ error: 'DB not configured' })
+    const { data: refs } = await supabase.from('referrals').select('earned_usdt').eq('referrer_address', address.toLowerCase())
+    const total_earned = (refs || []).reduce((s, r) => s + parseFloat(r.earned_usdt || 0), 0)
+    const { data: payouts } = await supabase.from('referral_payouts').select('amount_usdt, status').eq('referrer_address', address.toLowerCase())
+    const total_requested = (payouts || []).reduce((s, r) => s + parseFloat(r.amount_usdt || 0), 0)
+    const available = parseFloat((total_earned - total_requested).toFixed(4))
+    if (available < 50) return res.status(400).json({ error: `Minimum $50 required. Available: $${available.toFixed(2)}` })
+    const pending = (payouts || []).find(p => p.status === 'pending')
+    if (pending) return res.status(400).json({ error: 'Payout already pending' })
+    await supabase.from('referral_payouts').insert({ referrer_address: address.toLowerCase(), amount_usdt: available })
+    res.json({ ok: true, amount: available })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+// Admin: mark payout as paid
+app.post('/api/referral/mark-paid', express.json(), async (req, res) => {
+  try {
+    const adminSecret = process.env.ADMIN_KEY
+    if (!adminSecret || req.headers['x-admin-key'] !== adminSecret) return res.status(401).json({ error: 'Unauthorized' })
+    const { payout_id, tx_hash } = req.body || {}
+    if (!payout_id || !tx_hash) return res.status(400).json({ error: 'Missing fields' })
+    if (!supabase) return res.status(503).json({ error: 'DB not configured' })
+    await supabase.from('referral_payouts')
+      .update({ status: 'paid', paid_at: new Date().toISOString(), tx_hash })
+      .eq('id', payout_id)
+    res.json({ ok: true })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
 
 // ── Start ─────────────────────────────────────────────────────────────────
 server.listen(PORT, () => {
