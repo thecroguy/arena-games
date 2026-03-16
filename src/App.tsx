@@ -6,8 +6,10 @@ import Profile from './pages/Profile'
 import Leaderboard from './pages/Leaderboard'
 import Guide from './pages/Guide'
 import Navbar from './components/Navbar'
+import { useProfileSync } from './hooks/useProfileSync'
 
-export default function App() {
+function AppInner() {
+  useProfileSync()
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -23,4 +25,8 @@ export default function App() {
       </main>
     </div>
   )
+}
+
+export default function App() {
+  return <AppInner />
 }
