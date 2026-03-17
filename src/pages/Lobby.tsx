@@ -718,7 +718,7 @@ export default function Lobby() {
           </div>
           {mobileDrawerOpen && (
             <div style={{ flex: 1, minHeight: 0 }}>
-              <SidePanel />
+              { SidePanel() }
             </div>
           )}
         </div>
@@ -741,7 +741,7 @@ export default function Lobby() {
                   </button>
                 </div>
                 <div style={{ flex: 1, minHeight: 0 }}>
-                  <SidePanel />
+                  { SidePanel() }
                 </div>
               </div>
             ) : (
@@ -763,7 +763,7 @@ export default function Lobby() {
 
           {/* Center: lobby content */}
           <div style={{ minWidth: 0 }}>
-            <LobbyContent />
+            { LobbyContent() }
           </div>
 
           {/* Right: empty spacer */}
@@ -772,7 +772,7 @@ export default function Lobby() {
       ) : (
         /* Mobile: single column */
         <div>
-          <LobbyContent />
+          { LobbyContent() }
         </div>
       )}
     </>
