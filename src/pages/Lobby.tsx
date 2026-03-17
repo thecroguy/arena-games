@@ -726,7 +726,7 @@ export default function Lobby() {
 
       {/* Desktop 3-column layout */}
       {isDesktop ? (
-        <div style={{ display: 'grid', gridTemplateColumns: `${panelOpen ? '280px' : '52px'} minmax(0, 720px) 1fr`, maxWidth: '1400px', margin: '0 auto', alignItems: 'start', gap: '0' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `280px minmax(0, 720px) 1fr`, maxWidth: '1400px', margin: '0 auto', alignItems: 'start', gap: '0' }}>
 
           {/* Left panel */}
           <div style={{ position: 'sticky', top: '72px', height: 'calc(100vh - 88px)', overflow: 'hidden', transition: 'width 0.25s ease', paddingLeft: '16px', paddingTop: '24px' }}>
