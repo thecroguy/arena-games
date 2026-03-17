@@ -658,6 +658,20 @@ export default function Lobby() {
         </div>
       )}
 
+      {/* Room code join */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+        <input value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())}
+          onKeyDown={e => e.key === 'Enter' && handleJoinByCode()}
+          placeholder="ROOM CODE"
+          maxLength={6}
+          style={{ flex: 1, background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: '8px', padding: '10px 14px', color: '#e2e8f0', fontFamily: 'Orbitron, sans-serif', fontSize: '0.92rem', letterSpacing: '0.15em', outline: 'none' }}
+        />
+        <button onClick={handleJoinByCode}
+          style={{ background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '8px', padding: '10px 20px', color: '#fff', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.88rem' }}>
+          Join
+        </button>
+      </div>
+
       {/* Open Matches */}
       <section style={{ marginBottom: '20px' }}>
         <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.82rem', fontWeight: 700, color: '#e2e8f0', letterSpacing: '0.06em', marginBottom: '10px' }}>🔥 OPEN MATCHES</h3>
@@ -729,22 +743,6 @@ export default function Lobby() {
         ))}
       </section>
 
-      {/* Private Match */}
-      <section style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', padding: '18px 20px', marginBottom: '20px' }}>
-        <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.82rem', fontWeight: 700, color: '#e2e8f0', letterSpacing: '0.06em', marginBottom: '14px' }}>🔑 PRIVATE MATCH</h3>
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-          <input value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())}
-            onKeyDown={e => e.key === 'Enter' && handleJoinByCode()}
-            placeholder="ROOM CODE"
-            maxLength={6}
-            style={{ flex: 1, background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: '8px', padding: '10px 14px', color: '#e2e8f0', fontFamily: 'Orbitron, sans-serif', fontSize: '0.92rem', letterSpacing: '0.15em', outline: 'none' }}
-          />
-          <button onClick={handleJoinByCode}
-            style={{ background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '8px', padding: '10px 18px', color: '#fff', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.85rem' }}>
-            Join
-          </button>
-        </div>
-      </section>
 
       {/* Max players selector (only relevant for public rooms) */}
       <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '12px', padding: '14px 18px', marginBottom: '20px' }}>
