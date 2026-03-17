@@ -753,6 +753,8 @@ async function escrowRefund(room) {
 // ── Socket events ─────────────────────────────────────────────────────────
 io.on('connection', (socket) => {
   console.log('+ connect', socket.id)
+  // Broadcast online count to all clients
+  io.emit('online:count', io.engine.clientsCount)
 
   socket.on('rooms:list', (gameMode, cb) => {
     if (typeof cb !== 'function') return
@@ -1249,6 +1251,7 @@ io.on('connection', (socket) => {
 
   // Disconnect handling
   socket.on('disconnect', () => {
+    setTimeout(() => io.emit('online:count', io.engine.clientsCount), 100)
     // Clean up matchmaking queue
     const mqKey = socket.data.matchmakingKey
     if (mqKey) {
