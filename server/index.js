@@ -113,11 +113,11 @@ const corsOptions = {
 // ── Game mode config ───────────────────────────────────────────────────────
 const GAME_MODES = {
   'math-arena':     { type: 'speed',  rounds: 10, roundMs: 12000, minP: 2, maxP: 10 },
-  'word-blitz':     { type: 'speed',  rounds: 10, roundMs: 15000, minP: 2, maxP: 10 },
+  'pattern-memory': { type: 'speed',  rounds: 10, roundMs: 12000, minP: 2, maxP: 10 },
   'reaction-grid':  { type: 'speed',  rounds: 15, roundMs: 5000,  minP: 2, maxP: 10 },
   'highest-unique': { type: 'sealed', rounds: 8,  roundMs: 20000, minP: 2, maxP: 20, min: 1, max: 100 },
   'lowest-unique':  { type: 'sealed', rounds: 8,  roundMs: 20000, minP: 2, maxP: 20, min: 1, max: 50  },
-  'number-rush':    { type: 'sealed', rounds: 8,  roundMs: 20000, minP: 2, maxP: 30, min: 1, max: 50  },
+  'liars-dice':     { type: 'bluff',  rounds: 8,  roundMs: 60000, minP: 2, maxP: 6,  dicePerPlayer: 3 },
 }
 
 const VALID_FEES     = new Set([0.5, 1, 2, 5, 10, 25, 50])
@@ -351,40 +351,8 @@ function rateLimit(socketId, maxPerSec = 5) {
   return entry.count <= maxPerSec
 }
 
-// ── Word list for Word Blitz ───────────────────────────────────────────────
-const WORDS = [
-  'apple','house','brain','chair','cloud','dance','earth','flame',
-  'grace','heart','image','judge','knife','light','magic','night',
-  'ocean','peace','queen','river','smile','tiger','voice','water',
-  'watch','youth','blood','candy','drink','entry','faith','giant',
-  'hotel','jewel','karma','laser','money','nerve','orbit','pilot',
-  'quote','radar','solar','storm','truth','vapor','beach','crown',
-  'death','elite','fence','ghost','index','joint','level','motor',
-  'ninja','onion','pride','quick','robot','sharp','toxic','ultra',
-  'vivid','waste','yield','azure','blaze','cycle','error','flare',
-  'green','hound','inner','jelly','kitty','lunar','maple','novel',
-  'opera','piano','relay','spell','titan','upper','venom','arrow',
-  'boost','comet','delta','exile','forge','grind','hover','joust',
-  'kudos','lemon','merit','nylon','proxy','quill','risky','suite',
-  'thorn','unite','verse','weave','pluck','sword','brave','frost',
-  'globe','honey','ivory','joker','knack','mango','ozone','plant',
-  'rocky','umbra','vocal','angel','blast','crane','depot','eagle',
-  'flint','grape','haunt','input','raven','speed','trove','urban',
-  'zonal','stomp','swirl','thump','pixel','niche','quirk','blunt',
-]
-
-function scramble(word) {
-  const a = word.split('')
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]]
-  }
-  const result = a.join('')
-  return result === word ? scramble(word) : result
-}
-
 // ── Question generators ───────────────────────────────────────────────────
-function makeQuestion(gameMode) {
+function makeQuestion(gameMode, round = 1) {
   switch (gameMode) {
     case 'math-arena': {
       const ops = ['+', '-', '×']
@@ -395,10 +363,10 @@ function makeQuestion(gameMode) {
       const answer = op === '+' ? a + b : op === '-' ? a - b : a * b
       return { type: 'math', a, b, op, answer }
     }
-    case 'word-blitz': {
-      const word     = WORDS[Math.floor(Math.random() * WORDS.length)]
-      const scrambled = scramble(word)
-      return { type: 'word', scrambled: scrambled.toUpperCase(), answer: word }
+    case 'pattern-memory': {
+      const len    = Math.min(3 + Math.floor((round - 1) / 3), 6)
+      const digits = Array.from({ length: len }, () => Math.floor(Math.random() * 9) + 1)
+      return { type: 'pattern', sequence: digits.join(' '), answer: digits.join('') }
     }
     case 'reaction-grid': {
       const target = Math.floor(Math.random() * 16)
@@ -406,7 +374,7 @@ function makeQuestion(gameMode) {
     }
     case 'highest-unique':
     case 'lowest-unique':
-    case 'number-rush': {
+    case 'liars-dice': {
       const cfg = GAME_MODES[gameMode]
       return { type: 'sealed', min: cfg.min, max: cfg.max, answer: null }
     }
@@ -415,7 +383,7 @@ function makeQuestion(gameMode) {
   }
 }
 
-// Check answer for speed games (math, word, grid)
+// Check answer for speed games (math, pattern, grid)
 function checkAnswer(gameMode, question, rawAnswer) {
   if (!rawAnswer || typeof rawAnswer !== 'string') return false
   if (rawAnswer.length > 32) return false  // Reject unreasonably long answers
@@ -423,8 +391,8 @@ function checkAnswer(gameMode, question, rawAnswer) {
     const n = parseInt(rawAnswer, 10)
     return !isNaN(n) && isFinite(n) && n === question.answer
   }
-  if (question.type === 'word') {
-    return rawAnswer.trim().toLowerCase() === question.answer
+  if (question.type === 'pattern') {
+    return rawAnswer.trim().replace(/\s+/g, '') === question.answer
   }
   if (question.type === 'grid') {
     return rawAnswer === question.answer
@@ -447,12 +415,6 @@ function evaluateSealed(gameMode, picks) {
   if (gameMode === 'lowest-unique') {
     if (!unique.length) return { winnerAddress: null, reason: 'No unique bids — no points this round' }
     const winner = unique.reduce((a, b) => a.pick < b.pick ? a : b)
-    return { winnerAddress: winner.address }
-  }
-  if (gameMode === 'number-rush') {
-    const minFreq = Math.min(...picks.map(p => freq[p.pick]))
-    const rarest  = picks.filter(p => freq[p.pick] === minFreq)
-    const winner  = rarest.reduce((a, b) => a.pick < b.pick ? a : b)
     return { winnerAddress: winner.address }
   }
   return { winnerAddress: null }
@@ -522,12 +484,44 @@ function startCountdown(room) {
 function startRound(room) {
   const cfg = GAME_MODES[room.gameMode] || GAME_MODES['math-arena']
   room.round++
-  room.question   = makeQuestion(room.gameMode)
-  room.status     = 'playing'
+  room.status = 'playing'
   room.roundStartAt = Date.now()
   room.players.forEach(p => { p.answered = false; p.correct = null; p.sealedPick = null })
 
-  // Client payload: exclude server-only 'answer' field
+  // ── Bluff (Liar's Dice) — turn-based round ───────────────────────────────
+  if (cfg.type === 'bluff') {
+    room.bluff = {
+      dice: {},
+      currentBid: null,
+      turnOrder: room.players.map(p => p.address),
+      currentTurnIdx: 0,
+    }
+    room.players.forEach(p => {
+      room.bluff.dice[p.address] = Array.from({ length: cfg.dicePerPlayer }, () => Math.floor(Math.random() * 6) + 1)
+    })
+    const totalDice = room.players.length * cfg.dicePerPlayer
+    room.question = { type: 'bluff', totalDice, answer: null }
+
+    io.to(room.code).emit('game:question', {
+      round: room.round, total: cfg.rounds, timeMs: cfg.roundMs,
+      type: 'bluff', totalDice,
+      turnOrder: room.bluff.turnOrder, currentTurnIdx: 0, currentBid: null,
+    })
+    // Send private dice to each player
+    room.players.forEach(p => {
+      const s = io.sockets.sockets.get(p.id)
+      if (s) s.emit('game:bluff_dice', { dice: room.bluff.dice[p.address] })
+    })
+    // Timeout — force challenge from current-turn player
+    room.roundTimer = setTimeout(() => {
+      if (room.bluff?.currentBid) resolveBluffChallenge(room, room.bluff.turnOrder[room.bluff.currentTurnIdx])
+      else endBluffRound(room, null, null, null, null)
+    }, cfg.roundMs)
+    return
+  }
+
+  // ── All other game types ─────────────────────────────────────────────────
+  room.question   = makeQuestion(room.gameMode, room.round)
   const { answer: _a, ...publicQuestion } = room.question
   io.to(room.code).emit('game:question', {
     round: room.round,
@@ -535,8 +529,32 @@ function startRound(room) {
     timeMs: cfg.roundMs,
     ...publicQuestion,
   })
-
   room.roundTimer = setTimeout(() => endRound(room), cfg.roundMs)
+}
+
+function resolveBluffChallenge(room, challengerAddress) {
+  clearTimeout(room.roundTimer)
+  const b = room.bluff
+  const bid = b.currentBid
+  const allDiceArr = Object.values(b.dice).flat()
+  const actualCount = allDiceArr.filter(d => d === bid.face).length
+  const bidSucceeds = actualCount >= bid.count
+  const winner = bidSucceeds ? bid.bidder : challengerAddress
+  const loser  = bidSucceeds ? challengerAddress : bid.bidder
+  const winnerPlayer = room.players.find(p => p.address === winner)
+  if (winnerPlayer) winnerPlayer.score++
+  endBluffRound(room, winner, loser, bid, actualCount)
+}
+
+function endBluffRound(room, winner, loser, bid, actualCount) {
+  const cfg = GAME_MODES[room.gameMode]
+  io.to(room.code).emit('game:round_end', {
+    answer: null,
+    scores: room.players.map(p => ({ address: p.address, username: p.username || addrName(p.address), score: p.score })),
+    bluffResult: { allDice: room.bluff?.dice || {}, bid, actualCount, winner, loser },
+  })
+  if (room.round >= cfg.rounds) setTimeout(() => endGame(room), 2000)
+  else setTimeout(() => startRound(room), 3500)
 }
 
 function endRound(room) {
@@ -848,6 +866,15 @@ io.on('connection', (socket) => {
         status:   room.status,
         gameMode: room.gameMode,
       })
+      // Re-send private dice for bluff games
+      if (room.bluff?.dice?.[address]) {
+        socket.emit('game:bluff_dice', {
+          dice: room.bluff.dice[address],
+          currentBid: room.bluff.currentBid,
+          currentTurnIdx: room.bluff.currentTurnIdx,
+          turnOrder: room.bluff.turnOrder,
+        })
+      }
       io.to(room.code).emit('game:player_reconnected', { address })
       console.log(`+ ${address} reconnected to ${room.code}`)
       return cb({ ok: true, reconnected: true, room: roomPublic(room) })
@@ -1045,6 +1072,40 @@ io.on('connection', (socket) => {
         endRound(room)
       }
     }
+  })
+
+  // Bluff: player submits a bid
+  socket.on('game:bid', ({ code, count, face }) => {
+    if (!rateLimit(socket.id)) return
+    const room = rooms.get(code)
+    if (!room || room.status !== 'playing' || !room.bluff) return
+    const b = room.bluff
+    const playerAddress = socket.data.address
+    if (b.turnOrder[b.currentTurnIdx] !== playerAddress) return
+    const c = Number(count), f = Number(face)
+    if (!Number.isInteger(c) || !Number.isInteger(f) || f < 1 || f > 6 || c < 1) return
+    const totalDice = room.players.length * GAME_MODES[room.gameMode].dicePerPlayer
+    if (c > totalDice) return
+    const cur = b.currentBid
+    if (cur) {
+      const isHigher = c > cur.count || (c === cur.count && f > cur.face)
+      if (!isHigher) { socket.emit('game:bluff_error', 'Bid must be higher than current bid'); return }
+    }
+    b.currentBid = { count: c, face: f, bidder: playerAddress }
+    b.currentTurnIdx = (b.currentTurnIdx + 1) % b.turnOrder.length
+    io.to(code).emit('game:bluff_update', { currentBid: b.currentBid, currentTurnIdx: b.currentTurnIdx })
+  })
+
+  // Bluff: player calls LIAR
+  socket.on('game:challenge', ({ code }) => {
+    if (!rateLimit(socket.id)) return
+    const room = rooms.get(code)
+    if (!room || room.status !== 'playing' || !room.bluff) return
+    const b = room.bluff
+    const playerAddress = socket.data.address
+    if (b.turnOrder[b.currentTurnIdx] !== playerAddress) return
+    if (!b.currentBid) { socket.emit('game:bluff_error', 'No bid to challenge yet'); return }
+    resolveBluffChallenge(room, playerAddress)
   })
 
   // ── Matchmaking ────────────────────────────────────────────────────────

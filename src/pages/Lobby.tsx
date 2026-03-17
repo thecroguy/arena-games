@@ -21,12 +21,12 @@ function addToRoomHistory(code: string, chainId: number) {
 }
 
 const GAME_META: Record<string, { title: string; emoji: string; desc: string; minPlayers: number; maxPlayers: number }> = {
-  'math-arena':     { title: 'Math Arena',     emoji: '✚', desc: 'Speed math quiz — first correct answer scores. 100% skill, zero luck.',          minPlayers: 2, maxPlayers: 10 },
-  'word-blitz':     { title: 'Word Blitz',     emoji: 'Aa', desc: 'Unscramble the word fastest to score. Vocabulary meets reaction speed.',          minPlayers: 2, maxPlayers: 10 },
-  'reaction-grid':  { title: 'Reaction Grid',  emoji: '⊞', desc: 'A cell lights up — click it before anyone else. Pure reaction speed.',            minPlayers: 2, maxPlayers: 10 },
-  'highest-unique': { title: 'Highest Unique', emoji: '↑', desc: 'Pick the highest number nobody else picks. Read the crowd and outsmart them.',     minPlayers: 2, maxPlayers: 20 },
-  'lowest-unique':  { title: 'Lowest Unique',  emoji: '↓', desc: 'Pick the lowest number nobody else picks. Contrarian thinking wins.',              minPlayers: 2, maxPlayers: 20 },
-  'number-rush':    { title: 'Number Rush',    emoji: '#', desc: 'Pick the rarest number 1–50. Most contrarian pick takes the pot.',                 minPlayers: 2, maxPlayers: 30 },
+  'math-arena':     { title: 'Math Arena',      emoji: '✚',  desc: 'Speed math quiz — first correct answer scores. 100% skill, zero luck.',           minPlayers: 2, maxPlayers: 10 },
+  'pattern-memory': { title: 'Pattern Memory 🧠', emoji: '🧠', desc: 'Memorize a digit sequence then type it from memory. First correct scores.',       minPlayers: 2, maxPlayers: 10 },
+  'reaction-grid':  { title: 'Reaction Grid',   emoji: '⊞',  desc: 'A cell lights up — click it before anyone else. Pure reaction speed.',             minPlayers: 2, maxPlayers: 10 },
+  'highest-unique': { title: 'Highest Unique',  emoji: '↑',  desc: 'Pick the highest number nobody else picks. Read the crowd and outsmart them.',      minPlayers: 2, maxPlayers: 20 },
+  'lowest-unique':  { title: 'Lowest Unique',   emoji: '↓',  desc: 'Pick the lowest number nobody else picks. Contrarian thinking wins.',               minPlayers: 2, maxPlayers: 20 },
+  'liars-dice':     { title: "Liar's Dice 🎲",  emoji: '🎲',  desc: 'Each player gets 3 dice. Bid on the total — bluff or call LIAR! to win.',          minPlayers: 2, maxPlayers: 6  },
 }
 
 const ENTRY_FEES = [0.5, 1, 2, 5, 10, 25, 50]

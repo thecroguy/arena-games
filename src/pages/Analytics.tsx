@@ -7,19 +7,19 @@ const SERVER_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
 
 const GAME_LABELS: Record<string, string> = {
   'math-arena':     'Math Arena',
-  'word-blitz':     'Word Blitz',
+  'pattern-memory': 'Pattern Memory',
   'reaction-grid':  'Reaction Grid',
   'highest-unique': 'Highest Unique',
   'lowest-unique':  'Lowest Unique',
-  'number-rush':    'Number Rush',
+  'liars-dice':     "Liar's Dice",
 }
 const MODE_COLORS: Record<string, string> = {
   'math-arena':     '#7c3aed',
-  'word-blitz':     '#06b6d4',
+  'pattern-memory': '#a855f7',
   'reaction-grid':  '#22c55e',
   'highest-unique': '#f59e0b',
   'lowest-unique':  '#ef4444',
-  'number-rush':    '#ec4899',
+  'liars-dice':     '#f97316',
 }
 
 type Row = {

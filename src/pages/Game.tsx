@@ -13,15 +13,26 @@ interface PlayerState { address: string; username?: string; score: number; answe
 
 interface Question {
   round: number; total: number; timeMs: number
-  type?: 'math' | 'word' | 'grid' | 'sealed'
+  type?: 'math' | 'pattern' | 'grid' | 'sealed' | 'bluff'
   // math
   a?: number; b?: number; op?: string
-  // word
-  scrambled?: string
+  // pattern-memory
+  sequence?: string
   // grid
   target?: number; gridSize?: number
   // sealed
   min?: number; max?: number; gameMode?: string
+  // bluff
+  totalDice?: number; turnOrder?: string[]; currentTurnIdx?: number
+  currentBid?: { count: number; face: number; bidder: string } | null
+}
+
+interface BluffResult {
+  allDice: Record<string, number[]>
+  bid: { count: number; face: number; bidder: string } | null
+  actualCount: number | null
+  winner: string | null
+  loser: string | null
 }
 
 interface SealedResult {
@@ -60,13 +71,10 @@ function solveMath(q: Question): number {
   return (q.a ?? 0) * (q.b ?? 0)
 }
 
-const BOT_WORDS = ['arena','blitz','pixel','react','speed','craft','flame','storm','swift','brave','sharp','logic','quest','burst','vivid','nexus','pulse','valor','flash','cyber']
-function makeWordQ(round: number): Question {
-  const word = BOT_WORDS[Math.floor(Math.random() * BOT_WORDS.length)]
-  const arr = word.split(''); let s = [...arr]
-  for (let i = s.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[s[i], s[j]] = [s[j], s[i]] }
-  const scrambled = s.join('') === word ? s.reverse().join('') : s.join('')
-  return { round, total: TOTAL_BOT_ROUNDS, scrambled, type: 'word', timeMs: 15000, _word: word } as Question & { _word: string }
+function makePatternQ(round: number): Question {
+  const len = Math.min(3 + Math.floor((round - 1) / 3), 6)
+  const digits = Array.from({ length: len }, () => Math.floor(Math.random() * 9) + 1)
+  return { round, total: TOTAL_BOT_ROUNDS, sequence: digits.join(' '), type: 'pattern', timeMs: 12000, _patternAnswer: digits.join('') } as Question & { _patternAnswer: string }
 }
 
 function makeGridQ(round: number): Question {
@@ -74,22 +82,21 @@ function makeGridQ(round: number): Question {
 }
 
 function makeSealedQ(round: number, gm: string): Question {
-  const max = gm === 'number-rush' ? 50 : 20
-  return { round, total: TOTAL_BOT_ROUNDS, min: 1, max, type: 'sealed', gameMode: gm, timeMs: 20000 }
+  return { round, total: TOTAL_BOT_ROUNDS, min: 1, max: gm === 'highest-unique' ? 100 : 50, type: 'sealed', gameMode: gm, timeMs: 20000 }
 }
 
-const SEALED_GAMES = ['highest-unique', 'lowest-unique', 'number-rush']
+const SEALED_GAMES = ['highest-unique', 'lowest-unique']
 
 const REACTION_EMOJIS = ['😭','💀','🔥','😂','🤯','👀','🫡','😤']
 
 // ── Game help text ─────────────────────────────────────────────────────────
 const GAME_HELP: Record<string, { title: string; rules: string[] }> = {
-  'math-arena':     { title: 'Math Arena',     rules: ['A math equation appears each round.', 'Type the correct answer and press Enter or GO.', 'First player to answer correctly scores a point.', '10 rounds — most points wins the pot.'] },
-  'word-blitz':     { title: 'Word Blitz',     rules: ['A scrambled word appears each round.', 'Type the unscrambled word and press Enter.', 'First correct answer scores a point.', '10 rounds — most points wins the pot.'] },
-  'reaction-grid':  { title: 'Reaction Grid',  rules: ['A 4×4 grid appears — one cell lights up.', 'Click the highlighted cell as fast as possible.', 'First click wins the round point.', '15 rounds — most points wins the pot.'] },
-  'highest-unique': { title: 'Highest Unique', rules: ['Pick any number 1–100 each round.', 'The player with the highest UNIQUE number scores.', 'If two players pick the same number, both lose.', '8 rounds — most round wins takes the pot.'] },
-  'lowest-unique':  { title: 'Lowest Unique',  rules: ['Pick any number 1–50 each round.', 'The player with the lowest UNIQUE number scores.', 'If two players pick the same number, both lose.', '8 rounds — most round wins takes the pot.'] },
-  'number-rush':    { title: 'Number Rush',    rules: ['Pick any number 1–50 each round.', 'The rarest pick (fewest duplicates) wins.', 'Ties go to the lowest number.', '8 rounds — most round wins takes the pot.'] },
+  'math-arena':     { title: 'Math Arena',      rules: ['A math equation appears each round.', 'Type the correct answer and press Enter or GO.', 'First player to answer correctly scores a point.', '10 rounds — most points wins the pot.'] },
+  'pattern-memory': { title: 'Pattern Memory 🧠', rules: ['A digit sequence flashes on screen for 3 seconds.', 'Memorize it — then it disappears!', 'Type the sequence from memory and press Enter.', 'First correct answer scores. 10 rounds — most points wins.'] },
+  'reaction-grid':  { title: 'Reaction Grid',   rules: ['A 4×4 grid appears — one cell lights up.', 'Click the highlighted cell as fast as possible.', 'First click wins the round point.', '15 rounds — most points wins the pot.'] },
+  'highest-unique': { title: 'Highest Unique',  rules: ['Pick any number 1–100 each round.', 'The player with the highest UNIQUE number scores.', 'If two players pick the same number, both lose.', '8 rounds — most round wins takes the pot.'] },
+  'lowest-unique':  { title: 'Lowest Unique',   rules: ['Pick any number 1–50 each round.', 'The player with the lowest UNIQUE number scores.', 'If two players pick the same number, both lose.', '8 rounds — most round wins takes the pot.'] },
+  'liars-dice':     { title: "Liar's Dice 🎲",  rules: ['Each player gets 3 dice — you can only see yours.', 'Take turns bidding: "At least X dice show face Y across all dice."', 'Each bid must be higher (more dice, or same count + higher face).', 'Call LIAR! to challenge — if the bid was valid, YOU lose. If it was a bluff, THEY lose.'] },
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -134,6 +141,19 @@ export default function Game() {
   const [error, setError]       = useState('')
   const [canStart, setCanStart] = useState(false)
   const [botThinking, setBotThinking] = useState(false)
+  const [patternVisible, setPatternVisible] = useState(true)
+  // Liar's Dice bluff state
+  const [bluffMyDice, setBluffMyDice] = useState<number[]>([])
+  const [bluffBid, setBluffBid] = useState<{ count: number; face: number; bidder: string } | null>(null)
+  const [bluffTurnOrder, setBluffTurnOrder] = useState<string[]>([])
+  const [bluffTurnIdx, setBluffTurnIdx] = useState(0)
+  const [bluffResult, setBluffResult] = useState<BluffResult | null>(null)
+  const [bluffBidCount, setBluffBidCount] = useState(1)
+  const [bluffBidFace, setBluffBidFace] = useState(1)
+  const [bluffError, setBluffError] = useState('')
+  const botBluffDiceRef = useRef<number[]>([])
+  const bluffMyDiceRef  = useRef<number[]>([])
+  const bluffBidRef     = useRef<{ count: number; face: number; bidder: string } | null>(null)
   const [showHelp, setShowHelp] = useState(false)
   const [abandonReason, setAbandonReason] = useState('')
   const [disconnectedPlayers, setDisconnectedPlayers] = useState<string[]>([])
@@ -157,6 +177,8 @@ export default function Game() {
   const scoresRef = useRef<PlayerState[]>(players)
 
   useEffect(() => { scoresRef.current = players }, [players])
+  useEffect(() => { bluffMyDiceRef.current = bluffMyDice }, [bluffMyDice])
+  useEffect(() => { bluffBidRef.current = bluffBid }, [bluffBid])
 
   // ── Auto-scroll chat ───────────────────────────────────────────────────
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chatMessages])
@@ -186,8 +208,112 @@ export default function Game() {
     if (botRef.current) clearTimeout(botRef.current)
   }
 
+  // ── Liar's Dice bot mode ──────────────────────────────────────────────
+  function startBotBluffRound(round: number) {
+    const myDiceRoll = Array.from({ length: 3 }, () => Math.floor(Math.random() * 6) + 1)
+    const botDice    = Array.from({ length: 3 }, () => Math.floor(Math.random() * 6) + 1)
+    botBluffDiceRef.current = botDice
+    bluffMyDiceRef.current  = myDiceRoll
+    bluffBidRef.current     = null
+    setBluffMyDice(myDiceRoll)
+    setBluffBid(null)
+    setBluffTurnOrder([myAddr, BOT_ADDR])
+    setBluffTurnIdx(0)
+    setBluffResult(null)
+    setBluffBidCount(1)
+    setBluffBidFace(1)
+    setBluffError('')
+    const q: Question = { round, total: TOTAL_BOT_ROUNDS, type: 'bluff', totalDice: 6, timeMs: 60000 }
+    setQuestion(q)
+    setPhase('playing')
+    setTimeLeft(60)
+    if (timerRef.current) clearInterval(timerRef.current)
+    timerRef.current = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) { clearInterval(timerRef.current!); resolveBluffBot(bluffBidRef.current, q, myAddr); return 0 }
+        return t - 1
+      })
+    }, 1000)
+  }
+
+  function resolveBluffBot(bid: { count: number; face: number; bidder: string } | null, q: Question, challengerAddress: string) {
+    clearBotTimer()
+    if (!bid) {
+      setBluffResult({ allDice: { [myAddr]: bluffMyDiceRef.current, [BOT_ADDR]: botBluffDiceRef.current }, bid: null, actualCount: null, winner: null, loser: null })
+      setPhase('round_end')
+      setTimeout(() => { const c = scoresRef.current; if (q.round >= q.total) finishBotGame(c); else startBotBluffRound(q.round + 1) }, 3000)
+      return
+    }
+    const allArr = [...bluffMyDiceRef.current, ...botBluffDiceRef.current]
+    const actualCount = allArr.filter(d => d === bid.face).length
+    const bidSucceeds = actualCount >= bid.count
+    const winner = bidSucceeds ? bid.bidder : challengerAddress
+    const loser  = bidSucceeds ? challengerAddress : bid.bidder
+    setBluffResult({ allDice: { [myAddr]: bluffMyDiceRef.current, [BOT_ADDR]: botBluffDiceRef.current }, bid, actualCount, winner, loser })
+    setPhase('round_end')
+    setPlayers(prev => { const u = prev.map(p => p.address === winner ? { ...p, score: p.score + 1 } : p); scoresRef.current = u; return u })
+    setTimeout(() => { const c = scoresRef.current; if (q.round >= q.total) finishBotGame(c); else startBotBluffRound(q.round + 1) }, 3500)
+  }
+
+  function botBluffTurn(currentBid: { count: number; face: number; bidder: string }, q: Question) {
+    const botDice  = botBluffDiceRef.current
+    const totalDice = 6
+    const challengeProb = currentBid.count >= totalDice * 0.6 ? 0.75
+                        : currentBid.count >= totalDice * 0.4 ? 0.40 : 0.18
+    if (Math.random() < challengeProb) {
+      resolveBluffBot(currentBid, q, BOT_ADDR)
+      return
+    }
+    // Bot raises bid
+    const newCount = currentBid.count + 1
+    const newFace  = newCount <= currentBid.count ? Math.min(6, currentBid.face + 1) : currentBid.face
+    if (newCount > totalDice) { resolveBluffBot(currentBid, q, BOT_ADDR); return }
+    const newBid = { count: newCount, face: newFace, bidder: BOT_ADDR }
+    bluffBidRef.current = newBid
+    setBluffBid(newBid)
+    setBluffTurnIdx(0) // player's turn
+  }
+
+  function handleBotPlayerBid(q: Question) {
+    const currentBid = bluffBidRef.current
+    if (currentBid) {
+      const ok = bluffBidCount > currentBid.count || (bluffBidCount === currentBid.count && bluffBidFace > currentBid.face)
+      if (!ok) { setBluffError(`Must bid higher than ${currentBid.count}×${currentBid.face}`); return }
+    }
+    if (bluffBidCount < 1 || bluffBidFace < 1 || bluffBidFace > 6) return
+    setBluffError('')
+    const newBid = { count: bluffBidCount, face: bluffBidFace, bidder: myAddr }
+    bluffBidRef.current = newBid
+    setBluffBid(newBid)
+    setBluffTurnIdx(1) // bot's turn
+    const delay = 1500 + Math.random() * 2000
+    botRef.current = setTimeout(() => botBluffTurn(newBid, q), delay)
+  }
+
+  function handleBotPlayerChallenge(q: Question) {
+    if (!bluffBidRef.current) { setBluffError('No bid to challenge yet!'); return }
+    resolveBluffBot(bluffBidRef.current, q, myAddr)
+  }
+
+  function handlePlayerBid() {
+    const currentBid = bluffBidRef.current
+    if (currentBid) {
+      const ok = bluffBidCount > currentBid.count || (bluffBidCount === currentBid.count && bluffBidFace > currentBid.face)
+      if (!ok) { setBluffError(`Must bid higher than ${currentBid.count}×${currentBid.face}`); return }
+    }
+    setBluffError('')
+    connectSocket().emit('game:bid', { code: roomCode, count: bluffBidCount, face: bluffBidFace })
+  }
+
+  function handlePlayerChallenge() {
+    if (!bluffBidRef.current) { setBluffError('No bid to challenge yet!'); return }
+    connectSocket().emit('game:challenge', { code: roomCode })
+  }
+
   function startBotRound(round: number) {
     const gm = gameMode || gameModeLS
+
+    if (gm === 'liars-dice') { startBotBluffRound(round); return }
 
     // ── Sealed game handling ──
     if (SEALED_GAMES.includes(gm)) {
@@ -225,29 +351,35 @@ export default function Game() {
     }
 
     // ── Speed game handling (original) ──
-    const q = gm === 'word-blitz' ? makeWordQ(round)
-            : gm === 'reaction-grid' ? makeGridQ(round)
+    const q = gm === 'pattern-memory' ? makePatternQ(round)
+            : gm === 'reaction-grid'  ? makeGridQ(round)
             : makeMathQ(round)
     setQuestion(q); setPhase('playing'); setInput(''); setRoundAnswer(null); setSelectedCell(null)
     setPlayers(prev => prev.map(p => ({ ...p, answered: false, correct: null })))
-    const roundSecs = gm === 'reaction-grid' ? 8 : gm === 'word-blitz' ? 15 : ROUND_TIME_S
+    const roundSecs = gm === 'reaction-grid' ? 8 : ROUND_TIME_S
     setTimeLeft(roundSecs)
+
+    // Pattern memory: show sequence for 3s then hide it
+    if (gm === 'pattern-memory') {
+      setPatternVisible(true)
+      setTimeout(() => setPatternVisible(false), 3000)
+    }
 
     if (timerRef.current) clearInterval(timerRef.current)
     timerRef.current = setInterval(() => {
       setTimeLeft(t => { if (t <= 1) { clearInterval(timerRef.current!); endBotRound(q); return 0 } return t - 1 })
     }, 1000)
 
-    // Bot reaction delay — faster for grid, slower for words
+    // Bot reaction delay — faster for grid, slower for memory
     const delay = gm === 'reaction-grid'
       ? 300 + Math.random() * 900
-      : gm === 'word-blitz'
-        ? 3000 + Math.random() * 7000
+      : gm === 'pattern-memory'
+        ? 4000 + Math.random() * 5000
         : 2500 + Math.random() * 5000
     setBotThinking(true)
     botRef.current = setTimeout(() => {
       setBotThinking(false)
-      const accuracy = gm === 'reaction-grid' ? 0.80 : gm === 'word-blitz' ? 0.60 : 0.70
+      const accuracy = gm === 'reaction-grid' ? 0.80 : gm === 'pattern-memory' ? 0.65 : 0.70
       const correct = Math.random() < accuracy
       setPlayers(prev => {
         const updated = prev.map(p =>
@@ -266,8 +398,8 @@ export default function Game() {
 
   function endBotRound(q: Question) {
     clearBotTimer(); setPhase('round_end')
-    const ans = q.type === 'word' ? (q as Question & { _word?: string })._word ?? ''
-              : q.type === 'grid' ? String(q.target ?? '')
+    const ans = q.type === 'pattern' ? (q as Question & { _patternAnswer?: string })._patternAnswer ?? ''
+              : q.type === 'grid'    ? String(q.target ?? '')
               : String(solveMath(q))
     setRoundAnswer(ans)
     setTimeout(() => {
@@ -292,14 +424,11 @@ export default function Game() {
 
     if (playerPick !== null && botPick !== null) {
       if (playerPick === botPick) {
-        // same → no winner
+        // highest-unique / lowest-unique: same pick = no winner
         winnerAddress = null
       } else if (gm === 'highest-unique') {
         winnerAddress = playerPick > botPick ? myAddr : BOT_ADDR
-      } else if (gm === 'lowest-unique') {
-        winnerAddress = playerPick < botPick ? myAddr : BOT_ADDR
       } else {
-        // number-rush: lower pick wins (both unique, tiebreak lowest)
         winnerAddress = playerPick < botPick ? myAddr : BOT_ADDR
       }
     } else if (playerPick !== null && botPick === null) {
@@ -344,8 +473,8 @@ export default function Game() {
   function handleBotSubmit() {
     if (!question) return
     let correct = false
-    if (question.type === 'word') {
-      correct = input.trim().toLowerCase() === ((question as Question & { _word?: string })._word ?? '').toLowerCase()
+    if (question.type === 'pattern') {
+      correct = input.trim().replace(/\s+/g, '') === ((question as Question & { _patternAnswer?: string })._patternAnswer ?? '')
     } else if (question.type === 'grid') {
       return // grid handled by handleGridClick
     } else {
@@ -438,6 +567,13 @@ export default function Game() {
       setPhase('playing'); setQuestion(q); setInput(''); setRoundAnswer(null)
       setSealedResult(null); setSealedCount(0); setSelectedCell(null)
       setPlayers(prev => prev.map(p => ({ ...p, answered: false, correct: null })))
+      if (q.type === 'pattern') { setPatternVisible(true); setTimeout(() => setPatternVisible(false), 3000) }
+      if (q.type === 'bluff') {
+        setBluffBid(null); bluffBidRef.current = null
+        setBluffResult(null); setBluffError('')
+        setBluffTurnOrder(q.turnOrder ?? []); setBluffTurnIdx(q.currentTurnIdx ?? 0)
+        setBluffBidCount(1); setBluffBidFace(1)
+      }
       setTimeLeft(Math.round(q.timeMs / 1000))
       if (timerRef.current) clearInterval(timerRef.current)
       timerRef.current = setInterval(() => {
@@ -455,11 +591,12 @@ export default function Game() {
       setSealedCount(data.submitted)
       setPlayers(prev => prev.map(p => p.address === data.address ? { ...p, answered: true } : p))
     })
-    socket.on('game:round_end', (data: { answer: string | null; scores: PlayerState[]; sealedResult?: SealedResult }) => {
+    socket.on('game:round_end', (data: { answer: string | null; scores: PlayerState[]; sealedResult?: SealedResult; bluffResult?: BluffResult }) => {
       if (timerRef.current) clearInterval(timerRef.current)
       data.scores.forEach((p: PlayerState) => { if (p.username) usernameCache.set(p.address.toLowerCase(), p.username) })
       setPhase('round_end'); setRoundAnswer(data.answer); setPlayers(data.scores)
       if (data.sealedResult) setSealedResult(data.sealedResult)
+      if (data.bluffResult) { setBluffResult(data.bluffResult); bluffBidRef.current = data.bluffResult.bid }
     })
     socket.on('game:over', (data: { winner: string; pot: string; payoutMode?: string; claimSig?: string; scores: Array<{ address: string; score: number; rank: number }> }) => {
       if (timerRef.current) clearInterval(timerRef.current)
@@ -520,6 +657,16 @@ export default function Game() {
     socket.on('chat:message', (msg: { address: string; text: string; ts: number }) => {
       setChatMessages(prev => [...prev.slice(-49), msg])
     })
+    socket.on('game:bluff_dice', ({ dice, currentBid, currentTurnIdx, turnOrder }: { dice: number[]; currentBid?: typeof bluffBid; currentTurnIdx?: number; turnOrder?: string[] }) => {
+      setBluffMyDice(dice); bluffMyDiceRef.current = dice
+      if (currentBid !== undefined) { setBluffBid(currentBid); bluffBidRef.current = currentBid }
+      if (currentTurnIdx !== undefined) setBluffTurnIdx(currentTurnIdx)
+      if (turnOrder) setBluffTurnOrder(turnOrder)
+    })
+    socket.on('game:bluff_update', ({ currentBid, currentTurnIdx }: { currentBid: typeof bluffBid; currentTurnIdx: number }) => {
+      setBluffBid(currentBid); bluffBidRef.current = currentBid; setBluffTurnIdx(currentTurnIdx)
+    })
+    socket.on('game:bluff_error', (msg: string) => setBluffError(msg))
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
@@ -530,8 +677,8 @@ export default function Game() {
       socket.off('game:player_left'); socket.off('game:abandoned'); socket.off('room:timeout')
       socket.off('game:player_disconnected'); socket.off('game:player_reconnected')
       socket.off('game:reconnected')
-      socket.off('reaction:message')
-      socket.off('chat:message')
+      socket.off('reaction:message'); socket.off('chat:message')
+      socket.off('game:bluff_dice'); socket.off('game:bluff_update'); socket.off('game:bluff_error')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode, myAddr])
@@ -590,9 +737,11 @@ export default function Game() {
     submitAnswer(String(val))
   }
 
-  function handleWordSubmit() {
-    if (!input.trim()) return
-    submitAnswer(input.trim())
+  function handlePatternSubmit() {
+    const val = input.trim().replace(/\s+/g, '')
+    if (!val) return
+    if (isBotMode) { handleBotSubmit(); return }
+    submitAnswer(val)
     setInput('')
   }
 
@@ -870,10 +1019,11 @@ export default function Game() {
   )
 
   // ── Playing / Round end ───────────────────────────────────────────────
-  const isSealedGame = question?.type === 'sealed'
-  const isGridGame   = question?.type === 'grid'
-  const isWordGame   = question?.type === 'word'
-  const isMathGame   = !question || question.type === 'math'
+  const isSealedGame  = question?.type === 'sealed'
+  const isGridGame    = question?.type === 'grid'
+  const isPatternGame = question?.type === 'pattern'
+  const isBluffGame   = question?.type === 'bluff'
+  const isMathGame    = !question || (question.type === 'math')
 
   return (
     <div style={{ maxWidth: '720px', margin: '0 auto', padding: '20px 16px' }}>
@@ -906,7 +1056,7 @@ export default function Game() {
           {question && <p style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, marginTop: '2px', fontSize: '0.9rem' }}>Round {question.round}/{question.total}</p>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {phase === 'playing' && !isSealedGame && (
+          {phase === 'playing' && !isSealedGame && !isBluffGame && (
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(1.8rem,6vw,2.8rem)', fontWeight: 900, color: timerColor, lineHeight: 1 }}>{timeLeft}</div>
               <div style={{ fontSize: '0.6rem', color: '#64748b', letterSpacing: '0.1em' }}>SEC</div>
@@ -976,25 +1126,30 @@ export default function Game() {
             </>
           )}
 
-          {/* ── WORD ── */}
-          {isWordGame && (
+          {/* ── PATTERN MEMORY ── */}
+          {isPatternGame && (
             <>
-              <p style={{ color: '#64748b', fontSize: '0.78rem', letterSpacing: '0.1em', fontFamily: 'Orbitron, sans-serif', marginBottom: '12px' }}>UNSCRAMBLE</p>
-              <div style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(1.8rem,7vw,3.5rem)', fontWeight: 900, marginBottom: '24px', color: '#06b6d4', letterSpacing: '0.3em' }}>
-                {question.scrambled}
+              <p style={{ color: '#64748b', fontSize: '0.78rem', letterSpacing: '0.1em', fontFamily: 'Orbitron, sans-serif', marginBottom: '12px' }}>
+                {phase === 'round_end' ? 'ROUND OVER' : patternVisible ? 'MEMORIZE!' : 'TYPE FROM MEMORY'}
+              </p>
+              <div style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(2rem,8vw,4rem)', fontWeight: 900, marginBottom: '24px', letterSpacing: '0.3em', minHeight: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {phase === 'round_end'
+                  ? <span style={{ color: '#f59e0b' }}>{roundAnswer}</span>
+                  : patternVisible
+                    ? <span style={{ color: '#a855f7' }}>{question.sequence}</span>
+                    : <span style={{ color: '#2a2a40', fontSize: '2rem', letterSpacing: '0.5em' }}>{'? '.repeat((question.sequence?.split(' ').length ?? 3)).trim()}</span>
+                }
               </div>
-              {phase === 'round_end' ? (
-                <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '1.1rem', color: '#f59e0b' }}>Answer: <strong>{roundAnswer}</strong></p>
-              ) : (
+              {phase !== 'round_end' && (
                 <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', maxWidth: '360px', margin: '0 auto' }}>
                   <input ref={inputRef} type="text" value={input} onChange={e => setInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleWordSubmit()}
-                    disabled={!!myPlayer?.answered}
-                    placeholder={myPlayer?.answered ? 'Submitted ✓' : 'Type the word'}
-                    maxLength={20}
-                    style={{ flex: 1, background: '#0a0a0f', border: `2px solid ${myPlayer?.correct === true ? '#22c55e' : myPlayer?.correct === false ? '#ef4444' : '#2a2a40'}`, borderRadius: '10px', padding: '12px 14px', color: '#e2e8f0', fontFamily: 'Orbitron, sans-serif', fontSize: '1.1rem', textAlign: 'center', outline: 'none', textTransform: 'lowercase' }} />
-                  <button onClick={handleWordSubmit} disabled={!!myPlayer?.answered}
-                    style={{ background: myPlayer?.answered ? '#1e1e30' : 'linear-gradient(135deg, #06b6d4, #7c3aed)', border: 'none', borderRadius: '10px', padding: '12px 20px', color: myPlayer?.answered ? '#64748b' : '#fff', fontWeight: 700, cursor: myPlayer?.answered ? 'not-allowed' : 'pointer', fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem' }}>
+                    onKeyDown={e => e.key === 'Enter' && handlePatternSubmit()}
+                    disabled={!!myPlayer?.answered || patternVisible}
+                    placeholder={patternVisible ? 'Watch the sequence…' : myPlayer?.answered ? 'Submitted ✓' : 'Type the digits'}
+                    maxLength={10}
+                    style={{ flex: 1, background: '#0a0a0f', border: `2px solid ${myPlayer?.correct === true ? '#22c55e' : myPlayer?.correct === false ? '#ef4444' : '#2a2a40'}`, borderRadius: '10px', padding: '12px 14px', color: '#e2e8f0', fontFamily: 'Orbitron, sans-serif', fontSize: '1.1rem', textAlign: 'center', outline: 'none' }} />
+                  <button onClick={handlePatternSubmit} disabled={!!myPlayer?.answered || patternVisible}
+                    style={{ background: (myPlayer?.answered || patternVisible) ? '#1e1e30' : 'linear-gradient(135deg, #a855f7, #7c3aed)', border: 'none', borderRadius: '10px', padding: '12px 20px', color: (myPlayer?.answered || patternVisible) ? '#64748b' : '#fff', fontWeight: 700, cursor: (myPlayer?.answered || patternVisible) ? 'not-allowed' : 'pointer', fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem' }}>
                     {myPlayer?.answered ? (myPlayer.correct ? '✓' : '✗') : 'GO'}
                   </button>
                 </div>
@@ -1036,13 +1191,122 @@ export default function Game() {
             </>
           )}
 
+          {/* ── LIAR'S DICE (BLUFF) ── */}
+          {isBluffGame && (
+            <>
+              <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.72rem', color: '#64748b', letterSpacing: '0.1em', marginBottom: '14px' }}>
+                {phase === 'round_end' ? 'ALL DICE REVEALED' : bluffTurnOrder[bluffTurnIdx] === myAddr ? '🎲 YOUR TURN' : `⏳ ${displayName(bluffTurnOrder[bluffTurnIdx] ?? '')} IS THINKING…`}
+              </p>
+
+              {/* My dice */}
+              <div style={{ marginBottom: '14px' }}>
+                <p style={{ color: '#64748b', fontSize: '0.65rem', fontFamily: 'Orbitron, sans-serif', letterSpacing: '0.08em', marginBottom: '8px' }}>YOUR DICE</p>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                  {(phase === 'round_end' && bluffResult ? bluffResult.allDice[myAddr] ?? bluffMyDice : bluffMyDice).map((d, i) => (
+                    <DiceFace key={i} value={d} size={52} color="#a855f7" />
+                  ))}
+                </div>
+              </div>
+
+              {/* Opponents dice — only shown at round end */}
+              {phase === 'round_end' && bluffResult && Object.entries(bluffResult.allDice).filter(([a]) => a !== myAddr).map(([addr, dice]) => (
+                <div key={addr} style={{ marginBottom: '14px' }}>
+                  <p style={{ color: '#64748b', fontSize: '0.65rem', fontFamily: 'Orbitron, sans-serif', letterSpacing: '0.08em', marginBottom: '8px' }}>{displayName(addr).toUpperCase()}'S DICE</p>
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                    {dice.map((d, i) => <DiceFace key={i} value={d} size={52} color="#f97316" />)}
+                  </div>
+                </div>
+              ))}
+
+              {/* Current bid display */}
+              <div style={{ background: bluffBid ? 'rgba(249,115,22,0.08)' : '#0a0a0f', border: `1px solid ${bluffBid ? 'rgba(249,115,22,0.35)' : '#1e1e30'}`, borderRadius: '10px', padding: '12px 20px', marginBottom: '14px', textAlign: 'center' }}>
+                {bluffBid ? (
+                  <>
+                    <p style={{ color: '#64748b', fontSize: '0.65rem', fontFamily: 'Orbitron, sans-serif', letterSpacing: '0.1em', marginBottom: '4px' }}>CURRENT BID</p>
+                    <p style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 900, color: '#f97316', fontSize: '1.4rem', marginBottom: '4px' }}>
+                      {bluffBid.count} × <DiceFace value={bluffBid.face} size={32} color="#f97316" style={{ display: 'inline-block', verticalAlign: 'middle' } as React.CSSProperties} />
+                    </p>
+                    <p style={{ color: '#64748b', fontSize: '0.72rem' }}>
+                      "At least {bluffBid.count} die/dice showing {bluffBid.face}" — {displayName(bluffBid.bidder)}
+                    </p>
+                    {phase === 'round_end' && bluffResult?.bid && (
+                      <p style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: '8px' }}>
+                        Actual {bluffResult.bid.face}s across all dice:&nbsp;
+                        <strong style={{ color: (bluffResult.actualCount ?? 0) >= bluffResult.bid.count ? '#22c55e' : '#ef4444' }}>
+                          {bluffResult.actualCount}
+                        </strong>
+                        {' '}— {(bluffResult.actualCount ?? 0) >= bluffResult.bid.count ? '✓ bid was honest' : '✗ bid was a BLUFF'}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p style={{ color: '#475569', fontSize: '0.88rem' }}>No bid yet — make the opening bid!</p>
+                )}
+              </div>
+
+              {/* Round result */}
+              {phase === 'round_end' && bluffResult && (
+                <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.92rem', fontWeight: 700, color: bluffResult.winner ? '#22c55e' : '#f59e0b', marginBottom: '10px', textAlign: 'center' }}>
+                  {bluffResult.winner ? `${displayName(bluffResult.winner)} wins this round!` : 'No winner — no bid made'}
+                </p>
+              )}
+
+              {/* Bid controls — player's turn only */}
+              {phase === 'playing' && bluffTurnOrder[bluffTurnIdx] === myAddr && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ color: '#64748b', fontSize: '0.65rem', fontFamily: 'Orbitron, sans-serif', letterSpacing: '0.08em' }}>COUNT</span>
+                      <input type="number" min={1} max={6} value={bluffBidCount}
+                        onChange={e => setBluffBidCount(Math.max(1, Math.min(6, parseInt(e.target.value) || 1)))}
+                        style={{ width: '68px', background: '#0a0a0f', border: '2px solid #2a2a40', borderRadius: '8px', padding: '10px', color: '#e2e8f0', fontFamily: 'Orbitron, sans-serif', fontSize: '1.3rem', textAlign: 'center', outline: 'none' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ color: '#64748b', fontSize: '0.65rem', fontFamily: 'Orbitron, sans-serif', letterSpacing: '0.08em' }}>FACE VALUE</span>
+                      <div style={{ display: 'flex', gap: '5px' }}>
+                        {[1,2,3,4,5,6].map(f => (
+                          <button key={f} onClick={() => setBluffBidFace(f)}
+                            style={{ padding: '3px', background: bluffBidFace === f ? 'rgba(249,115,22,0.2)' : '#0a0a0f', border: `2px solid ${bluffBidFace === f ? '#f97316' : '#2a2a40'}`, borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s' }}>
+                            <DiceFace value={f} size={34} color={bluffBidFace === f ? '#f97316' : '#475569'} />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  {bluffBid && (() => {
+                    const ok = bluffBidCount > bluffBid.count || (bluffBidCount === bluffBid.count && bluffBidFace > bluffBid.face)
+                    return !ok ? <p style={{ color: '#ef4444', fontSize: '0.74rem', textAlign: 'center' }}>Must be higher than {bluffBid.count}×{bluffBid.face}</p> : null
+                  })()}
+                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                    <button onClick={() => isBotMode ? handleBotPlayerBid(question!) : handlePlayerBid()}
+                      style={{ background: 'linear-gradient(135deg, #f97316, #ea580c)', border: 'none', borderRadius: '10px', padding: '12px 28px', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem' }}>
+                      BID
+                    </button>
+                    {bluffBid && (
+                      <button onClick={() => isBotMode ? handleBotPlayerChallenge(question!) : handlePlayerChallenge()}
+                        style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)', border: 'none', borderRadius: '10px', padding: '12px 28px', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem' }}>
+                        CALL LIAR! 🫵
+                      </button>
+                    )}
+                  </div>
+                  {bluffError && <p style={{ color: '#ef4444', fontSize: '0.78rem', textAlign: 'center' }}>{bluffError}</p>}
+                </div>
+              )}
+              {phase === 'playing' && bluffTurnOrder[bluffTurnIdx] !== myAddr && (
+                <div style={{ textAlign: 'center', color: '#64748b', padding: '16px', fontSize: '0.88rem' }}>
+                  {isBotMode ? '🤔 Bot is thinking…' : `Waiting for ${displayName(bluffTurnOrder[bluffTurnIdx] ?? '')}…`}
+                </div>
+              )}
+            </>
+          )}
+
           {/* ── SEALED BID ── */}
           {isSealedGame && (
             <>
               <p style={{ color: '#64748b', fontSize: '0.78rem', letterSpacing: '0.1em', fontFamily: 'Orbitron, sans-serif', marginBottom: '8px' }}>
                 {gameMode === 'highest-unique' ? 'PICK THE HIGHEST UNIQUE NUMBER' :
                  gameMode === 'lowest-unique'  ? 'PICK THE LOWEST UNIQUE NUMBER' :
-                                                 'PICK THE RAREST NUMBER'}
+                                                 'PICK A NUMBER'}
               </p>
               <p style={{ color: '#475569', fontSize: '0.8rem', marginBottom: '20px' }}>
                 Range: {question.min}–{question.max} · {sealedCount}/{players.length} submitted
@@ -1131,12 +1395,33 @@ export default function Game() {
       {/* Emoji bar */}
       {emojiBar}
 
-      {!isSealedGame && !isGridGame && (
+      {!isSealedGame && !isGridGame && !isBluffGame && (
         <p style={{ textAlign: 'center', color: '#475569', fontSize: '0.78rem', marginTop: '10px' }}>
-          Press <kbd style={{ background: '#1e1e30', borderRadius: '4px', padding: '1px 5px', fontSize: '0.72rem' }}>Enter</kbd> to submit
+          {isPatternGame
+            ? 'Sequence shows for 3 seconds — memorize then type'
+            : <>Press <kbd style={{ background: '#1e1e30', borderRadius: '4px', padding: '1px 5px', fontSize: '0.72rem' }}>Enter</kbd> to submit</>
+          }
         </p>
       )}
     </div>
+  )
+}
+
+function DiceFace({ value, size = 48, color = '#e2e8f0', style }: { value: number; size?: number; color?: string; style?: React.CSSProperties }) {
+  const dots: Record<number, [number, number][]> = {
+    1: [[50, 50]],
+    2: [[28, 28], [72, 72]],
+    3: [[28, 28], [50, 50], [72, 72]],
+    4: [[28, 28], [72, 28], [28, 72], [72, 72]],
+    5: [[28, 28], [72, 28], [50, 50], [28, 72], [72, 72]],
+    6: [[28, 22], [72, 22], [28, 50], [72, 50], [28, 78], [72, 78]],
+  }
+  const positions = dots[value] ?? dots[1]
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" fill="none" style={style}>
+      <rect x="4" y="4" width="92" height="92" rx="16" fill="#12121a" stroke={color} strokeWidth="3"/>
+      {positions.map(([cx, cy], i) => <circle key={i} cx={cx} cy={cy} r="9" fill={color}/>)}
+    </svg>
   )
 }
 

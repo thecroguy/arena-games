@@ -279,26 +279,26 @@ export default function Guide() {
           </div>
         </div>
 
-        {/* Word Blitz */}
+        {/* Pattern Memory */}
         <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '16px', overflow: 'hidden', marginBottom: '16px' }}>
-          <div style={{ padding: '18px 24px', borderBottom: '1px solid #1e1e30', background: 'rgba(6,182,212,0.06)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(6,182,212,0.15)', border: '1px solid rgba(6,182,212,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Orbitron, sans-serif', fontWeight: 900, color: '#06b6d4', fontSize: '0.7rem' }}>Aa</div>
+          <div style={{ padding: '18px 24px', borderBottom: '1px solid #1e1e30', background: 'rgba(168,85,247,0.06)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>🧠</div>
             <div>
-              <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: '#e2e8f0' }}>Word Blitz</h3>
-              <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '2px' }}>Unscramble words · 10 rounds · 15s each</p>
+              <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: '#e2e8f0' }}>Pattern Memory 🧠</h3>
+              <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '2px' }}>Memorize digits · 10 rounds · 12s each</p>
             </div>
-            <button onClick={() => navigate('/lobby/word-blitz')} style={{ marginLeft: 'auto', background: 'linear-gradient(135deg,#06b6d4,#7c3aed)', border: 'none', borderRadius: '8px', padding: '7px 16px', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>Play →</button>
+            <button onClick={() => navigate('/lobby/pattern-memory')} style={{ marginLeft: 'auto', background: 'linear-gradient(135deg,#a855f7,#7c3aed)', border: 'none', borderRadius: '8px', padding: '7px 16px', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>Play →</button>
           </div>
           <div style={{ padding: '20px 24px' }}>
             <p style={{ color: '#94a3b8', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '16px' }}>
-              A scrambled word appears (e.g. <strong style={{ color: '#06b6d4', fontFamily: 'Orbitron, sans-serif' }}>ELOLH</strong>). Type the correct word first to score. Vocabulary speed and pattern recognition are your weapons.
+              A digit sequence flashes on screen (e.g. <strong style={{ color: '#a855f7', fontFamily: 'Orbitron, sans-serif' }}>4 7 2 9</strong>) for 3 seconds, then vanishes. Type it from memory before anyone else to score. Sequences grow longer as rounds progress.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', marginBottom: '12px' }}>
               {[
-                { label: 'Round time', value: '15 seconds' },
-                { label: 'Word length', value: '3–8 letters' },
-                { label: 'Win condition', value: 'Highest score' },
-                { label: 'Language', value: 'English only' },
+                { label: 'Display time', value: '3 seconds' },
+                { label: 'Sequence length', value: '3–6 digits' },
+                { label: 'Win condition', value: 'First correct' },
+                { label: 'Rounds', value: '10' },
               ].map(r => (
                 <div key={r.label} style={{ background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: '8px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#64748b', fontSize: '0.8rem' }}>{r.label}</span>
@@ -306,8 +306,8 @@ export default function Guide() {
                 </div>
               ))}
             </div>
-            <div style={{ background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.2)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.78rem', color: '#94a3b8' }}>
-              💡 <strong style={{ color: '#06b6d4' }}>Pro tip:</strong> Start from the shortest possible valid word. Common endings like -ING, -ED, -LY appear frequently.
+            <div style={{ background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.2)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.78rem', color: '#94a3b8' }}>
+              💡 <strong style={{ color: '#a855f7' }}>Pro tip:</strong> Group digits into pairs as you read (e.g. 47 29). Your brain stores chunks better than individual numbers.
             </div>
           </div>
         </div>
@@ -409,26 +409,26 @@ export default function Guide() {
           </div>
         </div>
 
-        {/* Number Rush */}
+        {/* Liar's Dice */}
         <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '16px', overflow: 'hidden', marginBottom: '20px' }}>
-          <div style={{ padding: '18px 24px', borderBottom: '1px solid #1e1e30', background: 'rgba(167,139,250,0.06)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Orbitron, sans-serif', fontWeight: 900, color: '#a78bfa', fontSize: '1rem' }}>#</div>
+          <div style={{ padding: '18px 24px', borderBottom: '1px solid #1e1e30', background: 'rgba(249,115,22,0.06)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>🎲</div>
             <div>
-              <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: '#e2e8f0' }}>Number Rush</h3>
-              <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '2px' }}>Rarest pick · 5 rounds · 20s to submit</p>
+              <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: '#e2e8f0' }}>Liar's Dice 🎲</h3>
+              <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '2px' }}>Bluff · 8 rounds · 60s each</p>
             </div>
-            <button onClick={() => navigate('/lobby/number-rush')} style={{ marginLeft: 'auto', background: 'linear-gradient(135deg,#a78bfa,#7c3aed)', border: 'none', borderRadius: '8px', padding: '7px 16px', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>Play →</button>
+            <button onClick={() => navigate('/lobby/liars-dice')} style={{ marginLeft: 'auto', background: 'linear-gradient(135deg,#f97316,#ea580c)', border: 'none', borderRadius: '8px', padding: '7px 16px', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>Play →</button>
           </div>
           <div style={{ padding: '20px 24px' }}>
             <p style={{ color: '#94a3b8', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '16px' }}>
-              Pick any number from 1 to 50. After all picks are revealed, the player who picked the <strong style={{ color: '#a78bfa' }}>least commonly chosen number</strong> wins. If there's a tie, the one with the lowest unique number wins. Maximum player count is 30.
+              Each player gets <strong style={{ color: '#f97316' }}>3 private dice</strong>. On your turn, bid "there are at least X dice showing face Y across all players' dice." Each bid must be higher than the last. At any point, <strong style={{ color: '#f97316' }}>CALL LIAR!</strong> on the current bid — all dice are revealed. If the bid was too high, the bidder loses. If the count holds, the challenger loses.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', marginBottom: '12px' }}>
               {[
-                { label: 'Range', value: '1 – 50' },
-                { label: 'Max players', value: '30' },
-                { label: 'Win condition', value: 'Rarest pick' },
-                { label: 'Tiebreak', value: 'Lowest of rarest' },
+                { label: 'Dice per player', value: '3' },
+                { label: 'Max players', value: '6' },
+                { label: 'Win condition', value: 'Catch the bluff' },
+                { label: 'Rounds', value: '8' },
               ].map(r => (
                 <div key={r.label} style={{ background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: '8px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#64748b', fontSize: '0.8rem' }}>{r.label}</span>
@@ -436,8 +436,8 @@ export default function Guide() {
                 </div>
               ))}
             </div>
-            <div style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.78rem', color: '#94a3b8' }}>
-              💡 <strong style={{ color: '#a78bfa' }}>Pro tip:</strong> Avoid round numbers (10, 20, 50) and lucky numbers (7, 42). Pick unusual numbers like 31, 47, or 13 — human bias clusters around "memorable" values.
+            <div style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.78rem', color: '#94a3b8' }}>
+              💡 <strong style={{ color: '#f97316' }}>Pro tip:</strong> Use your own dice as a baseline — if you have two 4s, there's likely more 4s at the table. Call LIAR! when the bid exceeds the total dice count or feels statistically impossible.
             </div>
           </div>
         </div>

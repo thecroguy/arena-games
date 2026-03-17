@@ -10,11 +10,18 @@ function GameIcon({ id, color }: { id: string; color: string }) {
       <path d="M8 12h8M12 8v8"/>
     </svg>
   )
-  if (id === 'word-blitz') return (
+  if (id === 'pattern-memory') return (
     <svg {...s} viewBox="0 0 24 24">
-      <path d="M4 6h16M4 11h10M4 16h7"/>
-      <path d="M17 13l2.5 2.5L17 18"/>
-      <line x1="19.5" y1="15.5" x2="14" y2="15.5"/>
+      <rect x="2" y="2" width="4" height="4" rx="1"/>
+      <rect x="10" y="2" width="4" height="4" rx="1" fill={color} fillOpacity="0.3"/>
+      <rect x="18" y="2" width="4" height="4" rx="1"/>
+      <rect x="2" y="10" width="4" height="4" rx="1" fill={color} fillOpacity="0.3"/>
+      <rect x="10" y="10" width="4" height="4" rx="1"/>
+      <rect x="18" y="10" width="4" height="4" rx="1" fill={color} fillOpacity="0.3"/>
+      <rect x="2" y="18" width="4" height="4" rx="1"/>
+      <rect x="10" y="18" width="4" height="4" rx="1"/>
+      <rect x="18" y="18" width="4" height="4" rx="1" fill={color} fillOpacity="0.3"/>
+      <path d="M6 4h4M14 4h4M6 12h4M14 12h4" strokeOpacity="0.4"/>
     </svg>
   )
   if (id === 'reaction-grid') return (
@@ -39,17 +46,14 @@ function GameIcon({ id, color }: { id: string; color: string }) {
       <path d="M21 6H3l6 6H5l7 8 7-8h-4z"/>
     </svg>
   )
-  if (id === 'number-rush') return (
+  if (id === 'liars-dice') return (
     <svg {...s} viewBox="0 0 24 24">
-      <rect x="3" y="3" width="7.5" height="7.5" rx="2"/>
-      <rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/>
-      <rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/>
-      <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" fill={color} fillOpacity="0.25"/>
-      <circle cx="6.75" cy="6.75" r="1.5" fill={color}/>
-      <circle cx="17.25" cy="6.75" r="1.5" fill={color} opacity="0.5"/>
-      <circle cx="6.75" cy="17.25" r="1.5" fill={color} opacity="0.5"/>
-      <circle cx="15.75" cy="16.25" r="1" fill={color}/>
-      <circle cx="18.75" cy="18.25" r="1" fill={color}/>
+      <rect x="3" y="3" width="18" height="18" rx="3"/>
+      <circle cx="8" cy="8" r="1.5" fill={color}/>
+      <circle cx="16" cy="8" r="1.5" fill={color}/>
+      <circle cx="12" cy="12" r="1.5" fill={color}/>
+      <circle cx="8" cy="16" r="1.5" fill={color}/>
+      <circle cx="16" cy="16" r="1.5" fill={color}/>
     </svg>
   )
   return <svg {...s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>
@@ -68,14 +72,14 @@ const GAMES = [
     botMode: true,
   },
   {
-    id: 'word-blitz',
-    title: 'Word Blitz',
-    desc: 'Unscramble the word faster than everyone else. Vocabulary meets speed.',
-    tags: ['Skill', 'Speed', 'Words'],
+    id: 'pattern-memory',
+    title: 'Pattern Memory 🧠',
+    desc: 'Memorize a sequence of digits, then type it from memory. First correct scores.',
+    tags: ['Memory', 'Skill', 'Speed'],
     entry: '$0.50 – $50',
     players: '2–10',
     status: 'live' as const,
-    glow: '#06b6d4', glowRgb: '6,182,212',
+    glow: '#a855f7', glowRgb: '168,85,247',
     botMode: true,
   },
   {
@@ -112,14 +116,14 @@ const GAMES = [
     botMode: true,
   },
   {
-    id: 'number-rush',
-    title: 'Number Rush',
-    desc: 'Pick the rarest number in 1–50. Most contrarian pick takes the pot.',
-    tags: ['Jackpot', 'Contrarian'],
-    entry: '$0.50 – $20',
-    players: '2–30',
+    id: 'liars-dice',
+    title: "Liar's Dice 🎲",
+    desc: 'Each player gets 3 dice. Bid on totals, call LIAR! on bluffs. Classic casino bluffing game.',
+    tags: ['Bluff', 'Dice', 'Strategy'],
+    entry: '$1 – $50',
+    players: '2–6',
     status: 'live' as const,
-    glow: '#a78bfa', glowRgb: '167,139,250',
+    glow: '#f97316', glowRgb: '249,115,22',
     botMode: true,
   },
 ]

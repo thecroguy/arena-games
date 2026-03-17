@@ -21,6 +21,7 @@ contracts/typechain-types
 
 # Local context (never push)
 CONTEXT.md
+PLATFORMS.md
 
 # Editor directories and files
 .vscode/*
