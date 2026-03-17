@@ -615,11 +615,7 @@ export default function Lobby() {
           style={{ flex: 1, background: creating ? '#1e1e30' : 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.4)', borderRadius: '10px', padding: '11px', color: creating ? '#475569' : '#a78bfa', fontWeight: 700, fontSize: '0.88rem', cursor: creating ? 'not-allowed' : 'pointer' }}>
           {creating ? createBtnLabel() : '➕ CREATE ROOM'}
         </button>
-        <button onClick={payAndCreatePrivate} disabled={creating || !isConnected}
-          style={{ flex: 1, background: creating ? '#1e1e30' : 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.3)', borderRadius: '10px', padding: '11px', color: creating ? '#475569' : '#06b6d4', fontWeight: 700, fontSize: '0.88rem', cursor: creating || !isConnected ? 'not-allowed' : 'pointer' }}>
-          {creating ? createBtnLabel() : '🔒 PRIVATE ROOM'}
-        </button>
-        <button onClick={() => setShowCreateDuel(!showCreateDuel)} disabled={!isConnected}
+<button onClick={() => setShowCreateDuel(!showCreateDuel)} disabled={!isConnected}
           style={{ flex: 1, background: showCreateDuel ? 'rgba(249,115,22,0.18)' : 'rgba(249,115,22,0.08)', border: `1px solid ${showCreateDuel ? 'rgba(249,115,22,0.6)' : 'rgba(249,115,22,0.3)'}`, borderRadius: '10px', padding: '11px', color: '#f97316', fontWeight: 700, fontSize: '0.88rem', cursor: isConnected ? 'pointer' : 'not-allowed' }}>
           ⚔️ CREATE DUEL
         </button>
