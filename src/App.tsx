@@ -7,6 +7,7 @@ import Game from './pages/Game'
 import Profile from './pages/Profile'
 import Leaderboard from './pages/Leaderboard'
 import Guide from './pages/Guide'
+import DuelJoin from './pages/DuelJoin'
 import Navbar from './components/Navbar'
 import { useProfileSync } from './hooks/useProfileSync'
 
@@ -49,6 +50,7 @@ function AppInner() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/guide" element={<Guide />} />
+          <Route path="/r/:roomCode" element={<DuelJoin />} />
         </Routes>
       </main>
     </div>

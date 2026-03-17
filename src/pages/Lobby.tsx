@@ -31,7 +31,23 @@ const GAME_META: Record<string, { title: string; emoji: string; desc: string; mi
 
 const ENTRY_FEES = [0.5, 1, 2, 5, 10, 25, 50]
 
-type Room = { code: string; host: string; players: number; max: number; entry: number; status: 'waiting' | 'full' }
+type Room = {
+  code: string; host: string; hostName: string; players: number; max: number;
+  entry: number; status: 'waiting' | 'full';
+  roomType: 'public' | 'duel' | 'private';
+  duelExpiry: number | null;
+}
+
+function DuelCountdown({ expiry }: { expiry: number }) {
+  const [remaining, setRemaining] = useState(Math.max(0, expiry - Date.now()))
+  useEffect(() => {
+    const t = setInterval(() => setRemaining(Math.max(0, expiry - Date.now())), 1000)
+    return () => clearInterval(t)
+  }, [expiry])
+  const mins = Math.floor(remaining / 60000)
+  const secs = Math.floor((remaining % 60000) / 1000)
+  return <span style={{ color: '#f97316', fontSize: '0.75rem', fontWeight: 700 }}>{mins}:{String(secs).padStart(2, '0')} left</span>
+}
 
 export default function Lobby() {
   const { gameMode } = useParams<{ gameMode: string }>()
@@ -45,28 +61,32 @@ export default function Lobby() {
   const publicClient = usePublicClient()
   const authSigRef = useRef<string | null>(null)
 
-  const [rooms, setRooms]           = useState<Room[]>([])
-  const [selectedFee, setSelectedFee] = useState<number>(1)
-  const [maxPlayers, setMaxPlayers] = useState<number>(5)
-  const [joinCode, setJoinCode]     = useState('')
-  const [tab, setTab]               = useState<'browse' | 'create'>('browse')
-  const [loading, setLoading]       = useState(true)
-  const [creating, setCreating]     = useState(false)
-  const [joining, setJoining]       = useState<string | null>(null)
-  const [error, setError]           = useState('')
-  const [payStep, setPayStep]       = useState<'idle' | 'switching' | 'approving' | 'paying' | 'creating'>('idle')
-  const [activeRoom, setActiveRoom] = useState(() => localStorage.getItem(ACTIVE_ROOM_KEY) || '')
-  const [selectedChain, setSelectedChain] = useState<SupportedChain>(SUPPORTED_CHAINS[0])
-  const [showChainPicker, setShowChainPicker] = useState(false)
-  const [lockedInRoom, setLockedInRoom] = useState<string | null>(null)
-  const [searching, setSearching]       = useState(false)
-  const [queueSize, setQueueSize]       = useState(0)
+  const [rooms, setRooms]                   = useState<Room[]>([])
+  const [selectedFee, setSelectedFee]       = useState<number>(1)
+  const [maxPlayers, setMaxPlayers]         = useState<number>(5)
+  const [joinCode, setJoinCode]             = useState('')
+  const [loading, setLoading]               = useState(true)
+  const [creating, setCreating]             = useState(false)
+  const [joining, setJoining]               = useState<string | null>(null)
+  const [error, setError]                   = useState('')
+  const [payStep, setPayStep]               = useState<'idle' | 'switching' | 'approving' | 'paying' | 'creating'>('idle')
+  const [activeRoom, setActiveRoom]         = useState(() => localStorage.getItem(ACTIVE_ROOM_KEY) || '')
+  const [selectedChain, setSelectedChain]   = useState<SupportedChain>(SUPPORTED_CHAINS[0])
+  const [lockedInRoom, setLockedInRoom]     = useState<string | null>(null)
+  const [searching, setSearching]           = useState(false)
+  const [queueSize, setQueueSize]           = useState(0)
+  const [activityFeed, setActivityFeed]     = useState<{ msg: string; ts: number }[]>([])
+  const [globalChat, setGlobalChat]         = useState<{ username: string; message: string; ts: number }[]>([])
+  const [chatInput, setChatInput]           = useState('')
+  const [bottomTab, setBottomTab]           = useState<'activity' | 'chat'>('activity')
+  const [showCreateDuel, setShowCreateDuel] = useState(false)
+  const [duelShareCode, setDuelShareCode]   = useState('')
+  const chatEndRef = useRef<HTMLDivElement>(null)
   const errorTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const meta = GAME_META[gameMode ?? ''] ?? { title: gameMode ?? 'Game', emoji: '🎮', desc: '', minPlayers: 2, maxPlayers: 10 }
   const myName = address ? getUsername(address) : ''
 
-  // Read USDT balance on selected chain
   const { data: usdtBalance } = useReadContract({
     address: selectedChain.usdt,
     abi: USDT_ABI,
@@ -80,7 +100,6 @@ export default function Lobby() {
     ? Number(formatUnits(usdtBalance as bigint, selectedChain.decimals)).toFixed(2)
     : '—'
 
-  // Sync chain picker to current wallet chain
   useEffect(() => {
     const chain = getChain(currentChainId)
     if (chain) setSelectedChain(chain)
@@ -88,20 +107,18 @@ export default function Lobby() {
 
   useEffect(() => { authSigRef.current = null }, [address])
 
-  // Auto-join when redirected from matchmaking
+  // Auto-join when redirected from matchmaking or duel link
   useEffect(() => {
     const state = location.state as { autoJoin?: string; autoFee?: number; autoChainId?: number } | null
     if (!state?.autoJoin || !address || joining || creating) return
     const chain = getChain(state.autoChainId ?? 137) ?? selectedChain
     setSelectedChain(chain)
     if (state.autoFee) setSelectedFee(state.autoFee)
-    // Clear state so a refresh doesn't re-trigger
     window.history.replaceState({}, '')
     handleJoinRoom(state.autoJoin)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state, address])
 
-  // Check if user already has a locked deposit in another room
   useEffect(() => {
     if (!address) return
     fetch(`${SERVER_URL}/api/active-deposit/${address}`)
@@ -159,7 +176,6 @@ export default function Lobby() {
       setSearching(false)
       setQueueSize(0)
       addToRoomHistory(code, chainId)
-      // Navigate to lobby to complete deposit, with room pre-filled
       navigate(`/lobby/${gameMode}`, { state: { autoJoin: code, autoFee: entryFee, autoChainId: chainId }, replace: true })
     })
     socket.on('matchmaking:timeout', ({ reason }: { reason: string }) => {
@@ -172,6 +188,13 @@ export default function Lobby() {
       setPayStep('idle')
       showError('Room timed out — no second player joined in time. Your deposit will be refunded. Check Profile → Stuck Deposits.')
     })
+    socket.on('activity:update', setActivityFeed)
+    socket.on('chat:message', (msg: { username: string; message: string; ts: number }) => {
+      setGlobalChat(prev => [...prev, msg].slice(-50))
+    })
+    socket.emit('activity:get', setActivityFeed)
+    socket.emit('chat:history', (history: { username: string; message: string; ts: number }[]) => setGlobalChat(history))
+
     const interval = setInterval(loadRooms, 5000)
     return () => {
       socket.off('room:update')
@@ -179,14 +202,21 @@ export default function Lobby() {
       socket.off('matchmaking:matched')
       socket.off('matchmaking:timeout')
       socket.off('room:timeout')
+      socket.off('activity:update')
+      socket.off('chat:message')
       clearInterval(interval)
       if (errorTimer.current) clearTimeout(errorTimer.current)
     }
   }, [gameMode])
 
-  /** Switch chain if needed, then approve + deposit into escrow (or fallback to direct transfer). */
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    if (bottomTab === 'chat') {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [globalChat, bottomTab])
+
   async function payEntryFee(fee: number, chain: SupportedChain, roomCode: string): Promise<string | null> {
-    // Switch chain if needed
     if (currentChainId !== chain.id) {
       setPayStep('switching')
       try {
@@ -198,11 +228,9 @@ export default function Lobby() {
     }
 
     const escrowAddr = getEscrowAddress(chain.id)
-    const amount     = parseUnits(String(fee), chain.decimals)
+    const amount = parseUnits(String(fee), chain.decimals)
 
     if (escrowAddr) {
-      // ── Escrow flow: approve → deposit ──────────────────────────────────
-      // Check existing allowance — skip approve if already sufficient
       setPayStep('approving')
       try {
         let needsApprove = true
@@ -231,11 +259,10 @@ export default function Lobby() {
         return null
       }
 
-      // Step 2 — deposit into escrow (locks funds, auto-pays winner on game end)
       setPayStep('paying')
       try {
         const roomId = getRoomId(roomCode)
-        const hash   = await writeContractAsync({
+        const hash = await writeContractAsync({
           address: escrowAddr,
           abi: ESCROW_ABI,
           functionName: 'deposit',
@@ -248,9 +275,6 @@ export default function Lobby() {
         return null
       }
     } else {
-      // ── Legacy fallback: direct transfer to house wallet ─────────────────
-      // Used on chains where the escrow contract isn't deployed yet.
-      // Winner is paid manually by the team within 24h.
       if (!HOUSE_WALLET) {
         showError('Payments are not configured for this network yet.')
         return null
@@ -301,13 +325,11 @@ export default function Lobby() {
     const authSig = await getAuthSig()
     if (!authSig) { setCreating(false); return }
 
-    // Step 1 — create room on server first to get the room code
-    // (needed so we can deposit into escrow with the correct roomId)
     setPayStep('creating')
     const socket = connectSocket()
     const code = await new Promise<string | null>(resolve => {
       socket.emit('room:create',
-        { gameMode, entryFee: selectedFee, maxPlayers, address, chainId: selectedChain.id, authSig },
+        { gameMode, entryFee: selectedFee, maxPlayers, address, chainId: selectedChain.id, authSig, roomType: 'public' },
         (res: { code?: string; error?: string }) => {
           if (res.error) { showError(res.error); resolve(null) }
           else resolve(res.code!)
@@ -316,13 +338,10 @@ export default function Lobby() {
     })
     if (!code) { setCreating(false); setPayStep('idle'); return }
 
-    // Step 2 — pay entry fee (escrow deposit or legacy transfer)
     const txHash = await payEntryFee(selectedFee, selectedChain, code)
     if (!txHash) { setCreating(false); setPayStep('idle'); return }
 
-    // Step 3 — confirm deposit with server (marks host as ready)
     socket.emit('room:deposit', { code, txHash, address }, () => {})
-    // Also report to REST API as permanent record (survives server restarts)
     fetch(`${SERVER_URL}/api/report-deposit`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ address, room_code: code, tx_hash: txHash, chain_id: selectedChain.id, amount_usdt: selectedFee }),
@@ -335,29 +354,98 @@ export default function Lobby() {
     navigate(`/game/${code}`, { state: { host: true, entry: selectedFee, maxPlayers, gameMode, chainId: selectedChain.id } })
   }
 
+  async function payAndCreatePrivate() {
+    if (!isConnected || !address) { showError('Connect your wallet first'); return }
+    if (lockedInRoom) { showError(`You have funds locked in room ${lockedInRoom}. Finish that game or claim a refund from your Profile first.`); return }
+    setCreating(true); setError('')
+    const authSig = await getAuthSig()
+    if (!authSig) { setCreating(false); return }
+
+    setPayStep('creating')
+    const socket = connectSocket()
+    const code = await new Promise<string | null>(resolve => {
+      socket.emit('room:create',
+        { gameMode, entryFee: selectedFee, maxPlayers: 2, address, chainId: selectedChain.id, authSig, roomType: 'private' },
+        (res: { code?: string; error?: string }) => {
+          if (res.error) { showError(res.error); resolve(null) }
+          else resolve(res.code!)
+        }
+      )
+    })
+    if (!code) { setCreating(false); setPayStep('idle'); return }
+
+    const txHash = await payEntryFee(selectedFee, selectedChain, code)
+    if (!txHash) { setCreating(false); setPayStep('idle'); return }
+
+    socket.emit('room:deposit', { code, txHash, address }, () => {})
+    fetch(`${SERVER_URL}/api/report-deposit`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address, room_code: code, tx_hash: txHash, chain_id: selectedChain.id, amount_usdt: selectedFee }),
+    }).catch(() => {})
+
+    setCreating(false); setPayStep('idle')
+    localStorage.setItem(ACTIVE_ROOM_KEY, code)
+    setActiveRoom(code)
+    addToRoomHistory(code, selectedChain.id)
+    navigate(`/game/${code}`, { state: { host: true, entry: selectedFee, maxPlayers: 2, gameMode, chainId: selectedChain.id } })
+  }
+
+  async function payAndCreateDuel() {
+    if (!isConnected || !address) { showError('Connect your wallet first'); return }
+    if (lockedInRoom) { showError(`You have funds locked in room ${lockedInRoom}. Finish that game or claim a refund from your Profile first.`); return }
+    setCreating(true); setError('')
+    const authSig = await getAuthSig()
+    if (!authSig) { setCreating(false); return }
+
+    setPayStep('creating')
+    const socket = connectSocket()
+    const code = await new Promise<string | null>(resolve => {
+      socket.emit('room:create',
+        { gameMode, entryFee: selectedFee, maxPlayers: 2, address, chainId: selectedChain.id, authSig, roomType: 'duel' },
+        (res: { code?: string; error?: string }) => {
+          if (res.error) { showError(res.error); resolve(null) }
+          else resolve(res.code!)
+        }
+      )
+    })
+    if (!code) { setCreating(false); setPayStep('idle'); return }
+
+    const txHash = await payEntryFee(selectedFee, selectedChain, code)
+    if (!txHash) { setCreating(false); setPayStep('idle'); return }
+
+    socket.emit('room:deposit', { code, txHash, address }, () => {})
+    fetch(`${SERVER_URL}/api/report-deposit`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address, room_code: code, tx_hash: txHash, chain_id: selectedChain.id, amount_usdt: selectedFee }),
+    }).catch(() => {})
+
+    setCreating(false); setPayStep('idle')
+    localStorage.setItem(ACTIVE_ROOM_KEY, code)
+    setActiveRoom(code)
+    addToRoomHistory(code, selectedChain.id)
+    setDuelShareCode(code)
+    setShowCreateDuel(false)
+  }
+
   async function handleJoinRoom(code: string) {
     if (!isConnected || !address) { showError('Connect your wallet first'); return }
     if (lockedInRoom && lockedInRoom !== code) { showError(`You have funds locked in room ${lockedInRoom}. Finish that game or claim a refund from your Profile first.`); return }
     const room = rooms.find(r => r.code === code)
-    const fee = room?.entry ?? 1
+    const fee = room?.entry ?? selectedFee
     setJoining(code); setError('')
     const authSig = await getAuthSig()
     if (!authSig) { setJoining(null); return }
 
-    // Step 1 — pay entry fee into escrow (or legacy transfer) using the room code
     const txHash = await payEntryFee(fee, selectedChain, code)
     if (!txHash) { setJoining(null); setPayStep('idle'); return }
 
-    // Step 2 — join the room on the server
     const socket = connectSocket()
     socket.emit('room:join',
       { code, address, chainId: selectedChain.id, txHash, authSig },
       (res: { ok?: boolean; error?: string; reconnected?: boolean }) => {
         setJoining(null); setPayStep('idle')
         if (res.error) { showError(res.error); return }
-        // Step 3 — confirm deposit so server marks player as ready
         socket.emit('room:deposit', { code, txHash, address }, () => {})
-        // Also report to REST API as permanent record
         fetch(`${SERVER_URL}/api/report-deposit`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ address, room_code: code, tx_hash: txHash, chain_id: selectedChain.id, amount_usdt: fee }),
@@ -381,18 +469,16 @@ export default function Lobby() {
     setActiveRoom('')
   }
 
-  async function quickMatch() {
-    if (!isConnected || !address) { showError('Connect your wallet first'); return }
+  function sendChat() {
+    const msg = chatInput.trim()
+    if (!msg || !myName) return
     const socket = connectSocket()
-    socket.emit('rooms:list', gameMode, async (list: Room[]) => {
-      const open = list.find(r => r.status === 'waiting' && r.players < r.max)
-      if (open) {
-        await handleJoinRoom(open.code)
-      } else {
-        setTab('create')
-        showError('No open rooms found — create the first one!')
-      }
-    })
+    socket.emit('global:chat:send', { username: myName, message: msg })
+    setChatInput('')
+  }
+
+  function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text).catch(() => {})
   }
 
   const escrowAvailable = !!getEscrowAddress(selectedChain.id)
@@ -400,31 +486,44 @@ export default function Lobby() {
   const createBtnLabel = () => {
     if (payStep === 'switching')  return `Switching to ${selectedChain.name}…`
     if (payStep === 'creating')   return 'Creating room…'
-    if (payStep === 'approving')  return 'Step 1/2 — Approve USDT in wallet…'
-    if (payStep === 'paying')     return escrowAvailable ? 'Step 2/2 — Locking into contract…' : `Sending $${selectedFee} USDT…`
-    return escrowAvailable
-      ? `🔒 Lock $${selectedFee} USDT in contract & Create`
-      : `Pay $${selectedFee} USDT & Create`
+    if (payStep === 'approving')  return 'Step 1/2 — Approve USDT…'
+    if (payStep === 'paying')     return escrowAvailable ? 'Step 2/2 — Locking…' : `Sending $${selectedFee} USDT…`
+    return escrowAvailable ? `🔒 Lock & Create` : `Pay & Create`
   }
 
+  const openRooms = rooms.filter(r => !r.roomType || r.roomType === 'public')
+  const duelRooms = rooms.filter(r => r.roomType === 'duel')
+
   return (
-    <div style={{ maxWidth: '960px', margin: '0 auto', padding: 'clamp(24px,4vw,40px) clamp(16px,3vw,24px)' }}>
+    <div style={{ maxWidth: '720px', margin: '0 auto', padding: 'clamp(20px,4vw,36px) clamp(14px,3vw,20px)' }}>
 
       {/* Header */}
-      <div style={{ marginBottom: '28px' }}>
-        <button style={{ color: '#64748b', fontSize: '0.85rem', background: 'none', border: 'none', cursor: 'pointer', marginBottom: '12px' }} onClick={() => navigate('/')}>
+      <div style={{ marginBottom: '20px' }}>
+        <button style={{ color: '#64748b', fontSize: '0.85rem', background: 'none', border: 'none', cursor: 'pointer', marginBottom: '10px' }} onClick={() => navigate('/')}>
           ← Back
         </button>
-        <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(1.4rem,4vw,2rem)', fontWeight: 900, background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginBottom: '4px' }}>
-          {meta.emoji} {meta.title}
-        </h1>
-        <p style={{ color: '#64748b', fontSize: '0.88rem' }}>{meta.desc}</p>
-        {myName && <p style={{ color: '#a78bfa', fontSize: '0.8rem', marginTop: '4px' }}>Playing as <strong>{myName}</strong></p>}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+          <div>
+            <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(1.3rem,4vw,1.8rem)', fontWeight: 900, background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginBottom: '4px' }}>
+              {meta.emoji} {meta.title}
+            </h1>
+            <p style={{ color: '#64748b', fontSize: '0.85rem' }}>{meta.desc}</p>
+            {myName && <p style={{ color: '#a78bfa', fontSize: '0.78rem', marginTop: '3px' }}>Playing as <strong>{myName}</strong></p>}
+          </div>
+          {address && (
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <p style={{ fontSize: '0.68rem', color: '#64748b', marginBottom: '2px' }}>Your balance</p>
+              <p style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: Number(balanceFormatted) >= selectedFee ? '#22c55e' : '#f59e0b' }}>
+                ${balanceFormatted} <span style={{ fontSize: '0.62rem', color: '#64748b' }}>USDT</span>
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Active room banner */}
       {activeRoom && (
-        <div style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: '10px', padding: '12px 18px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+        <div style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: '10px', padding: '12px 18px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
           <span style={{ color: '#22c55e', fontSize: '0.88rem', fontWeight: 600 }}>
             Active room: <strong style={{ fontFamily: 'Orbitron, sans-serif' }}>{activeRoom}</strong>
           </span>
@@ -442,242 +541,283 @@ export default function Lobby() {
       )}
 
       {error && (
-        <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '12px 18px', marginBottom: '16px', color: '#ef4444', fontSize: '0.88rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '12px 18px', marginBottom: '14px', color: '#ef4444', fontSize: '0.88rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>{error}</span>
           <button style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', flexShrink: 0 }} onClick={() => setError('')}>✕</button>
         </div>
       )}
 
       {/* Chain selector */}
-      <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', padding: '14px 18px', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-          <div>
-            <p style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '4px' }}>PAY WITH USDT ON</p>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {SUPPORTED_CHAINS.map(chain => (
-                <button key={chain.id}
-                  onClick={() => setSelectedChain(chain)}
-                  style={{
-                    padding: '6px 14px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s',
-                    background: selectedChain.id === chain.id ? `${chain.color}22` : 'transparent',
-                    border: `1px solid ${selectedChain.id === chain.id ? chain.color : '#1e1e30'}`,
-                    color: selectedChain.id === chain.id ? chain.color : '#64748b',
-                  }}>
-                  {chain.icon} {chain.shortName}
-                </button>
-              ))}
-            </div>
-          </div>
-          {address && (
-            <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <p style={{ fontSize: '0.7rem', color: '#64748b', marginBottom: '2px' }}>Your balance</p>
-              <p style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1rem', color: Number(balanceFormatted) >= selectedFee ? '#22c55e' : '#f59e0b' }}>
-                ${balanceFormatted} <span style={{ fontSize: '0.65rem', color: '#64748b' }}>USDT</span>
-              </p>
-            </div>
-          )}
+      <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', padding: '14px 18px', marginBottom: '16px' }}>
+        <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '8px' }}>PAY WITH USDT ON</p>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {SUPPORTED_CHAINS.map(chain => (
+            <button key={chain.id}
+              onClick={() => setSelectedChain(chain)}
+              style={{
+                padding: '6px 14px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s',
+                background: selectedChain.id === chain.id ? `${chain.color}22` : 'transparent',
+                border: `1px solid ${selectedChain.id === chain.id ? chain.color : '#1e1e30'}`,
+                color: selectedChain.id === chain.id ? chain.color : '#64748b',
+              }}>
+              {chain.icon} {chain.shortName}
+            </button>
+          ))}
         </div>
         {selectedChain.id === 1 && (
-          <p style={{ color: '#f59e0b', fontSize: '0.75rem', marginTop: '10px' }}>
+          <p style={{ color: '#f59e0b', fontSize: '0.75rem', marginTop: '8px' }}>
             ⚠️ Ethereum has high gas fees. Consider Polygon, Arbitrum, or Base for cheap transfers.
           </p>
         )}
       </div>
 
-      {/* Join by code */}
-      <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', padding: '16px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-        <span style={{ color: '#94a3b8', fontWeight: 600, fontSize: '0.88rem', whiteSpace: 'nowrap' }}>Have a code?</span>
-        <div style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '220px' }}>
-          <input value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())}
-            onKeyDown={e => e.key === 'Enter' && handleJoinByCode()}
-            placeholder="ROOM CODE"
-            maxLength={6}
-            style={{ flex: 1, background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: '8px', padding: '10px 14px', color: '#e2e8f0', fontFamily: 'Orbitron, sans-serif', fontSize: '0.95rem', letterSpacing: '0.15em', outline: 'none' }}
-          />
-          <button onClick={handleJoinByCode}
-            style={{ background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '8px', padding: '10px 18px', color: '#fff', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.88rem' }}>
-            Join
-          </button>
+      {/* Entry fee pills */}
+      <div style={{ marginBottom: '16px' }}>
+        <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '8px' }}>ENTRY FEE</p>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {ENTRY_FEES.map(fee => (
+            <button key={fee} onClick={() => setSelectedFee(fee)}
+              style={{
+                padding: '8px 14px', borderRadius: '8px', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer',
+                border: `1px solid ${selectedFee === fee ? '#7c3aed' : '#1e1e30'}`,
+                background: selectedFee === fee ? 'rgba(124,58,237,0.18)' : 'transparent',
+                color: selectedFee === fee ? '#a78bfa' : '#64748b',
+              }}>
+              ${fee}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', background: '#12121a', borderRadius: '10px', padding: '4px', width: 'fit-content', border: '1px solid #1e1e30' }}>
-        {(['browse', 'create'] as const).map(t => (
-          <button key={t} style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: tab === t ? '#7c3aed' : 'transparent', color: tab === t ? '#fff' : '#64748b', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer' }} onClick={() => setTab(t)}>
-            {t === 'browse' ? 'Browse Rooms' : 'Create Room'}
-          </button>
-        ))}
-      </div>
-
-      {/* Find Match (matchmaking) */}
+      {/* PLAY NOW */}
       {searching ? (
-        <div style={{ background: '#12121a', border: '1px solid rgba(124,58,237,0.4)', borderRadius: '14px', padding: '20px 24px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+        <div style={{ background: '#12121a', border: '1px solid rgba(124,58,237,0.4)', borderRadius: '14px', padding: '16px 20px', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
           <div>
-            <p style={{ color: '#a78bfa', fontWeight: 700, fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem', marginBottom: '4px' }}>
+            <p style={{ color: '#a78bfa', fontWeight: 700, fontFamily: 'Orbitron, sans-serif', fontSize: '0.88rem', marginBottom: '3px' }}>
               Finding opponents… {queueSize > 0 && `(${queueSize} in queue)`}
             </p>
-            <p style={{ color: '#64748b', fontSize: '0.8rem' }}>Entry fee ${selectedFee} · {selectedChain.name} · waiting up to 30s</p>
+            <p style={{ color: '#64748b', fontSize: '0.78rem' }}>Entry fee ${selectedFee} · {selectedChain.name} · up to 30s</p>
           </div>
           <button onClick={cancelMatch} style={{ background: 'none', border: '1px solid #475569', borderRadius: '8px', padding: '8px 16px', color: '#94a3b8', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
             Cancel
           </button>
         </div>
       ) : (
-        <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', padding: '16px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-          <div>
-            <p style={{ color: '#e2e8f0', fontWeight: 700, fontSize: '0.9rem', marginBottom: '2px' }}>Auto Matchmaking</p>
-            <p style={{ color: '#64748b', fontSize: '0.78rem' }}>Get paired with opponents automatically — no room code needed</p>
-          </div>
-          <button onClick={findMatch} disabled={!isConnected}
-            style={{ background: isConnected ? 'linear-gradient(135deg,#7c3aed,#06b6d4)' : '#1e1e30', border: 'none', borderRadius: '9px', padding: '10px 22px', color: isConnected ? '#fff' : '#475569', fontWeight: 700, fontFamily: 'Orbitron, sans-serif', fontSize: '0.82rem', cursor: isConnected ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>
-            Find Match ${selectedFee}
+        <button onClick={findMatch} disabled={!isConnected}
+          style={{ width: '100%', background: isConnected ? 'linear-gradient(135deg,#7c3aed,#06b6d4)' : '#1e1e30', border: 'none', borderRadius: '12px', padding: '16px', color: isConnected ? '#fff' : '#475569', fontWeight: 800, fontSize: '1.05rem', fontFamily: 'Orbitron, sans-serif', cursor: isConnected ? 'pointer' : 'not-allowed', letterSpacing: '0.04em', marginBottom: '10px' }}>
+          🎮 PLAY NOW — ${selectedFee} MATCH
+        </button>
+      )}
+
+      {/* CREATE ROOM */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+        <button onClick={payAndCreate} disabled={creating || !isConnected}
+          style={{ flex: 1, background: creating ? '#1e1e30' : 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.4)', borderRadius: '10px', padding: '11px', color: creating ? '#475569' : '#a78bfa', fontWeight: 700, fontSize: '0.88rem', cursor: creating ? 'not-allowed' : 'pointer' }}>
+          {creating ? createBtnLabel() : '➕ CREATE ROOM'}
+        </button>
+        <button onClick={() => setShowCreateDuel(!showCreateDuel)} disabled={!isConnected}
+          style={{ flex: 1, background: showCreateDuel ? 'rgba(249,115,22,0.18)' : 'rgba(249,115,22,0.08)', border: `1px solid ${showCreateDuel ? 'rgba(249,115,22,0.6)' : 'rgba(249,115,22,0.3)'}`, borderRadius: '10px', padding: '11px', color: '#f97316', fontWeight: 700, fontSize: '0.88rem', cursor: isConnected ? 'pointer' : 'not-allowed' }}>
+          ⚔️ CREATE DUEL
+        </button>
+      </div>
+
+      {/* Create duel panel */}
+      {showCreateDuel && (
+        <div style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.25)', borderRadius: '12px', padding: '16px 20px', marginBottom: '16px' }}>
+          <p style={{ color: '#f97316', fontWeight: 700, fontSize: '0.88rem', marginBottom: '8px' }}>⚔️ 1v1 Duel Challenge</p>
+          <p style={{ color: '#64748b', fontSize: '0.8rem', marginBottom: '12px' }}>Creates a private 1v1 room. You'll get a shareable link — challenger pays ${selectedFee} to enter. Winner takes ${(selectedFee * 2 * 0.85).toFixed(2)}.</p>
+          <button onClick={payAndCreateDuel} disabled={creating}
+            style={{ width: '100%', background: creating ? '#1e1e30' : 'linear-gradient(135deg,#f97316,#ea580c)', border: 'none', borderRadius: '10px', padding: '13px', color: creating ? '#64748b' : '#fff', fontWeight: 800, fontSize: '0.92rem', fontFamily: 'Orbitron, sans-serif', cursor: creating ? 'not-allowed' : 'pointer', letterSpacing: '0.04em' }}>
+            {creating ? createBtnLabel() : `Pay $${selectedFee} & Generate Duel Link`}
           </button>
         </div>
       )}
 
-      {/* Browse */}
-      {tab === 'browse' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <button onClick={quickMatch}
-            style={{ background: 'linear-gradient(135deg, #22c55e, #06b6d4)', border: 'none', borderRadius: '10px', padding: '12px', color: '#0a0a0f', fontWeight: 800, fontSize: '0.92rem', fontFamily: 'Orbitron, sans-serif', cursor: 'pointer', letterSpacing: '0.04em' }}>
-            Quick Match — Auto-join best open room
-          </button>
-          {loading && <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', textAlign: 'center', color: '#64748b', padding: '48px' }}>Loading rooms…</div>}
-          {!loading && rooms.length === 0 && (
-            <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', textAlign: 'center', color: '#64748b', padding: '48px' }}>
-              No open rooms.{' '}
-              <button style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontWeight: 700, fontSize: 'inherit' }} onClick={() => setTab('create')}>Create the first →</button>
-            </div>
-          )}
-          {rooms.map(room => (
-            <div key={room.code} style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', opacity: room.status === 'full' ? 0.5 : 1 }}>
-              <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <div>
-                  <p style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1rem', letterSpacing: '0.1em' }}>{room.code}</p>
-                  <p style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '2px' }}>Host: {getUsername(room.host)}</p>
-                </div>
-                <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>👥 {room.players}/{room.max}</p>
-                <div>
-                  <p style={{ color: '#22c55e', fontWeight: 700, fontSize: '0.9rem' }}>${room.entry} USDT</p>
-                  <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Pot ~${(room.entry * room.players * 0.85).toFixed(2)}</p>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', background: room.status === 'waiting' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: room.status === 'waiting' ? '#22c55e' : '#ef4444', border: `1px solid ${room.status === 'waiting' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
-                  {room.status === 'waiting' ? '● OPEN' : '■ FULL'}
-                </span>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
-                  <button
-                    disabled={room.status === 'full' || joining === room.code}
-                    onClick={() => handleJoinRoom(room.code)}
-                    style={{ background: room.status === 'full' ? '#1e1e30' : 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '8px', padding: '9px 20px', color: room.status === 'full' ? '#64748b' : '#fff', fontWeight: 700, cursor: room.status === 'full' ? 'not-allowed' : 'pointer', fontSize: '0.88rem', whiteSpace: 'nowrap' }}>
-                    {joining === room.code
-                      ? (payStep === 'approving' ? 'Approving…' : payStep === 'paying' ? 'Locking…' : `${selectedChain.icon} Paying…`)
-                      : `Join ${selectedChain.icon}`}
-                  </button>
-                  {room.status === 'waiting' && (
-                    <span style={{ fontSize: '0.65rem', color: '#475569' }}>
-                      {getEscrowAddress(selectedChain.id) ? '🔒 Auto-payout · no extra fees' : '⚠️ Manual payout'}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
+      {/* Duel share card */}
+      {duelShareCode && (
+        <div style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.4)', borderRadius: '14px', padding: '20px', marginBottom: '20px' }}>
+          <p style={{ color: '#f97316', fontWeight: 800, fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem', marginBottom: '6px' }}>⚔️ ${(selectedFee * 2).toFixed(0)} POT DUEL CREATED!</p>
+          <p style={{ color: '#e2e8f0', fontSize: '0.82rem', fontFamily: 'Orbitron, sans-serif', letterSpacing: '0.05em', marginBottom: '12px' }}>
+            joinarena.space/r/{duelShareCode}
+          </p>
+          <textarea
+            readOnly
+            value={`⚔️ $${(selectedFee * 2).toFixed(0)} POT DUEL\n\n${meta.title}\nWinner takes $${(selectedFee * 2 * 0.85).toFixed(2)}\n\nThink you're faster?\n\njoinarena.space/r/${duelShareCode}`}
+            style={{ width: '100%', background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: '8px', padding: '10px', color: '#94a3b8', fontSize: '0.8rem', resize: 'none', height: '110px', marginBottom: '10px', boxSizing: 'border-box', lineHeight: 1.5 }}
+          />
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => copyToClipboard(`⚔️ $${(selectedFee * 2).toFixed(0)} POT DUEL\n\n${meta.title}\nWinner takes $${(selectedFee * 2 * 0.85).toFixed(2)}\n\nThink you're faster?\n\njoinarena.space/r/${duelShareCode}`)}
+              style={{ flex: 1, background: 'rgba(249,115,22,0.18)', border: '1px solid rgba(249,115,22,0.4)', borderRadius: '8px', padding: '10px', color: '#f97316', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
+              📋 Copy Challenge
+            </button>
+            <button onClick={() => navigate(`/game/${duelShareCode}`)}
+              style={{ flex: 1, background: 'linear-gradient(135deg,#f97316,#ea580c)', border: 'none', borderRadius: '8px', padding: '10px', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
+              Go to Room →
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Create */}
-      {tab === 'create' && (
-        <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '16px', padding: '24px', maxWidth: '520px' }}>
-          <h2 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1rem', marginBottom: '24px', color: '#e2e8f0' }}>New Room</h2>
-
-          <div style={{ marginBottom: '22px' }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: '10px', display: 'block' }}>Entry Fee (USDT)</span>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {ENTRY_FEES.map(fee => (
-                <button key={fee}
-                  style={{ padding: '8px 14px', borderRadius: '8px', border: `1px solid ${selectedFee === fee ? '#7c3aed' : '#1e1e30'}`, background: selectedFee === fee ? 'rgba(124,58,237,0.15)' : 'transparent', color: selectedFee === fee ? '#a78bfa' : '#64748b', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer' }}
-                  onClick={() => setSelectedFee(fee)}>${fee}</button>
-              ))}
-            </div>
+      {/* Open Matches */}
+      <section style={{ marginBottom: '20px' }}>
+        <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.82rem', fontWeight: 700, color: '#e2e8f0', letterSpacing: '0.06em', marginBottom: '10px' }}>🔥 OPEN MATCHES</h3>
+        {loading ? (
+          <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '12px', textAlign: 'center', color: '#64748b', padding: '36px', fontSize: '0.85rem' }}>Loading rooms…</div>
+        ) : openRooms.length === 0 ? (
+          <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '12px', textAlign: 'center', color: '#64748b', padding: '28px', fontSize: '0.85rem' }}>
+            No open matches — be the first to create one!
           </div>
-
-          <div style={{ marginBottom: '22px' }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: '10px', display: 'block' }}>Max Players ({maxPlayers})</span>
-            <input type="range" min={meta.minPlayers} max={meta.maxPlayers} value={maxPlayers}
-              onChange={e => setMaxPlayers(Number(e.target.value))}
-              style={{ width: '100%', accentColor: '#7c3aed' }} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '0.78rem', marginTop: '4px' }}>
-              <span>{meta.minPlayers}</span><span>{meta.maxPlayers}</span>
-            </div>
-          </div>
-
-          {/* Summary */}
-          <div style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px' }}>
-            {([
-              ['Network', `${selectedChain.icon} ${selectedChain.name}`],
-              ['Entry Fee', `$${selectedFee} USDT`],
-              ['Max Players', maxPlayers],
-              ['Max Pot (85%)', `$${(selectedFee * maxPlayers * 0.85).toFixed(2)} USDT`],
-            ] as [string, string | number][]).map(([k, v], i) => (
-              <div key={String(k)} style={{ display: 'flex', justifyContent: 'space-between', paddingTop: i > 0 ? '8px' : 0, marginTop: i > 0 ? '8px' : 0, borderTop: i > 0 ? '1px solid #1e1e30' : 'none' }}>
-                <span style={{ color: '#94a3b8', fontSize: '0.88rem' }}>{k}</span>
-                <span style={{ fontWeight: 700, color: i === 3 ? '#22c55e' : '#e2e8f0', fontSize: '0.88rem' }}>{v}</span>
+        ) : openRooms.map(room => (
+          <div key={room.code} style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '8px', opacity: room.status === 'full' ? 0.5 : 1 }}>
+            <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div>
+                <p style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.95rem', letterSpacing: '0.1em' }}>{room.code}</p>
+                <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '2px' }}>Host: {room.hostName || getUsername(room.host)}</p>
               </div>
-            ))}
-          </div>
-
-          {/* Balance warning */}
-          {address && Number(balanceFormatted) < selectedFee && balanceFormatted !== '—' && (
-            <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.8rem', color: '#ef4444' }}>
-              ⚠️ Insufficient USDT on {selectedChain.name}. Balance: ${balanceFormatted}
+              <p style={{ color: '#94a3b8', fontSize: '0.83rem' }}>👥 {room.players}/{room.max}</p>
+              <div>
+                <p style={{ color: '#22c55e', fontWeight: 700, fontSize: '0.88rem' }}>${room.entry} USDT</p>
+                <p style={{ color: '#64748b', fontSize: '0.72rem' }}>Pot ~${(room.entry * room.players * 0.85).toFixed(2)}</p>
+              </div>
             </div>
-          )}
-
-          {/* Escrow / payout notice */}
-          <div style={{ background: escrowAvailable ? 'rgba(34,197,94,0.06)' : 'rgba(245,158,11,0.06)', border: `1px solid ${escrowAvailable ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)'}`, borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.78rem', color: escrowAvailable ? '#86efac' : '#fcd34d', lineHeight: 1.5 }}>
-            {escrowAvailable ? (
-              <>🔒 Funds locked in smart contract — winner paid automatically on-chain.<br />
-              <span style={{ color: '#64748b' }}>You pay entry fee only. Gas covered by the platform from its 15% fee.</span></>
-            ) : (
-              <>⚠️ Escrow not available on {selectedChain.name} yet — your USDT goes to our house wallet.<br />
-              Winner paid manually by the team within 24h. Switch to Polygon for instant auto-payout.</>
-            )}
-          </div>
-
-          <button onClick={payAndCreate} disabled={creating || !isConnected}
-            style={{ width: '100%', background: creating ? '#1e1e30' : 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '10px', padding: '14px', color: creating ? '#64748b' : '#fff', fontWeight: 700, fontSize: '0.95rem', fontFamily: 'Orbitron, sans-serif', cursor: creating ? 'not-allowed' : 'pointer', letterSpacing: '0.04em' }}>
-            {creating ? createBtnLabel() : `${selectedChain.icon} Pay & Create Room`}
-          </button>
-          {!isConnected && (
-            <p style={{ color: '#f59e0b', fontSize: '0.82rem', marginTop: '10px', textAlign: 'center' }}>⚠️ Connect your wallet to create a room</p>
-          )}
-        </div>
-      )}
-
-      {/* Chain picker modal */}
-      {showChainPicker && (
-        <div onClick={() => setShowChainPicker(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '24px' }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '380px' }}>
-            <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.9rem', marginBottom: '16px', color: '#e2e8f0' }}>Select Network</h3>
-            {SUPPORTED_CHAINS.map(chain => (
-              <button key={chain.id} onClick={() => { setSelectedChain(chain); setShowChainPicker(false) }}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', borderRadius: '10px', border: `1px solid ${selectedChain.id === chain.id ? chain.color : '#1e1e30'}`, background: selectedChain.id === chain.id ? `${chain.color}18` : 'transparent', cursor: 'pointer', marginBottom: '6px' }}>
-                <span style={{ fontSize: '1.2rem' }}>{chain.icon}</span>
-                <div style={{ textAlign: 'left' }}>
-                  <p style={{ color: '#e2e8f0', fontWeight: 600, fontSize: '0.9rem' }}>{chain.name}</p>
-                  <p style={{ color: '#64748b', fontSize: '0.75rem' }}>Gas: {chain.symbol}</p>
-                </div>
-                {selectedChain.id === chain.id && <span style={{ marginLeft: 'auto', color: chain.color, fontSize: '1rem' }}>✓</span>}
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', background: room.status === 'waiting' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: room.status === 'waiting' ? '#22c55e' : '#ef4444', border: `1px solid ${room.status === 'waiting' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
+                {room.status === 'waiting' ? '● OPEN' : '■ FULL'}
+              </span>
+              <button
+                disabled={room.status === 'full' || joining === room.code}
+                onClick={() => handleJoinRoom(room.code)}
+                style={{ background: room.status === 'full' ? '#1e1e30' : 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '8px', padding: '8px 18px', color: room.status === 'full' ? '#64748b' : '#fff', fontWeight: 700, cursor: room.status === 'full' ? 'not-allowed' : 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                {joining === room.code
+                  ? (payStep === 'approving' ? 'Approving…' : payStep === 'paying' ? 'Locking…' : `${selectedChain.icon} Paying…`)
+                  : `Join ${selectedChain.icon}`}
               </button>
+            </div>
+          </div>
+        ))}
+      </section>
+
+      {/* Duel Challenges */}
+      <section style={{ marginBottom: '20px' }}>
+        <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.82rem', fontWeight: 700, color: '#f97316', letterSpacing: '0.06em', marginBottom: '10px' }}>⚔️ DUEL CHALLENGES</h3>
+        {duelRooms.length === 0 ? (
+          <div style={{ background: '#12121a', border: '1px solid rgba(249,115,22,0.15)', borderRadius: '12px', textAlign: 'center', color: '#64748b', padding: '20px', fontSize: '0.83rem' }}>
+            No active duels — create one above and challenge a friend!
+          </div>
+        ) : duelRooms.map(room => (
+          <div key={room.code} style={{ background: '#12121a', border: '1px solid rgba(249,115,22,0.3)', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div>
+                <p style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.95rem', letterSpacing: '0.1em', color: '#f97316' }}>{room.code}</p>
+                <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '2px' }}>By: {room.hostName || getUsername(room.host)}</p>
+              </div>
+              <div>
+                <p style={{ color: '#f97316', fontWeight: 700, fontSize: '0.88rem' }}>${room.entry} USDT</p>
+                <p style={{ color: '#64748b', fontSize: '0.72rem' }}>Winner takes ${(room.entry * 2 * 0.85).toFixed(2)}</p>
+              </div>
+              {room.duelExpiry && <DuelCountdown expiry={room.duelExpiry} />}
+            </div>
+            <button
+              disabled={joining === room.code}
+              onClick={() => handleJoinRoom(room.code)}
+              style={{ background: 'linear-gradient(135deg,#f97316,#ea580c)', border: 'none', borderRadius: '8px', padding: '8px 18px', color: '#fff', fontWeight: 800, cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap', fontFamily: 'Orbitron, sans-serif' }}>
+              {joining === room.code
+                ? (payStep === 'approving' ? 'Approving…' : payStep === 'paying' ? 'Locking…' : 'Paying…')
+                : 'Accept ⚔️'}
+            </button>
+          </div>
+        ))}
+      </section>
+
+      {/* Private Match */}
+      <section style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', padding: '18px 20px', marginBottom: '20px' }}>
+        <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.82rem', fontWeight: 700, color: '#e2e8f0', letterSpacing: '0.06em', marginBottom: '14px' }}>🔑 PRIVATE MATCH</h3>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+          <input value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())}
+            onKeyDown={e => e.key === 'Enter' && handleJoinByCode()}
+            placeholder="ROOM CODE"
+            maxLength={6}
+            style={{ flex: 1, background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: '8px', padding: '10px 14px', color: '#e2e8f0', fontFamily: 'Orbitron, sans-serif', fontSize: '0.92rem', letterSpacing: '0.15em', outline: 'none' }}
+          />
+          <button onClick={handleJoinByCode}
+            style={{ background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '8px', padding: '10px 18px', color: '#fff', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.85rem' }}>
+            Join
+          </button>
+        </div>
+        <button onClick={payAndCreatePrivate} disabled={creating || !isConnected}
+          style={{ width: '100%', background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.3)', borderRadius: '8px', padding: '10px', color: '#06b6d4', fontWeight: 700, fontSize: '0.85rem', cursor: creating || !isConnected ? 'not-allowed' : 'pointer' }}>
+          {creating ? createBtnLabel() : `🔒 Create Private Room ($${selectedFee})`}
+        </button>
+      </section>
+
+      {/* Max players selector (only relevant for public rooms) */}
+      <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '12px', padding: '14px 18px', marginBottom: '20px' }}>
+        <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '8px' }}>MAX PLAYERS FOR PUBLIC ROOM ({maxPlayers})</p>
+        <input type="range" min={meta.minPlayers} max={meta.maxPlayers} value={maxPlayers}
+          onChange={e => setMaxPlayers(Number(e.target.value))}
+          style={{ width: '100%', accentColor: '#7c3aed' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '0.75rem', marginTop: '4px' }}>
+          <span>{meta.minPlayers}</span><span>{meta.maxPlayers}</span>
+        </div>
+      </div>
+
+      {/* Bottom tabs: Live Activity | Global Chat */}
+      <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid #1e1e30' }}>
+          <button
+            onClick={() => setBottomTab('activity')}
+            style={{ flex: 1, padding: '11px', background: bottomTab === 'activity' ? 'rgba(124,58,237,0.12)' : 'transparent', border: 'none', color: bottomTab === 'activity' ? '#a78bfa' : '#64748b', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', borderBottom: bottomTab === 'activity' ? '2px solid #7c3aed' : '2px solid transparent' }}>
+            Live Activity
+          </button>
+          <button
+            onClick={() => setBottomTab('chat')}
+            style={{ flex: 1, padding: '11px', background: bottomTab === 'chat' ? 'rgba(6,182,212,0.08)' : 'transparent', border: 'none', color: bottomTab === 'chat' ? '#06b6d4' : '#64748b', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', borderBottom: bottomTab === 'chat' ? '2px solid #06b6d4' : '2px solid transparent' }}>
+            Global Chat
+          </button>
+        </div>
+
+        {bottomTab === 'activity' && (
+          <div style={{ padding: '12px 16px', minHeight: '120px' }}>
+            {activityFeed.length === 0 ? (
+              <p style={{ color: '#475569', fontSize: '0.82rem', textAlign: 'center', padding: '20px 0' }}>No recent activity</p>
+            ) : activityFeed.map((item, i) => (
+              <p key={i} style={{ color: '#94a3b8', fontSize: '0.8rem', padding: '4px 0', borderBottom: i < activityFeed.length - 1 ? '1px solid #0d0d18' : 'none' }}>
+                {item.msg}
+              </p>
             ))}
           </div>
-        </div>
-      )}
+        )}
+
+        {bottomTab === 'chat' && (
+          <div style={{ padding: '12px 16px' }}>
+            <div style={{ overflowY: 'auto', maxHeight: '200px', marginBottom: '10px' }}>
+              {globalChat.length === 0 ? (
+                <p style={{ color: '#475569', fontSize: '0.82rem', textAlign: 'center', padding: '16px 0' }}>No messages yet — say hi!</p>
+              ) : globalChat.map((m, i) => (
+                <p key={i} style={{ color: '#94a3b8', fontSize: '0.8rem', padding: '3px 0' }}>
+                  <strong style={{ color: '#a78bfa' }}>{m.username}:</strong> {m.message}
+                </p>
+              ))}
+              <div ref={chatEndRef} />
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && sendChat()}
+                placeholder={myName ? 'Type a message…' : 'Connect wallet to chat'}
+                disabled={!myName}
+                maxLength={200}
+                style={{ flex: 1, background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: '8px', padding: '9px 12px', color: '#e2e8f0', fontSize: '0.85rem', outline: 'none' }}
+              />
+              <button onClick={sendChat} disabled={!myName || !chatInput.trim()}
+                style={{ background: myName && chatInput.trim() ? 'linear-gradient(135deg,#7c3aed,#06b6d4)' : '#1e1e30', border: 'none', borderRadius: '8px', padding: '9px 16px', color: myName && chatInput.trim() ? '#fff' : '#475569', fontWeight: 700, fontSize: '0.82rem', cursor: myName && chatInput.trim() ? 'pointer' : 'not-allowed' }}>
+                Send
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

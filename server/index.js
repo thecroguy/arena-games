@@ -196,6 +196,17 @@ const disconnectTimers = new Map() // `${code}:${address}` → reconnect timer
 const matchmakingQueues = new Map()
 const matchmakingTimers = new Map()
 
+// ── Activity feed (last 20 events, broadcast to all) ─────────────────────
+const activityFeed = []
+function pushActivity(msg) {
+  activityFeed.unshift({ msg, ts: Date.now() })
+  if (activityFeed.length > 20) activityFeed.pop()
+  io.emit('activity:update', activityFeed.slice(0, 10))
+}
+
+// ── Global chat (last 50 messages) ───────────────────────────────────────
+const globalChat = []
+
 function doMatch(key, gameMode, entryFee, chainId) {
   const queue = matchmakingQueues.get(key) || []
   if (queue.length < 2) return
@@ -276,6 +287,19 @@ async function loadRoomsFromDb() {
   console.log(`Restored ${data.length} active room(s) from DB`)
 }
 loadRoomsFromDb()
+
+// Auto-expire duel rooms every 60 seconds
+setInterval(() => {
+  const now = Date.now()
+  for (const [code, room] of rooms) {
+    if (room.roomType === 'duel' && room.duelExpiry && room.duelExpiry < now && room.status === 'waiting') {
+      io.to(code).emit('room:timeout')
+      rooms.delete(code)
+      deleteRoomFromDb(code)
+      console.log(`[duel-expiry] Room ${code} expired`)
+    }
+  }
+}, 60000)
 
 // ── Startup recovery: auto-issue refund sigs for rooms stuck mid-game ─────
 // Handles the case where server restarted while a game was in progress.
@@ -620,6 +644,9 @@ async function endGame(room) {
     claimSig,    // winner passes this to claim() on the contract
     scores: sorted.map((p, i) => ({ address: p.address, score: p.score, rank: i + 1 })),
   })
+  const winnerName = winner.username || addrName(winner.address)
+  const gNameEnd = { 'math-arena': 'Math Arena', 'pattern-memory': 'Pattern Memory', 'reaction-grid': 'Reaction Grid', 'highest-unique': 'Highest Unique', 'lowest-unique': 'Lowest Unique', 'liars-dice': "Liar's Dice" }[room.gameMode] || room.gameMode
+  pushActivity(`🏆 ${winnerName} won $${pot} — ${gNameEnd}`)
 
   if (supabase) {
     try {
@@ -731,15 +758,21 @@ io.on('connection', (socket) => {
     if (typeof cb !== 'function') return
     if (!GAME_MODES[gameMode]) return cb([])
     const list = []
+    const now = Date.now()
     for (const [, room] of rooms) {
       if (room.gameMode === gameMode && room.status === 'waiting') {
+        // Skip expired duel rooms
+        if (room.roomType === 'duel' && room.duelExpiry && room.duelExpiry < now) continue
         list.push({
-          code:   room.code,
-          host:   room.host,
-          players: room.players.length,
-          max:    room.maxPlayers,
-          entry:  room.entryFee,
-          status: room.players.length >= room.maxPlayers ? 'full' : 'waiting',
+          code:      room.code,
+          host:      room.host,
+          hostName:  room.hostName || '',
+          players:   room.players.length,
+          max:       room.maxPlayers,
+          entry:     room.entryFee,
+          status:    room.players.length >= room.maxPlayers ? 'full' : 'waiting',
+          roomType:  room.roomType || 'public',
+          duelExpiry: room.duelExpiry || null,
         })
       }
     }
@@ -752,7 +785,7 @@ io.on('connection', (socket) => {
     cb(room ? { code: room.code, status: room.status } : null)
   })
 
-  socket.on('room:create', async ({ gameMode, entryFee, maxPlayers, address, chainId, txHash, authSig }, cb) => {
+  socket.on('room:create', async ({ gameMode, entryFee, maxPlayers, address, chainId, txHash, authSig, roomType }, cb) => {
     if (typeof cb !== 'function') return
     if (!rateLimit(socket.id)) return cb({ error: 'Too many requests' })
 
@@ -776,6 +809,7 @@ io.on('connection', (socket) => {
     const cfg = GAME_MODES[gameMode]
     const clampedMax = Math.min(Math.max(maxPlayers || cfg.maxP, cfg.minP), cfg.maxP)
     const resolvedChainId = Number(chainId) || 137
+    const resolvedRoomType = ['public', 'duel', 'private'].includes(roomType) ? roomType : 'public'
 
     const code = generateCode()
     const hostUsername = await getPlayerUsername(address)
@@ -784,6 +818,9 @@ io.on('connection', (socket) => {
       chainId: resolvedChainId,
       maxPlayers: clampedMax,
       host: address,
+      hostName: hostUsername,
+      roomType: resolvedRoomType,
+      duelExpiry: resolvedRoomType === 'duel' ? Date.now() + 15 * 60 * 1000 : null,
       players: [{ id: socket.id, address, username: hostUsername, score: 0, answered: false, correct: null, sealedPick: null, deposited: false }],
       status: 'waiting',
       round: 0, question: null, roundTimer: null, roundStartAt: null,
@@ -797,6 +834,9 @@ io.on('connection', (socket) => {
     saveRoomToDb(room)
     cb({ code, chainId: resolvedChainId })
     console.log(`Room ${code} [${gameMode}] created by ${address.slice(0, 8)} on chain ${resolvedChainId}`)
+    const gameName = { 'math-arena': 'Math Arena', 'pattern-memory': 'Pattern Memory', 'reaction-grid': 'Reaction Grid', 'highest-unique': 'Highest Unique', 'lowest-unique': 'Lowest Unique', 'liars-dice': "Liar's Dice" }[gameMode] || gameMode
+    if (resolvedRoomType === 'duel') pushActivity(`⚔️ ${hostUsername} created a $${entryFee} duel — ${gameName}`)
+    else pushActivity(`🎮 ${hostUsername} opened a $${entryFee} room — ${gameName}`)
   })
 
   socket.on('room:join', async ({ code, address, txHash, authSig }, cb) => {
@@ -889,6 +929,9 @@ io.on('connection', (socket) => {
     socket.join(code)
     socket.data.roomCode = code
     socket.data.address  = address
+
+    const gName = { 'math-arena': 'Math Arena', 'pattern-memory': 'Pattern Memory', 'reaction-grid': 'Reaction Grid', 'highest-unique': 'Highest Unique', 'lowest-unique': 'Lowest Unique', 'liars-dice': "Liar's Dice" }[room.gameMode] || room.gameMode
+    pushActivity(`👤 ${joinerUsername} joined ${gName} ($${room.entryFee})`)
 
     io.to(code).emit('room:update', roomPublic(room))
     cb({ ok: true, room: roomPublic(room) })
@@ -1160,6 +1203,26 @@ io.on('connection', (socket) => {
       queue.forEach(p => io.to(p.socketId).emit('matchmaking:queue_update', { size: queue.length }))
     }
     if (typeof cb === 'function') cb({ ok: true })
+  })
+
+  // Global chat
+  socket.on('global:chat:send', ({ username, message }) => {
+    if (!message || typeof message !== 'string') return
+    const trimmed = message.trim().slice(0, 200)
+    if (!trimmed) return
+    const name = (username || 'Anonymous').slice(0, 30)
+    const entry = { username: name, message: trimmed, ts: Date.now() }
+    globalChat.unshift(entry)
+    if (globalChat.length > 50) globalChat.pop()
+    io.emit('chat:message', entry)
+  })
+
+  socket.on('chat:history', (cb) => {
+    if (typeof cb === 'function') cb(globalChat.slice(0, 50).reverse())
+  })
+
+  socket.on('activity:get', (cb) => {
+    if (typeof cb === 'function') cb(activityFeed.slice(0, 10))
   })
 
   // Chat (lobby/queue only)
@@ -1725,6 +1788,22 @@ app.post('/api/referral/mark-paid', express.json(), async (req, res) => {
       .eq('id', payout_id)
     res.json({ ok: true })
   } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.get('/api/room/:code', (req, res) => {
+  const room = rooms.get((req.params.code || '').toUpperCase())
+  if (!room || room.status !== 'waiting') return res.json({ found: false })
+  res.json({
+    found: true,
+    code: room.code,
+    gameMode: room.gameMode,
+    entryFee: room.entryFee,
+    players: room.players.length,
+    max: room.maxPlayers,
+    hostName: room.hostName || '',
+    roomType: room.roomType || 'public',
+    duelExpiry: room.duelExpiry || null,
+  })
 })
 
 // ── Start ─────────────────────────────────────────────────────────────────
