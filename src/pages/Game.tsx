@@ -256,7 +256,6 @@ export default function Game() {
   }
 
   function botBluffTurn(currentBid: { count: number; face: number; bidder: string }, q: Question) {
-    const botDice  = botBluffDiceRef.current
     const totalDice = 6
     const challengeProb = currentBid.count >= totalDice * 0.6 ? 0.75
                         : currentBid.count >= totalDice * 0.4 ? 0.40 : 0.18
