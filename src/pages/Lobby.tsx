@@ -729,9 +729,9 @@ export default function Lobby() {
         <div style={{ display: 'grid', gridTemplateColumns: `280px minmax(0, 720px) 1fr`, maxWidth: '1400px', margin: '0 auto', alignItems: 'start', gap: '0' }}>
 
           {/* Left panel */}
-          <div style={{ position: 'sticky', top: '72px', height: 'calc(100vh - 88px)', overflow: 'hidden', transition: 'width 0.25s ease', paddingLeft: '16px', paddingTop: '24px' }}>
+          <div style={{ position: 'sticky', top: '72px', height: 'calc(100vh - 88px)', overflow: 'hidden', paddingTop: '24px', paddingRight: '12px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
             {panelOpen ? (
-              <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', height: '100%', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 {/* Panel header */}
                 <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', borderBottom: '1px solid #1e1e30', flexShrink: 0 }}>
                   <span style={{ color: '#22c55e', fontSize: '0.78rem', fontWeight: 700 }}>🟢 {onlineCount} online</span>
