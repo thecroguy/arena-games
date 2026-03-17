@@ -554,6 +554,17 @@ export default function Lobby() {
         </div>
       </div>
 
+      {/* Max players */}
+      <div style={{ marginBottom: '20px' }}>
+        <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '8px' }}>MAX PLAYERS ({maxPlayers})</p>
+        <input type="range" min={meta.minPlayers} max={meta.maxPlayers} value={maxPlayers}
+          onChange={e => setMaxPlayers(Number(e.target.value))}
+          style={{ width: '100%', accentColor: '#7c3aed' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '0.75rem', marginTop: '4px' }}>
+          <span>{meta.minPlayers}</span><span>{meta.maxPlayers}</span>
+        </div>
+      </div>
+
       {/* PLAY NOW */}
       {searching ? (
         <div style={{ background: '#12121a', border: '1px solid rgba(124,58,237,0.4)', borderRadius: '14px', padding: '16px 20px', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
@@ -709,16 +720,6 @@ export default function Lobby() {
       </section>
 
 
-      {/* Max players selector (only relevant for public rooms) */}
-      <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '12px', padding: '14px 18px', marginBottom: '20px' }}>
-        <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '8px' }}>MAX PLAYERS FOR PUBLIC ROOM ({maxPlayers})</p>
-        <input type="range" min={meta.minPlayers} max={meta.maxPlayers} value={maxPlayers}
-          onChange={e => setMaxPlayers(Number(e.target.value))}
-          style={{ width: '100%', accentColor: '#7c3aed' }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '0.75rem', marginTop: '4px' }}>
-          <span>{meta.minPlayers}</span><span>{meta.maxPlayers}</span>
-        </div>
-      </div>
 
       {/* Bottom tabs: Live Activity | Global Chat */}
       <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', overflow: 'hidden' }}>
