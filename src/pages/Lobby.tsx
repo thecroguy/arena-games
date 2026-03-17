@@ -354,41 +354,6 @@ export default function Lobby() {
     navigate(`/game/${code}`, { state: { host: true, entry: selectedFee, maxPlayers, gameMode, chainId: selectedChain.id } })
   }
 
-  async function payAndCreatePrivate() {
-    if (!isConnected || !address) { showError('Connect your wallet first'); return }
-    if (lockedInRoom) { showError(`You have funds locked in room ${lockedInRoom}. Finish that game or claim a refund from your Profile first.`); return }
-    setCreating(true); setError('')
-    const authSig = await getAuthSig()
-    if (!authSig) { setCreating(false); return }
-
-    setPayStep('creating')
-    const socket = connectSocket()
-    const code = await new Promise<string | null>(resolve => {
-      socket.emit('room:create',
-        { gameMode, entryFee: selectedFee, maxPlayers: 2, address, chainId: selectedChain.id, authSig, roomType: 'private' },
-        (res: { code?: string; error?: string }) => {
-          if (res.error) { showError(res.error); resolve(null) }
-          else resolve(res.code!)
-        }
-      )
-    })
-    if (!code) { setCreating(false); setPayStep('idle'); return }
-
-    const txHash = await payEntryFee(selectedFee, selectedChain, code)
-    if (!txHash) { setCreating(false); setPayStep('idle'); return }
-
-    socket.emit('room:deposit', { code, txHash, address }, () => {})
-    fetch(`${SERVER_URL}/api/report-deposit`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ address, room_code: code, tx_hash: txHash, chain_id: selectedChain.id, amount_usdt: selectedFee }),
-    }).catch(() => {})
-
-    setCreating(false); setPayStep('idle')
-    localStorage.setItem(ACTIVE_ROOM_KEY, code)
-    setActiveRoom(code)
-    addToRoomHistory(code, selectedChain.id)
-    navigate(`/game/${code}`, { state: { host: true, entry: selectedFee, maxPlayers: 2, gameMode, chainId: selectedChain.id } })
-  }
 
   async function payAndCreateDuel() {
     if (!isConnected || !address) { showError('Connect your wallet first'); return }
