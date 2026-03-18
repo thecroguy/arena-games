@@ -233,66 +233,28 @@ const FAKE_GAMES_SVR   = ['Math Arena','Pattern Memory','Reaction Grid','Highest
 const FAKE_ENTRIES_SVR = ['$0.50','$1','$2','$5']
 const FAKE_POTS_SVR    = { '$0.50':'0.85','$1':'1.70','$2':'3.40','$5':'8.50' }
 
-// Generate 5000 chat messages from template combinations
-const _FCHAT_TEMPLATES = [
-  u => `anyone want to play against me?`,
-  u => `gg wp`,
-  u => `just won a match, feeling good`,
-  u => `who wants to duel for $2?`,
-  u => `math arena is too easy lol`,
-  u => `pattern memory is actually hard`,
-  u => `reaction grid is brutal`,
-  u => `lets go 🔥`,
-  u => `highest unique is hard when smart ppl here`,
-  u => `lost twice :(`,
-  u => `rematch anyone?`,
-  u => `this platform is underrated`,
-  u => `good game everyone`,
-  u => `duel open, anyone?`,
-  u => `who tryna play right now`,
-  u => `nice win`,
-  u => `first time here, how does it work?`,
-  u => `been grinding all day`,
-  u => `quick match anyone?`,
-  u => `love liar's dice`,
-  u => `anyone on polygon?`,
-  u => `down for a game`,
-  u => `solid platform ngl`,
-  u => `cant believe i won that`,
-  u => `on a streak rn`,
-  u => `nice round everyone`,
-  u => `wp all`,
-  u => `$1 match anyone?`,
-  u => `who has the highest win rate here`,
-  u => `pattern memory is wild`,
-  u => `just lost $2, need a rematch`,
-  u => `reaction grid too fast for me`,
-  u => `highest unique is my best game`,
-  u => `math arena is pure speed`,
-  u => `anyone tried liar dice?`,
-  u => `easy money in math arena`,
-  u => `grinding leaderboard today`,
-  u => `gg no re`,
-  u => `close match that was`,
-  u => `who's on a win streak?`,
-  u => `just joined the platform`,
-  u => `is escrow instant?`,
-  u => `polygon fees are low, nice`,
-  u => `$5 duel open if anyone brave`,
-  u => `game crashed on me ugh`,
-  u => `that liar dice bluff was perfect`,
-  u => `wp, good game`,
-  u => `anyone playing highest unique?`,
-  u => `pattern memory round 8 is insane`,
-  u => `need one more player`,
+// 5000-item chat pool: base messages shuffled repeatedly to fill
+const _FCHAT_BASE = [
+  'anyone want to play against me?','gg wp','just won a match, feeling good',
+  'who wants to duel for $2?','math arena is too easy lol','pattern memory is actually hard',
+  'reaction grid is brutal','lets go 🔥','highest unique is hard when smart ppl here',
+  'lost twice :(','rematch anyone?','this platform is underrated','good game everyone',
+  'duel open, anyone?','who tryna play right now','nice win','first time here',
+  'been grinding all day','quick match anyone?',"love liar's dice",'anyone on polygon?',
+  'down for a game','solid platform ngl','cant believe i won that','on a streak rn',
+  'nice round everyone','wp all','$1 match anyone?','who has the highest win rate here',
+  'pattern memory is wild','just lost $2, need a rematch','reaction grid too fast for me',
+  'highest unique is my best game','math arena is pure speed','anyone tried liar dice?',
+  'easy money in math arena','grinding leaderboard today','gg no re','close match that was',
+  "who's on a win streak?",'just joined the platform','is escrow instant?',
+  'polygon fees are low, nice','$5 duel open if anyone brave','that liar dice bluff was perfect',
+  'wp, good game','anyone playing highest unique?','pattern memory round 8 is insane',
+  'need one more player','nice one','that was close','anyone up for $0.50?',
 ]
 const FAKE_CHAT_SVR = (() => {
   const out = []
-  for (let i = 0; i < 5000; i++) {
-    const fn = _FCHAT_TEMPLATES[i % _FCHAT_TEMPLATES.length]
-    out.push(fn())
-  }
-  // shuffle
+  while (out.length < 5000) out.push(..._FCHAT_BASE)
+  out.length = 5000
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [out[i], out[j]] = [out[j], out[i]]
@@ -318,11 +280,12 @@ function _fakePushActivity() {
 }
 
 // Keywords that trigger a legitimacy response from a fake user
+// Only trigger on authenticity/trust questions — not general chat
 const _LEGIT_TRIGGERS = [
-  'legit','real','scam','fake','trust','cash','withdraw','payout','money','safe','proof',
-  'how','work','start','begin','new','first','join','play','win','lose','fee','entry',
-  'usdt','polygon','wallet','metamask','escrow','contract','gas','chain','deposit','refund',
-  'rank','leaderboard','score','round','game','rules','duel','room','match','bot',
+  'legit','scam','fake','trust','safe','proof','real money','is this real',
+  'withdraw','cashout','cash out','payout','pay out','get paid','get money',
+  'actually work','does it work','really work','actually pay','do they pay',
+  'lose money','stolen','rug','sketchy','sus','suspicious','verified',
 ]
 const _LEGIT_REPLIES  = [
   // Legitimacy / trust
