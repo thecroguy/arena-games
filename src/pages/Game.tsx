@@ -702,7 +702,7 @@ export default function Game() {
     socket.on('reaction:message', ({ address, emoji }: { address: string; emoji: string }) => {
       spawnReaction(emoji, displayName(address))
     })
-    socket.on('chat:message', (msg: { address: string; text: string; ts: number }) => {
+    socket.on('room:chat', (msg: { address: string; text: string; ts: number }) => {
       setChatMessages(prev => [...prev.slice(-49), msg])
     })
     socket.on('game:bluff_dice', ({ dice, currentBid, currentTurnIdx, turnOrder }: { dice: number[]; currentBid?: typeof bluffBid; currentTurnIdx?: number; turnOrder?: string[] }) => {
@@ -725,7 +725,7 @@ export default function Game() {
       socket.off('game:player_left'); socket.off('game:abandoned'); socket.off('room:timeout')
       socket.off('game:player_disconnected'); socket.off('game:player_reconnected')
       socket.off('game:reconnected')
-      socket.off('reaction:message'); socket.off('chat:message')
+      socket.off('reaction:message'); socket.off('room:chat')
       socket.off('game:bluff_dice'); socket.off('game:bluff_update'); socket.off('game:bluff_error')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

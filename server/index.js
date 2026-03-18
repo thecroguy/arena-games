@@ -1636,7 +1636,7 @@ io.on('connection', (socket) => {
     if (!clean) return
     const sender = socket.data.address || (VALID_ADDRESS.test(payloadAddress) ? payloadAddress : null)
     if (!sender) return
-    io.to(code).emit('chat:message', { address: sender, text: clean, ts: Date.now() })
+    io.to(code).emit('room:chat', { address: sender, text: clean, ts: Date.now() })
   })
 
   // Emoji reactions (in-game)
