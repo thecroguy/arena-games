@@ -984,7 +984,7 @@ export default function Game() {
           const win = (entryFee * 2 * 0.85).toFixed(2)
           const gameTitle = GAME_HELP[gameMode]?.title || gameMode
           const duelUrl = `https://joinarena.space/r/${roomCode}`
-          const tweetText = `⚔️ $${pot} POT DUEL — ${gameTitle}\n\nWinner takes $${win} USDT\nExpires in 15 min ⏱\n\nThink you can beat me?\n${duelUrl}`
+          const tweetText = `⚔️ $${pot} POT DUEL — ${gameTitle}\n\nEntry fee: $${entryFee} USDT each\nWinner takes $${win} USDT\nExpires in 15 min ⏱\n\nThink you can beat me?\n${duelUrl}`
           const expiryMs = (duelCreatedAt || Date.now()) + 15 * 60 * 1000
           return (
             <div style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.4)', borderRadius: '14px', padding: '18px', marginBottom: '16px' }}>
