@@ -477,7 +477,7 @@ function _fakePushChat() {
 let _fakeOnlineOffset = _fakeRand(18, 32)
 function _driftFakeOnline() {
   const delta = _fakeRand(-2, 3)  // slight upward bias
-  _fakeOnlineOffset = Math.max(12, Math.min(55, _fakeOnlineOffset + delta))
+  _fakeOnlineOffset = Math.max(12, Math.min(50, _fakeOnlineOffset + delta))
   // Broadcast updated count to all connected clients
   io.emit('online:count', io.engine.clientsCount + _fakeOnlineOffset)
   setTimeout(_driftFakeOnline, _fakeRand(25000, 55000))
