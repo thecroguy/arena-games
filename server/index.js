@@ -657,12 +657,10 @@ setInterval(() => {
   const now = Date.now()
   for (const [code, room] of rooms) {
     if (room.roomType === 'duel' && room.duelExpiry && room.duelExpiry < now && room.status === 'waiting') {
-      io.to(code).emit('room:timeout')
-      // Issue refund sig before deleting so deposited host can claim from Profile
+      io.to(code).emit('room:timeout', { message: 'Duel expired — entry fees refunded.' })
       if (room.players.some(p => p.deposited)) escrowRefund(room)
-      rooms.delete(code)
-      deleteRoomFromDb(code)
-      console.log(`[duel-expiry] Room ${code} expired`)
+      cleanupRoom(code) // removes from rooms map + addressRooms + clears timers + deletes from DB
+      console.log(`[duel-expiry] Room ${code} expired and cleaned up`)
     }
   }
 }, 60000)
@@ -1898,10 +1896,12 @@ app.get('/api/active-room/:address', async (req, res) => {
   const { address } = req.params
   if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
   const addr = address.toLowerCase()
-  // Find all rooms this player is in
+  // Find all rooms this player is in (skip expired/finished/abandoned)
+  const now = Date.now()
   const candidates = []
   for (const [code, room] of rooms) {
     if (room.status === 'finished' || room.status === 'abandoned') continue
+    if (room.duelExpiry && room.duelExpiry < now && room.status === 'waiting') continue // duel expired
     if (room.players.some(p => p.address.toLowerCase() === addr)) {
       candidates.push({ code, gameMode: room.gameMode })
     }
