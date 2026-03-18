@@ -560,10 +560,13 @@ export default function Lobby() {
           <button onClick={cancelMatch} style={{ background: 'none', border: '1px solid #475569', borderRadius: '8px', padding: '8px 16px', color: '#94a3b8', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>Cancel</button>
         </div>
       ) : (
-        <button onClick={findMatch} disabled={!isConnected}
-          style={{ width: '100%', background: isConnected ? 'linear-gradient(135deg, #22c55e, #06b6d4)' : '#1e1e30', border: 'none', borderRadius: '12px', padding: '14px', color: isConnected ? '#0a0a0f' : '#475569', fontWeight: 800, fontSize: '1rem', fontFamily: 'Orbitron, sans-serif', cursor: isConnected ? 'pointer' : 'not-allowed', letterSpacing: '0.04em', marginBottom: '12px' }}>
-          🎮 PLAY NOW — ${selectedFee} MATCH
-        </button>
+        <>
+          <button onClick={findMatch} disabled={!isConnected}
+            style={{ width: '100%', background: isConnected ? 'linear-gradient(135deg, #22c55e, #06b6d4)' : '#1e1e30', border: 'none', borderRadius: '12px', padding: '14px', color: isConnected ? '#0a0a0f' : '#475569', fontWeight: 800, fontSize: '1rem', fontFamily: 'Orbitron, sans-serif', cursor: isConnected ? 'pointer' : 'not-allowed', letterSpacing: '0.04em', marginBottom: '6px' }}>
+            ⚡ INSTANT MATCH — ${selectedFee}
+          </button>
+          {isConnected && <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.75rem', marginTop: '0', marginBottom: '6px' }}>Get paired in 10–30 seconds</p>}
+        </>
       )}
 
       {/* CREATE ROOM + CREATE DUEL */}
@@ -631,7 +634,10 @@ export default function Lobby() {
         {loading ? (
           <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '12px', textAlign: 'center', color: '#64748b', padding: '36px', fontSize: '0.85rem' }}>Loading rooms…</div>
         ) : openRooms.length === 0 ? (
-          <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '12px', textAlign: 'center', color: '#64748b', padding: '28px', fontSize: '0.85rem' }}>No open matches — be the first to create one!</div>
+          <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '12px', textAlign: 'center', padding: '28px' }}>
+            <div style={{ color: '#e2e8f0', fontWeight: 700, fontSize: '0.9rem', marginBottom: '4px' }}>No matches yet — be the first ⚔️</div>
+            <div style={{ color: '#475569', fontSize: '0.8rem' }}>Winner takes full pot</div>
+          </div>
         ) : openRooms.map(room => (
           <div key={room.code} style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '8px', opacity: room.status === 'full' ? 0.5 : 1 }}>
             <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
