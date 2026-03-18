@@ -264,7 +264,7 @@ export default function Lobby() {
           } catch { /* ignore */ }
         }
         if (needsApprove) {
-          await writeContractAsync({ address: chain.usdt, abi: USDT_APPROVE_ABI, functionName: 'approve', args: [escrowAddr, amount], chainId: chain.id })
+          await writeContractAsync({ address: chain.usdt, abi: USDT_APPROVE_ABI, functionName: 'approve', args: [escrowAddr, amount], chainId: chain.id, gas: 100000n })
         }
       } catch { showError('Approval rejected. You must approve USDT to lock into the game contract.'); return null }
       setPayStep('paying')
@@ -272,7 +272,7 @@ export default function Lobby() {
         const roomId = getRoomId(roomCode)
         // Save before tx fires — survives MetaMask mobile redirect
         localStorage.setItem('ag_pending_deposit', JSON.stringify({ code: roomCode, address, chainId: chain.id, fee, ts: Date.now() }))
-        const txHash = await writeContractAsync({ address: escrowAddr, abi: ESCROW_ABI, functionName: 'deposit', args: [roomId, amount], chainId: chain.id })
+        const txHash = await writeContractAsync({ address: escrowAddr, abi: ESCROW_ABI, functionName: 'deposit', args: [roomId, amount], chainId: chain.id, gas: 300000n })
         localStorage.removeItem('ag_pending_deposit')
         return txHash
       } catch { localStorage.removeItem('ag_pending_deposit'); showError('Deposit failed. Your USDT was not locked — please try again.'); return null }
