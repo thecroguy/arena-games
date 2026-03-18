@@ -251,56 +251,7 @@ const FAKE_GAMES_SVR   = ['Math Arena','Pattern Memory','Reaction Grid','Highest
 const FAKE_ENTRIES_SVR = ['$0.50','$1','$2','$5']
 const FAKE_POTS_SVR    = { '$0.50':'0.85','$1':'1.70','$2':'3.40','$5':'8.50' }
 
-// 5000-item chat pool: base messages shuffled repeatedly to fill
-const _FCHAT_BASE = [
-  'anyone want to play against me?','gg wp','just won a match, feeling good',
-  'who wants to duel for $2?','math arena is too easy lol','pattern memory is actually hard',
-  'reaction grid is brutal','lets go 🔥','highest unique is hard when smart ppl here',
-  'lost twice :(','rematch anyone?','this platform is underrated','good game everyone',
-  'duel open, anyone?','who tryna play right now','nice win','first time here',
-  'quick match anyone?',"love liar's dice",'anyone on polygon?',
-  'down for a game','solid platform ngl','cant believe i won that','on a streak rn',
-  'nice round everyone','wp all','$1 match anyone?',
-  'pattern memory is wild','just lost $2, need a rematch','reaction grid too fast for me',
-  'highest unique is my best game','math arena is pure speed','anyone tried liar dice?',
-  'gg no re','close match that was',
-  "who's on a win streak?",'just joined the platform','is escrow instant?',
-  'polygon fees are low, nice','$5 duel open if anyone brave','that liar dice bluff was perfect',
-  'wp, good game','anyone playing highest unique?','pattern memory round 8 is insane',
-  'need one more player','nice one','that was close','anyone up for $0.50?',
-  // Money-focused
-  'just cashed out $5, straight to my wallet no issues',
-  'up $8 today from math arena matches',
-  'won 3 in a row, pocketed like $12 total',
-  'liar dice just made me $4, easiest game on here',
-  'quick $2 duel win, love this platform',
-  'deposited $5 yesterday, now at $18, not bad',
-  'won $10 today playing pattern memory',
-  'just claimed my winnings, instant payout',
-  'been making like $5-10 a day on here',
-  'won my first match, $0.85 in my wallet now lol',
-  'nothing better than beating someone and taking their entry fee',
-  'duel link open, $2 pot, anyone want it?',
-  'just beat someone in math arena, easy $1.70',
-  'up $6 since this morning, slow grind',
-  'winning streak rn, do not challenge me lol',
-  // Matchmaking honest pain (makes it feel real, not fake)
-  'auto match takes forever when platform is quiet, just use duels',
-  'tip: create a duel and share link, way faster than waiting for auto match',
-  'auto matchmaking is slow rn, not enough players online yet',
-  'just use the duel link bro, share it and your friend joins instantly',
-  'platform is early so sometimes gotta wait for auto match, duel links are better',
-]
-const FAKE_CHAT_SVR = (() => {
-  const out = []
-  while (out.length < 5000) out.push(..._FCHAT_BASE)
-  out.length = 5000
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]]
-  }
-  return out
-})()
+// (FAKE_CHAT_SVR removed — replaced by _genChat() word-bank generator below)
 
 
 function _fakePick(arr) { return arr[Math.floor(Math.random() * arr.length)] }
@@ -393,6 +344,14 @@ const _WB = {
   tryWord:  ['try it', 'play a match', 'give it a shot', 'jump in'],
   noKyc:    ['kyc', 'waiting period', 'manual approval', 'identity check'],
   needWord: ['polygon USDT', 'metamask', 'USDT on polygon', 'a polygon wallet'],
+  winReact: ['won', 'took', 'got the W on', 'cleaned up in', 'won back-to-back in'],
+  lossReact:['lost', 'took an L in', 'got cooked in', 'lost that one in'],
+  gameAdj:  ['close', 'quick', 'solid', 'intense', 'wild', 'brutal', 'clean', 'crazy'],
+  whoQ:     ['anyone', 'who', 'anyone here'],
+  smallAmt: ['$0.50', '$1', '$2', '$3', '$5'],
+  streakW:  ['win streak', '3-game streak', 'hot streak', 'run rn'],
+  grindLen: ['all day', 'for hours', 'since this morning', 'all night', 'the last 2 hours'],
+  backReact:['ready to play', 'looking for a match', "who's next", 'who wants a game'],
 }
 
 // Generators — called each time so every message is uniquely assembled from the banks
@@ -452,15 +411,81 @@ function _genFollowup() {
   }
 }
 
+// General chat generator — every call assembles a unique sentence from word banks
+function _genChat() {
+  const w = _WB, pick = _fakePick
+  const g = () => pick(w.games)
+  const reactions = ['gg','wp','gg wp','nice','well played','gj','nice one','good game']
+  const t = Math.floor(Math.random() * 38)
+  switch (t) {
+    case 0:  return `${pick(['anyone','who'])} want to ${pick(['play','duel','match up'])} for ${pick(w.smallAmt)}?`
+    case 1:  return pick(reactions)
+    case 2:  return `just ${pick(w.winReact)} a ${g()} match`
+    case 3:  return `${pick(w.lossReact)} ${g()}, need a rematch`
+    case 4:  return `${g()} is ${pick(['too easy','actually hard','my best game','brutal','kinda fun','hard to master','pure luck','a mind game'])}`
+    case 5:  return `${pick(w.smallAmt)} duel open, ${pick(['anyone?','who wants it?','come get it','whos in?'])}`
+    case 6:  return `on a ${pick(w.streakW)} ${pick(['lol','ngl','fr','not gonna lie'])}`
+    case 7:  return `that was ${pick(['close','a good match','way too quick','intense','one-sided lol','actually fun'])}`
+    case 8:  return `just joined, ${pick(['first time here','looks interesting','excited to try this','how does this work'])}`
+    case 9:  return `${g()} is my ${pick(['best','worst','favorite','main','go-to'])} game`
+    case 10: return `just ${pick(w.cashVerb)} ${pick(w.amounts)}, ${pick(w.speed)}`
+    case 11: return `up ${pick(w.amounts)} today from ${g()} matches`
+    case 12: return `${pick(w.smallAmt)} match anyone?`
+    case 13: return `need ${pick(['1 more player','someone to duel','a game','an opponent','a warm-up match'])}`
+    case 14: return `${pick(['this platform','arena games','this site'])} is ${pick(['underrated','actually solid','pretty good ngl','kinda addictive','slept on'])}`
+    case 15: return `lost ${pick(w.amounts)} 😭 ${pick(['gg though','wp to them','rematch when?','they were good','learned something'])}`
+    case 16: return `${pick(['polygon fees are','gas on here is','fees are'])} ${pick(['low','basically nothing','negligible','like pennies','cents max'])}, love it`
+    case 17: return `${g()} round ${pick(['3','4','5','6','7','8'])} is ${pick(['insane','brutal','wild','no joke','not easy'])}`
+    case 18: return `${pick(['anyone','who'])} playing ${g()} rn?`
+    case 19: return `${pick(['tip:','pro tip:','fyi:'])} ${pick(['duels are faster than auto match','create a duel and share the link','polygon USDT is what you need to start','duel links are the move'])}`
+    case 20: return `${pick(['just won 3 in a row','won back to back','on a run rn'])}, ${pick(['do not challenge me lol','feeling unstoppable','riding it while it lasts','someone stop me'])}`
+    case 21: return `${g()} is ${pick(['pure speed','a mind game','all reaction time','pure logic','skill-based fr'])}`
+    case 22: return `${pick(['rematch?','wanna run it back?','one more?','again?','round 2?'])}`
+    case 23: return `been grinding ${pick(w.grindLen)}, ${pick(['worth it','tired now lol','up overall though','decent session'])}`
+    case 24: return `who has the highest win rate here ${pick(['lol','fr','genuinely curious','asking for a friend'])}`
+    case 25: return `quick match anyone? ${pick(['i have 5 mins','quick one','wont take long','be fast'])}`
+    case 26: return `${pick(['lost','took an L in'])} ${g()} but ${pick(['learned the strat','gonna win next time','still fun','gg to them','respect though'])}`
+    case 27: return `${pick(['auto match','matchmaking'])} is ${pick(['slow rn','kind of slow','quiet right now'])}, just ${pick(['use duels','create a duel','share a duel link'])}`
+    case 28: return `duel open — ${g()}, ${pick(w.smallAmt)} pot`
+    case 29: return `${pick(['won','lost'])} a ${pick(w.gameAdj)} one in ${g()}, ${pick(['great game','gg','good match','wp to them','was fun'])}`
+    case 30: return `${pick(['ngl','honestly','not gonna lie'])} ${g()} is ${pick(['addicting','actually fun','better than i expected','my go-to now','worth trying'])}`
+    case 31: return `${pick(['liar dice bluff','pattern memory round 8','reaction grid wave 5','math arena speed round'])} is ${pick(['no joke','actually insane','wild','so hard','unreal'])}`
+    case 32: return `${pick(['first win today','finally won one','got one finally'])}, ${pick(["let's go","that's what im talking about",'feeling good','took long enough lol'])}`
+    case 33: return `${pick(w.amounts)} pot, ${g()}, ${pick(['who wants it?','anyone?','open now','come play'])}`
+    case 34: return `${pick(['back','just back','im back'])}, ${pick(w.backReact)}`
+    case 35: return `${pick(['just beat someone in','won a','finished a'])} ${g()} ${pick(['match','duel','game'])}, easy ${pick(w.amounts)}`
+    case 36: return `${pick(['deposited','started with'])} ${pick(w.smallAmt)}, now at ${pick(w.amounts)}, ${pick(['not bad','decent run','slow grind','slow and steady'])}`
+    default: return `${pick(['nothing better than','best feeling is'])} ${pick(['winning and getting paid instantly','beating someone and claiming the pot','winning a tight match'])}`
+  }
+}
+
+// Recent-message dedup: prevent same text appearing twice in quick succession from different users
+const _recentChatSet = new Set()
+function _genUniqueChat() {
+  let msg, tries = 0
+  do { msg = _genChat(); tries++ } while (_recentChatSet.has(msg) && tries < 8)
+  _recentChatSet.add(msg)
+  if (_recentChatSet.size > 15) _recentChatSet.delete(_recentChatSet.values().next().value)
+  return msg
+}
+
+// Same dedup for reply threads so player1 and player2 don't say the same thing
+const _recentReplySet = new Set()
+function _genUniqueReply() {
+  let msg, tries = 0
+  do { msg = _genReply(); tries++ } while (_recentReplySet.has(msg) && tries < 8)
+  _recentReplySet.add(msg)
+  if (_recentReplySet.size > 10) _recentReplySet.delete(_recentReplySet.values().next().value)
+  return msg
+}
+
 // Activity template rotation deck — cycles won→joined→opened→created, never same twice in a row
 const _deckActivity = _makeShuffleDeck(['won','joined','opened','created'])
-// Regular chat shuffle deck — 5000 items, each used once per cycle
-const _deckChat     = _makeShuffleDeck(FAKE_CHAT_SVR)
 
 function _fakeSendLegitReply(lurkerName = null, extraDelay = 0) {
   setTimeout(() => {
     const player1 = _pickUser(FAKE_PLAYERS_SVR, lurkerName)
-    const entry = { username: player1, message: _genReply(), ts: Date.now() }
+    const entry = { username: player1, message: _genUniqueReply(), ts: Date.now() }
     globalChat.push(entry)
     if (globalChat.length > 50) globalChat.shift()
     io.emit('chat:message', entry)
@@ -468,7 +493,7 @@ function _fakeSendLegitReply(lurkerName = null, extraDelay = 0) {
     if (Math.random() < 0.4) {
       setTimeout(() => {
         const player2 = _pickUser(FAKE_PLAYERS_SVR, lurkerName, player1)
-        const entry2 = { username: player2, message: _genReply(), ts: Date.now() }
+        const entry2 = { username: player2, message: _genUniqueReply(), ts: Date.now() }
         globalChat.push(entry2)
         if (globalChat.length > 50) globalChat.shift()
         io.emit('chat:message', entry2)
@@ -500,8 +525,7 @@ function _fakePushChat() {
     setTimeout(_fakePushChat, _fakeRand(60000, 150000))
     return
   }
-  const line = _deckChat.pick()  // cycles through all 5000 messages before any repeats
-  const entry = { username: _fakePick(FAKE_PLAYERS_SVR), message: line, ts: Date.now() }
+  const entry = { username: _fakePick(FAKE_PLAYERS_SVR), message: _genUniqueChat(), ts: Date.now() }
   globalChat.push(entry)
   if (globalChat.length > 50) globalChat.shift()
   io.emit('chat:message', entry)
@@ -525,12 +549,8 @@ function _fakePushChat() {
 
 // Seed initial fake chat (6 messages at staggered past timestamps)
 ;(function seedFakeChat() {
-  let lastMsg = ''
   for (let i = 5; i >= 0; i--) {
-    let line = _fakePick(FAKE_CHAT_SVR)
-    while (line === lastMsg) line = _fakePick(FAKE_CHAT_SVR)
-    lastMsg = line
-    globalChat.push({ username: _fakePick(FAKE_PLAYERS_SVR), message: line, ts: Date.now() - i * _fakeRand(40000, 180000) })
+    globalChat.push({ username: _fakePick(FAKE_PLAYERS_SVR), message: _genUniqueChat(), ts: Date.now() - i * _fakeRand(40000, 180000) })
   }
 })()
 
@@ -1581,8 +1601,8 @@ io.on('connection', (socket) => {
     if (!trimmed) return
     const name = (username || 'Anonymous').slice(0, 30)
     const entry = { username: name, message: trimmed, ts: Date.now() }
-    globalChat.unshift(entry)
-    if (globalChat.length > 50) globalChat.pop()
+    globalChat.push(entry)
+    if (globalChat.length > 50) globalChat.shift()
     io.emit('chat:message', entry)
     // ── FAKE DATA: auto-reply if real user asks about legitimacy/payouts ──────
     const lower = trimmed.toLowerCase()
@@ -1591,7 +1611,7 @@ io.on('connection', (socket) => {
   })
 
   socket.on('chat:history', (cb) => {
-    if (typeof cb === 'function') cb(globalChat.slice(0, 50).reverse())
+    if (typeof cb === 'function') cb(globalChat.slice(-50))
   })
 
   socket.on('activity:get', (cb) => {
