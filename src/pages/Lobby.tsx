@@ -158,6 +158,19 @@ export default function Lobby() {
       .then(r => r.json())
       .then(data => { setActiveRoom(data.code || '') })
       .catch(() => {})
+
+    // Recover pending deposit that survived a MetaMask mobile redirect
+    try {
+      const pending = JSON.parse(localStorage.getItem('ag_pending_deposit') || 'null')
+      if (pending && pending.address?.toLowerCase() === address.toLowerCase() && Date.now() - pending.ts < 30 * 60 * 1000) {
+        fetch(`${SERVER_URL}/api/report-deposit`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address, room_code: pending.code, chain_id: pending.chainId, amount_usdt: pending.fee }),
+        }).then(() => localStorage.removeItem('ag_pending_deposit')).catch(() => {})
+      } else if (pending) {
+        localStorage.removeItem('ag_pending_deposit')
+      }
+    } catch { localStorage.removeItem('ag_pending_deposit') }
   }, [address])
 
   async function getAuthSig(): Promise<string | null> {
@@ -257,8 +270,12 @@ export default function Lobby() {
       setPayStep('paying')
       try {
         const roomId = getRoomId(roomCode)
-        return await writeContractAsync({ address: escrowAddr, abi: ESCROW_ABI, functionName: 'deposit', args: [roomId, amount], chainId: chain.id })
-      } catch { showError('Deposit failed. Your USDT was not locked — please try again.'); return null }
+        // Save before tx fires — survives MetaMask mobile redirect
+        localStorage.setItem('ag_pending_deposit', JSON.stringify({ code: roomCode, address, chainId: chain.id, fee, ts: Date.now() }))
+        const txHash = await writeContractAsync({ address: escrowAddr, abi: ESCROW_ABI, functionName: 'deposit', args: [roomId, amount], chainId: chain.id })
+        localStorage.removeItem('ag_pending_deposit')
+        return txHash
+      } catch { localStorage.removeItem('ag_pending_deposit'); showError('Deposit failed. Your USDT was not locked — please try again.'); return null }
     } else {
       if (!HOUSE_WALLET) { showError('Payments are not configured for this network yet.'); return null }
       setPayStep('paying')
