@@ -106,10 +106,6 @@ export default function Profile() {
   const [claimingRoom, setClaimingRoom]     = useState<string | null>(null)
   const [now, setNow]                       = useState(Date.now())
 
-  // On-chain deposit check (scans room history stored in localStorage)
-  type OnChainDeposit = { code: string; chainId: number; escrow: `0x${string}`; roomId: `0x${string}`; createdAt: number; settled: boolean }
-  const [onChainDeposits, setOnChainDeposits] = useState<OnChainDeposit[]>([])
-  const [scanningChain, setScanningChain]     = useState(false)
   const [manualRoomCode, setManualRoomCode]   = useState('')
   const [manualScanning, setManualScanning]   = useState(false)
 
@@ -230,45 +226,6 @@ export default function Profile() {
     return { deposit: null, reason: 'not_found' }
   }
 
-  // Server is source of truth, with localStorage fallback for rooms server may have missed
-  const scanOnChain = useCallback(async () => {
-    if (!address || !publicClient) return
-    try {
-      setScanningChain(true)
-      const r = await fetch(`${SERVER_URL}/api/room-history/${address}`)
-      const serverRooms: { code: string; chainId: number }[] = r.ok ? await r.json() : []
-      // Also include any rooms tracked locally (persisted when deposit tx confirms)
-      // This ensures Profile finds deposits even if server was offline at deposit time
-      const localDeps: Record<string, { chainId: number; address?: string }> = JSON.parse(localStorage.getItem('ag_deposits') || '{}')
-      const localRooms = Object.keys(localDeps)
-        .filter(code => !localDeps[code].address || localDeps[code].address === address.toLowerCase())
-        .map(code => ({ code, chainId: localDeps[code].chainId || 137 }))
-      const allRooms = [...serverRooms]
-      for (const lr of localRooms) { if (!allRooms.some(sr => sr.code === lr.code)) allRooms.push(lr) }
-      if (allRooms.length === 0) { setScanningChain(false); return }
-      const found: OnChainDeposit[] = []
-      for (const { code, chainId: rChainId } of allRooms) {
-        const escrow = getEscrowAddress(rChainId)
-        if (!escrow) continue
-        try {
-          const roomId = getRoomId(code)
-          const [deposited, info] = await Promise.all([
-            publicClient.readContract({ address: escrow, abi: ESCROW_ABI, functionName: 'hasDeposited', args: [roomId, address] }),
-            publicClient.readContract({ address: escrow, abi: ESCROW_ABI, functionName: 'roomInfo', args: [roomId] }),
-          ])
-          if (deposited) {
-            const [, , settled] = info as [bigint, bigint, boolean, string[]]
-            if (!settled) found.push({ code, chainId: rChainId, escrow, roomId, createdAt: 0, settled })
-          }
-        } catch { /* skip */ }
-      }
-      setOnChainDeposits(found)
-    } catch { /* ignore */ } finally {
-      setScanningChain(false)
-    }
-  }, [address, publicClient])
-
-  useEffect(() => { scanOnChain() }, [scanOnChain])
 
   // Tick every 30s so countdown updates
   useEffect(() => {
@@ -720,66 +677,10 @@ export default function Profile() {
         </div>
       )}
 
-      {/* On-chain deposits found in room history but not in server records */}
-      {onChainDeposits.filter(d => !stuckDeposits.some(s => s.room_code === d.code)).length > 0 && (
-        <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '16px', padding: '20px 24px', marginBottom: '24px' }}>
-          <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.7rem', color: '#ef4444', letterSpacing: '0.1em', marginBottom: '4px' }}>
-            🔍 FOUND ON-CHAIN (not yet in server records)
-          </p>
-          <p style={{ color: '#64748b', fontSize: '0.75rem', marginBottom: '14px' }}>These deposits exist on the blockchain but the server has no record. Click to get your refund — you may need to sign once to verify your wallet.</p>
-          {onChainDeposits.filter(d => !stuckDeposits.some(s => s.room_code === d.code)).map(d => {
-            const isClaiming = claimingRoom === d.code
-            return (
-              <div key={d.code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', padding: '12px 0', borderBottom: '1px solid rgba(239,68,68,0.1)' }}>
-                <div>
-                  <p style={{ color: '#e2e8f0', fontWeight: 700, fontFamily: 'Orbitron, sans-serif', fontSize: '0.85rem' }}>Room {d.code}</p>
-                  <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '3px' }}>Chain ID {d.chainId} · Contract {d.escrow.slice(0, 10)}…</p>
-                </div>
-                <button onClick={async () => {
-                  setClaimingRoom(d.code)
-                  try {
-                    if (chainId !== d.chainId) await switchChainAsync({ chainId: d.chainId })
-                    // Try to get a server-signed refund first (instant, no 24h wait)
-                    let refundSig: string | null = null
-                    try {
-                      const authSig = await signMessageAsync({ message: `Arena Games: ${address?.toLowerCase()}` })
-                      const r = await fetch(`${SERVER_URL}/api/request-refund-sig`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ roomCode: d.code, address, chainId: d.chainId, escrowAddress: d.escrow, authSig }),
-                      })
-                      if (r.ok) { const data = await r.json(); refundSig = data.refundSig }
-                    } catch { /* fall through to emergency */ }
-
-                    if (refundSig) {
-                      await writeContractAsync({ address: d.escrow, abi: CLAIM_REFUND_ABI, functionName: 'claimRefund', args: [d.roomId, refundSig as `0x${string}`], chainId: d.chainId, gas: 300000n })
-                    } else {
-                      await writeContractAsync({ address: d.escrow, abi: EMERGENCY_REFUND_ABI, functionName: 'emergencyRefund', args: [d.roomId], chainId: d.chainId, gas: 300000n })
-                    }
-                    fetch(`${SERVER_URL}/api/mark-refund-claimed`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roomCode: d.code, address }) }).catch(() => {})
-                    setOnChainDeposits(prev => prev.filter(x => x.code !== d.code))
-                    try { const deps = JSON.parse(localStorage.getItem('ag_deposits') || '{}'); delete deps[d.code]; localStorage.setItem('ag_deposits', JSON.stringify(deps)) } catch {}
-                  } catch (e: unknown) {
-                    const msg = e instanceof Error ? e.message : String(e)
-                    if (msg.includes('TooEarlyForEmergency')) setError('Too early — wait 24h after deposit.')
-                    else if (!msg.includes('rejected') && !msg.includes('denied')) setError('Claim failed. Try again.')
-                  } finally { setClaimingRoom(null) }
-                }} disabled={isClaiming}
-                  style={{ background: isClaiming ? '#1e1e30' : 'linear-gradient(135deg,#ef4444,#f59e0b)', border: 'none', borderRadius: '8px', padding: '8px 18px', color: isClaiming ? '#475569' : '#0a0a0f', fontWeight: 700, fontSize: '0.82rem', cursor: isClaiming ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
-                  {isClaiming ? 'Claiming…' : 'Get Refund →'}
-                </button>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {scanningChain && onChainDeposits.length === 0 && (
-        <div style={{ color: '#475569', fontSize: '0.78rem', textAlign: 'center', marginBottom: '16px' }}>Scanning blockchain for deposits…</div>
-      )}
 
       {/* Manual room code recovery */}
       <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '12px', padding: '14px 16px', marginBottom: '24px' }}>
-        <p style={{ color: '#475569', fontSize: '0.75rem', marginBottom: '8px' }}>Missing a deposit? Enter the room code — or your recent rooms are scanned automatically above.</p>
+        <p style={{ color: '#475569', fontSize: '0.75rem', marginBottom: '8px' }}>Missing a deposit? Enter the room code to find and recover your funds.</p>
         <div style={{ display: 'flex', gap: '8px' }}>
           <input value={manualRoomCode} onChange={e => setManualRoomCode(e.target.value.toUpperCase())} placeholder="ROOM CODE" maxLength={6}
             style={{ flex: 1, background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: '8px', padding: '8px 12px', color: '#e2e8f0', fontFamily: 'Orbitron, sans-serif', fontSize: '0.85rem', letterSpacing: '0.12em', outline: 'none' }} />
