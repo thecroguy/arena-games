@@ -695,6 +695,8 @@ export default function Game() {
     socket.on('game:over', (data: { winner: string; pot: string; payoutMode?: string; claimSig?: string; scores: Array<{ address: string; score: number; rank: number }> }) => {
       if (timerRef.current) clearInterval(timerRef.current)
       setPhase('finished'); setGameOver(data)
+      // Game over = room is settled — remove from stuck deposit scan so Profile doesn't flag it
+      if (roomCode) { try { const d = JSON.parse(localStorage.getItem('ag_deposits') || '{}'); delete d[roomCode]; localStorage.setItem('ag_deposits', JSON.stringify(d)) } catch {} }
       // Save claim sig to localStorage — Profile will show the claim button even if user navigates away before claiming
       if (data.payoutMode === 'escrow' && data.claimSig && data.winner?.toLowerCase() === myAddr && roomCode) {
         try {
@@ -819,6 +821,8 @@ export default function Game() {
         args: [getRoomId(roomCode ?? ''), refundSig as `0x${string}`],
       })
       setClaimState('done')
+      // Remove from stuck deposit scan — refund is now claimed on-chain
+      if (roomCode) { try { const d = JSON.parse(localStorage.getItem('ag_deposits') || '{}'); delete d[roomCode]; localStorage.setItem('ag_deposits', JSON.stringify(d)) } catch {} }
     } catch {
       setClaimState('error')
     }
