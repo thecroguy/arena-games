@@ -3,6 +3,8 @@ import { useAccount } from 'wagmi'
 import { fetchLeaderboard, fetchUsernames, type LeaderboardEntry } from '../utils/supabase'
 import { getAvatarUrl, getAvatarColor } from '../utils/avatar'
 import { getUsername } from '../utils/profile'
+// ── FAKE DATA (remove next line when real users grow) ─────────────────────────
+import { getFakeLeaderboard, FAKE_LEADERBOARD_NAMES } from '../utils/fakeData'
 
 type Period = 'alltime' | 'weekly' | 'daily'
 
@@ -17,7 +19,8 @@ export default function Leaderboard() {
   const { address } = useAccount()
 
   function displayName(addr: string) {
-    return usernames[addr.toLowerCase()] || getUsername(addr)
+    // ── FAKE DATA: check fake names first (remove FAKE_LEADERBOARD_NAMES lookup when real users grow) ──
+    return FAKE_LEADERBOARD_NAMES[addr] ?? usernames[addr.toLowerCase()] ?? getUsername(addr)
   }
 
   useEffect(() => {
@@ -25,11 +28,22 @@ export default function Leaderboard() {
     setError('')
     fetchLeaderboard(period)
       .then(async rows => {
-        setData(rows)
+        // ── FAKE DATA: merge real + fake, re-rank by wins (remove fake merge when real users grow) ──
+        const fake = getFakeLeaderboard()
+        const merged = [...rows, ...fake]
+          .sort((a, b) => b.wins - a.wins)
+          .map((e, i) => ({ ...e, rank: i + 1 }))
+        setData(merged)
         const names = await fetchUsernames(rows.map(r => r.player_address))
         setUsernames(names)
+        // ── END FAKE DATA ──
       })
-      .catch(() => setError('Leaderboard unavailable — backend not configured yet'))
+      .catch(() => {
+        // ── FAKE DATA: show fake data even if backend unavailable (remove catch body when real users grow) ──
+        const fake = getFakeLeaderboard()
+        setData(fake)
+        // ── END FAKE DATA ──
+      })
       .finally(() => setLoading(false))
   }, [period])
 

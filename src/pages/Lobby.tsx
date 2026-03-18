@@ -4,6 +4,8 @@ import { useAccount, useWriteContract, useChainId, useSwitchChain, useReadContra
 import { parseUnits, formatUnits } from 'viem'
 import { connectSocket } from '../utils/socket'
 import { getUsername } from '../utils/profile'
+// ── FAKE DATA (remove next line when real users grow) ─────────────────────────
+import { useFakeOnlineCount, useFakeActivity, useFakeChat } from '../utils/fakeData'
 import { SUPPORTED_CHAINS, USDT_ABI, getChain, type SupportedChain } from '../utils/chains'
 import { getEscrowAddress, getRoomId, ESCROW_ABI, USDT_APPROVE_ABI } from '../utils/escrow'
 
@@ -87,6 +89,13 @@ export default function Lobby() {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
   const [onlineCount, setOnlineCount]       = useState(0)
   const [unreadChat, setUnreadChat]         = useState(0)
+
+  // ── FAKE DATA hooks (remove these 3 lines when real users grow) ─────────────
+  const fakeOnline = useFakeOnlineCount()
+  useFakeActivity(setActivityFeed)
+  useFakeChat(setGlobalChat)
+  const displayOnlineCount = onlineCount + fakeOnline
+  // ── END FAKE DATA ────────────────────────────────────────────────────────────
 
   const chatEndRef  = useRef<HTMLDivElement>(null)
   const errorTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -706,7 +715,7 @@ export default function Lobby() {
           <div onClick={() => { setMobileDrawerOpen(!mobileDrawerOpen); if (!mobileDrawerOpen) setUnreadChat(0) }}
             style={{ padding: '0 16px', height: '44px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', flexShrink: 0, borderBottom: mobileDrawerOpen ? '1px solid #1e1e30' : 'none' }}>
             <div style={{ width: '36px', height: '4px', background: '#2d2d44', borderRadius: '2px', flexShrink: 0 }} />
-            <span style={{ color: '#22c55e', fontSize: '0.78rem', fontWeight: 700 }}>🟢 {onlineCount} online</span>
+            <span style={{ color: '#22c55e', fontSize: '0.78rem', fontWeight: 700 }}>🟢 {displayOnlineCount} online</span>
             {unreadChat > 0 && !mobileDrawerOpen && (
               <span style={{ background: '#7c3aed', color: '#fff', borderRadius: '10px', padding: '1px 8px', fontSize: '0.7rem', fontWeight: 700 }}>
                 💬 {unreadChat} new
@@ -732,7 +741,7 @@ export default function Lobby() {
               <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', height: '100%', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 {/* Panel header */}
                 <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', borderBottom: '1px solid #1e1e30', flexShrink: 0 }}>
-                  <span style={{ color: '#22c55e', fontSize: '0.78rem', fontWeight: 700 }}>🟢 {onlineCount} online</span>
+                  <span style={{ color: '#22c55e', fontSize: '0.78rem', fontWeight: 700 }}>🟢 {displayOnlineCount} online</span>
                   <button onClick={() => setPanelOpen(false)}
                     style={{ marginLeft: 'auto', background: 'none', border: '1px solid #1e1e30', borderRadius: '6px', padding: '3px 8px', color: '#475569', fontSize: '0.75rem', cursor: 'pointer' }}>
                     ◀
@@ -747,7 +756,7 @@ export default function Lobby() {
               <div onClick={() => setPanelOpen(true)}
                 style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '12px', width: '44px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0', gap: '10px' }}>
                 <span style={{ fontSize: '0.75rem' }}>🟢</span>
-                <span style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 700 }}>{onlineCount}</span>
+                <span style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 700 }}>{displayOnlineCount}</span>
                 <span style={{ color: '#64748b', fontSize: '0.75rem' }}>💬</span>
                 {unreadChat > 0 && (
                   <span style={{ background: '#7c3aed', color: '#fff', borderRadius: '10px', padding: '1px 5px', fontSize: '0.62rem', fontWeight: 700, minWidth: '18px', textAlign: 'center' }}>
