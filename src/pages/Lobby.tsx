@@ -4,8 +4,6 @@ import { useAccount, useWriteContract, useChainId, useSwitchChain, useReadContra
 import { parseUnits, formatUnits } from 'viem'
 import { connectSocket } from '../utils/socket'
 import { getUsername } from '../utils/profile'
-// ── FAKE DATA (remove next line when real users grow) ─────────────────────────
-import { useFakeOnlineCount } from '../utils/fakeData'
 import { SUPPORTED_CHAINS, USDT_ABI, getChain, type SupportedChain } from '../utils/chains'
 import { getEscrowAddress, getRoomId, ESCROW_ABI, USDT_APPROVE_ABI } from '../utils/escrow'
 
@@ -90,10 +88,8 @@ export default function Lobby() {
   const [onlineCount, setOnlineCount]       = useState(0)
   const [unreadChat, setUnreadChat]         = useState(0)
 
-  // ── FAKE DATA (remove these 2 lines when real users grow) ───────────────────
-  const fakeOnline = useFakeOnlineCount()
-  const displayOnlineCount = onlineCount + fakeOnline
-  // ── END FAKE DATA ────────────────────────────────────────────────────────────
+  // Online count comes from server (already includes fake offset server-side)
+  const displayOnlineCount = onlineCount
 
   const chatEndRef  = useRef<HTMLDivElement>(null)
   const errorTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)

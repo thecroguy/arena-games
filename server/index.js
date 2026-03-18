@@ -218,19 +218,27 @@ const _FADJS  = ['Brave','Swift','Dark','Iron','Bold','Sly','Wild','Frost','Stor
 const _FNOUNS = ['Fox','Wolf','Bear','Hawk','Lion','Tiger','Shark','Eagle','Viper','Dragon',
                  'Phoenix','Panda','Ninja','Rider','Coder','Sniper','Ranger','Hunter','Wizard','Knight',
                  'Pirate','Bandit','Nomad','Titan','Blade','Drifter','Stalker','Phantom','Ghost','Maverick']
-// Cycle: adjective outermost so all 30 adjs are evenly represented every 30 names
+// Generate 1800 unique names cycling adj×noun×num evenly, then shuffle so picks feel random
 const FAKE_USERS_SVR = (() => {
   const out = []
-  const nums = [10, 37]  // two number suffixes gives 30×30×2 = 1800 ≥ 1000
-  for (const num of nums) {
-    for (let n = 0; n < _FNOUNS.length && out.length < 1000; n++) {
-      for (let a = 0; a < _FADJS.length && out.length < 1000; a++) {
+  for (const num of [10, 37]) {
+    for (let a = 0; a < _FADJS.length; a++) {
+      for (let n = 0; n < _FNOUNS.length; n++) {
         out.push(`${_FADJS[a]}${_FNOUNS[n]}${String(num).padStart(2,'0')}`)
       }
     }
   }
+  // Fisher-Yates shuffle so random picks don't cluster by adjective
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]]
+  }
   return out
 })()
+// Players: appear in activity + give legit replies (never ask doubt questions)
+// Lurkers: only ask questions in chat, never appear in activity
+const FAKE_PLAYERS_SVR = FAKE_USERS_SVR.slice(0, 900)
+const FAKE_LURKERS_SVR = FAKE_USERS_SVR.slice(900)
 
 const FAKE_GAMES_SVR   = ['Math Arena','Pattern Memory','Reaction Grid','Highest Unique',"Liar's Dice"]
 const FAKE_ENTRIES_SVR = ['$0.50','$1','$2','$5']
@@ -286,7 +294,7 @@ function _fakePick(arr) { return arr[Math.floor(Math.random() * arr.length)] }
 function _fakeRand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min }
 
 function _fakePushActivity() {
-  const u = _fakePick(FAKE_USERS_SVR), g = _fakePick(FAKE_GAMES_SVR), e = _fakePick(FAKE_ENTRIES_SVR)
+  const u = _fakePick(FAKE_PLAYERS_SVR), g = _fakePick(FAKE_GAMES_SVR), e = _fakePick(FAKE_ENTRIES_SVR)
   const pot = FAKE_POTS_SVR[e]
   const msgs = [
     `🏆 ${u} won $${pot} — ${g}`,
@@ -366,14 +374,14 @@ function _fakeSendLegitReply(extraDelay = 0) {
   setTimeout(() => {
     const reply = _fakePick(_LEGIT_REPLIES)
     // sometimes a second fake user piles on with another reply
-    const entry = { username: _fakePick(FAKE_USERS_SVR), message: reply, ts: Date.now() }
+    const entry = { username: _fakePick(FAKE_PLAYERS_SVR), message: reply, ts: Date.now() }
     globalChat.push(entry)
     if (globalChat.length > 50) globalChat.shift()
     io.emit('chat:message', entry)
-    // 40% chance a second fake user also chimes in
+    // 40% chance a second fake player also chimes in
     if (Math.random() < 0.4) {
       setTimeout(() => {
-        const entry2 = { username: _fakePick(FAKE_USERS_SVR), message: _fakePick(_LEGIT_REPLIES), ts: Date.now() }
+        const entry2 = { username: _fakePick(FAKE_PLAYERS_SVR), message: _fakePick(_LEGIT_REPLIES), ts: Date.now() }
         globalChat.push(entry2)
         if (globalChat.length > 50) globalChat.shift()
         io.emit('chat:message', entry2)
@@ -385,19 +393,20 @@ function _fakeSendLegitReply(extraDelay = 0) {
 function _fakePushChat() {
   // 15% chance: fake user spontaneously asks a legitimacy question → triggers organic Q&A
   if (Math.random() < 0.15 && globalChat.length > 2) {
+    // Lurker (not a player) asks a doubt question — a player then replies
     const q = _fakePick(_LEGIT_QUESTIONS)
-    const qEntry = { username: _fakePick(FAKE_USERS_SVR), message: q, ts: Date.now() }
+    const qEntry = { username: _fakePick(FAKE_LURKERS_SVR), message: q, ts: Date.now() }
     globalChat.push(qEntry)
     if (globalChat.length > 50) globalChat.shift()
     io.emit('chat:message', qEntry)
-    _fakeSendLegitReply()  // another fake user answers
+    _fakeSendLegitReply()  // a player answers
     setTimeout(_fakePushChat, _fakeRand(60000, 150000))
     return
   }
   let line = _fakePick(FAKE_CHAT_SVR)
   while (line === _fakeLastChat) line = _fakePick(FAKE_CHAT_SVR)  // no consecutive repeat
   _fakeLastChat = line
-  const entry = { username: _fakePick(FAKE_USERS_SVR), message: line, ts: Date.now() }
+  const entry = { username: _fakePick(FAKE_PLAYERS_SVR), message: line, ts: Date.now() }
   globalChat.push(entry)
   if (globalChat.length > 50) globalChat.shift()
   io.emit('chat:message', entry)
@@ -407,7 +416,7 @@ function _fakePushChat() {
 // Seed initial fake activity (5 items at staggered past timestamps)
 ;(function seedFakeActivity() {
   for (let i = 4; i >= 0; i--) {
-    const u = _fakePick(FAKE_USERS_SVR), g = _fakePick(FAKE_GAMES_SVR), e = _fakePick(FAKE_ENTRIES_SVR)
+    const u = _fakePick(FAKE_PLAYERS_SVR), g = _fakePick(FAKE_GAMES_SVR), e = _fakePick(FAKE_ENTRIES_SVR)
     const pot = FAKE_POTS_SVR[e]
     const msgs = [
       `🏆 ${u} won $${pot} — ${g}`,
@@ -426,9 +435,21 @@ function _fakePushChat() {
     let line = _fakePick(FAKE_CHAT_SVR)
     while (line === lastMsg) line = _fakePick(FAKE_CHAT_SVR)
     lastMsg = line
-    globalChat.push({ username: _fakePick(FAKE_USERS_SVR), message: line, ts: Date.now() - i * _fakeRand(40000, 180000) })
+    globalChat.push({ username: _fakePick(FAKE_PLAYERS_SVR), message: line, ts: Date.now() - i * _fakeRand(40000, 180000) })
   }
 })()
+
+// ── Fake online count — server-side so ALL users see the same number ──────
+// Starts at a realistic base (18-32), drifts ±1-3 every 25-55s
+let _fakeOnlineOffset = _fakeRand(18, 32)
+function _driftFakeOnline() {
+  const delta = _fakeRand(-2, 3)  // slight upward bias
+  _fakeOnlineOffset = Math.max(12, Math.min(55, _fakeOnlineOffset + delta))
+  // Broadcast updated count to all connected clients
+  io.emit('online:count', io.engine.clientsCount + _fakeOnlineOffset)
+  setTimeout(_driftFakeOnline, _fakeRand(25000, 55000))
+}
+setTimeout(_driftFakeOnline, _fakeRand(25000, 55000))
 
 // Start periodic fake generators (fire after short random delay so server start isn't obvious)
 setTimeout(_fakePushActivity, _fakeRand(20000, 60000))
@@ -985,8 +1006,8 @@ async function escrowRefund(room) {
 // ── Socket events ─────────────────────────────────────────────────────────
 io.on('connection', (socket) => {
   console.log('+ connect', socket.id)
-  // Broadcast online count to all clients
-  io.emit('online:count', io.engine.clientsCount)
+  // Broadcast online count to all clients (real + server-side fake offset)
+  io.emit('online:count', io.engine.clientsCount + _fakeOnlineOffset)
 
   socket.on('rooms:list', (gameMode, cb) => {
     if (typeof cb !== 'function') return
@@ -1487,7 +1508,7 @@ io.on('connection', (socket) => {
 
   // Disconnect handling
   socket.on('disconnect', () => {
-    setTimeout(() => io.emit('online:count', io.engine.clientsCount), 100)
+    setTimeout(() => io.emit('online:count', io.engine.clientsCount + _fakeOnlineOffset), 100)
     // Clean up matchmaking queue
     const mqKey = socket.data.matchmakingKey
     if (mqKey) {
