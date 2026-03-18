@@ -72,16 +72,16 @@ function solveMath(q: Question): number {
 }
 
 function makePatternQ(round: number): Question {
-  const gridSize = round <= 3 ? 3 : 4
+  const gridSize = round >= 8 ? 6 : round >= 5 ? 5 : 4
   const total    = gridSize * gridSize
-  const patLen   = Math.min(3 + Math.floor((round - 1) / 2), gridSize === 3 ? 5 : 8)
+  const patLen   = Math.min(4 + round, Math.floor(total * 0.55))
   const indices  = Array.from({ length: total }, (_, i) => i)
   for (let i = indices.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [indices[i], indices[j]] = [indices[j], indices[i]]
   }
   const pattern = indices.slice(0, patLen).sort((a, b) => a - b)
-  return { round, total: TOTAL_BOT_ROUNDS, type: 'pattern', timeMs: 12000, gridSize, pattern, _patternAnswer: pattern.join(',') }
+  return { round, total: TOTAL_BOT_ROUNDS, type: 'pattern', timeMs: 15000, gridSize, pattern, _patternAnswer: pattern.join(',') }
 }
 
 function makeGridQ(round: number): Question {
@@ -1223,40 +1223,46 @@ export default function Game() {
 
           {/* ── PATTERN MEMORY ── */}
           {isPatternGame && (() => {
-            const gs = question.gridSize ?? 3
+            const gs = question.gridSize ?? 4
             const pat = question.pattern ?? []
             const canClick = phase === 'playing' && !patternVisible && !myPlayer?.answered
+            const cellSize = gs >= 6 ? 52 : gs === 5 ? 62 : 72
+            const gap = gs >= 6 ? 6 : 8
             return (
               <>
                 <p style={{ color: '#64748b', fontSize: '0.78rem', letterSpacing: '0.1em', fontFamily: 'Orbitron, sans-serif', marginBottom: '16px' }}>
-                  {phase === 'round_end' ? 'ROUND OVER' : patternVisible ? 'MEMORIZE THE TILES!' : myPlayer?.answered ? 'SUBMITTED' : `TAP THE TILES YOU SAW (${selectedTiles.length}/${pat.length})`}
+                  {phase === 'round_end' ? 'ROUND OVER' : patternVisible
+                    ? <span style={{ color: '#a855f7', fontWeight: 700 }}>MEMORIZE {pat.length} TILES!</span>
+                    : myPlayer?.answered ? 'SUBMITTED'
+                    : <span>{selectedTiles.length} / {pat.length} selected</span>}
                 </p>
-                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${gs}, 1fr)`, gap: '8px', maxWidth: `${gs * 76}px`, margin: '0 auto 20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${gs}, ${cellSize}px)`, gap: `${gap}px`, margin: '0 auto 20px', width: 'fit-content' }}>
                   {Array.from({ length: gs * gs }, (_, i) => {
                     const inPat = pat.includes(i)
                     const inSel = selectedTiles.includes(i)
-                    let bg = '#1e1e30', border = '1px solid #2a2a40', shadow = 'none'
+                    let bg = '#151525', border = '1px solid #1e1e35', shadow = 'none', scale = '1'
                     if (phase === 'round_end') {
-                      if (inPat && inSel)  { bg = 'rgba(34,197,94,0.35)';  border = '2px solid #22c55e' }
-                      else if (inPat)      { bg = 'rgba(168,85,247,0.45)'; border = '2px solid #a855f7' }
-                      else if (inSel)      { bg = 'rgba(239,68,68,0.35)';  border = '2px solid #ef4444' }
+                      if (inPat && inSel)  { bg = 'rgba(34,197,94,0.4)';   border = '2px solid #22c55e'; shadow = '0 0 10px rgba(34,197,94,0.4)' }
+                      else if (inPat)      { bg = 'rgba(168,85,247,0.5)';  border = '2px solid #a855f7'; shadow = '0 0 10px rgba(168,85,247,0.4)' }
+                      else if (inSel)      { bg = 'rgba(239,68,68,0.4)';   border = '2px solid #ef4444' }
                     } else if (patternVisible) {
-                      if (inPat) { bg = 'rgba(168,85,247,0.85)'; border = '2px solid #a855f7'; shadow = '0 0 18px rgba(168,85,247,0.7)' }
+                      if (inPat) { bg = 'linear-gradient(135deg,#a855f7,#7c3aed)'; border = '2px solid #c084fc'; shadow = '0 0 22px rgba(168,85,247,0.9)'; scale = '1.06' }
                     } else {
-                      if (inSel) { bg = 'rgba(34,197,94,0.35)'; border = '2px solid #22c55e' }
+                      if (inSel) { bg = 'rgba(34,197,94,0.4)'; border = '2px solid #22c55e'; shadow = '0 0 10px rgba(34,197,94,0.3)' }
+                      else if (canClick) { bg = '#1a1a2e' }
                     }
                     return (
                       <button key={i}
                         onClick={() => { if (!canClick) return; setSelectedTiles(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]) }}
-                        style={{ aspectRatio: '1', borderRadius: '10px', background: bg, border, boxShadow: shadow, cursor: canClick ? 'pointer' : 'default', transition: 'all 0.12s' }}
+                        style={{ width: `${cellSize}px`, height: `${cellSize}px`, borderRadius: '8px', background: bg, border, boxShadow: shadow, cursor: canClick ? 'pointer' : 'default', transition: 'all 0.15s', transform: `scale(${scale})` }}
                       />
                     )
                   })}
                 </div>
                 {phase !== 'round_end' && !patternVisible && (
                   <button onClick={handlePatternSubmit} disabled={!!myPlayer?.answered || selectedTiles.length === 0}
-                    style={{ background: myPlayer?.answered ? '#1e1e30' : selectedTiles.length === 0 ? '#1e1e30' : 'linear-gradient(135deg, #a855f7, #7c3aed)', border: 'none', borderRadius: '10px', padding: '12px 28px', color: myPlayer?.answered || selectedTiles.length === 0 ? '#64748b' : '#fff', fontWeight: 700, cursor: myPlayer?.answered || selectedTiles.length === 0 ? 'not-allowed' : 'pointer', fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem' }}>
-                    {myPlayer?.answered ? (myPlayer.correct ? '✓ CORRECT' : '✗ WRONG') : `SUBMIT (${selectedTiles.length} selected)`}
+                    style={{ background: myPlayer?.answered ? '#1e1e30' : selectedTiles.length === 0 ? '#1e1e30' : 'linear-gradient(135deg, #a855f7, #7c3aed)', border: 'none', borderRadius: '10px', padding: '12px 32px', color: myPlayer?.answered || selectedTiles.length === 0 ? '#64748b' : '#fff', fontWeight: 700, cursor: myPlayer?.answered || selectedTiles.length === 0 ? 'not-allowed' : 'pointer', fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem' }}>
+                    {myPlayer?.answered ? (myPlayer.correct ? '✓ CORRECT' : '✗ WRONG') : `SUBMIT (${selectedTiles.length} / ${pat.length})`}
                   </button>
                 )}
               </>

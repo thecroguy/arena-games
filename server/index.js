@@ -756,9 +756,9 @@ function makeQuestion(gameMode, round = 1) {
       return { type: 'math', a, b, op, answer }
     }
     case 'pattern-memory': {
-      const gridSize = round <= 3 ? 3 : 4
+      const gridSize = round >= 8 ? 6 : round >= 5 ? 5 : 4
       const total    = gridSize * gridSize
-      const patLen   = Math.min(3 + Math.floor((round - 1) / 2), gridSize === 3 ? 5 : 8)
+      const patLen   = Math.min(4 + round, Math.floor(total * 0.55))
       const indices  = Array.from({ length: total }, (_, i) => i)
       for (let i = indices.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
