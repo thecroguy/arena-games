@@ -1442,6 +1442,19 @@ io.on('connection', (socket) => {
     }
   })
 
+  // Any player in the waiting room can cancel — instantly refunds all deposited players
+  socket.on('room:cancel', async ({ code }) => {
+    const room = rooms.get(code)
+    if (!room || room.status !== 'waiting') return
+    // Must be a member of the room
+    if (!room.players.some(p => p.id === socket.id)) return
+    console.log(`[room:cancel] ${socket.data.address?.slice(0,8)} cancelled room ${code}`)
+    const anyDeposited = room.players.some(p => p.deposited)
+    if (anyDeposited) await escrowRefund(room).catch(() => {})
+    io.to(code).emit('game:abandoned', { reason: 'Game cancelled — entry fees are being refunded to your wallet.' })
+    cleanupRoom(code)
+  })
+
   socket.on('room:start', ({ code }) => {
     const room = rooms.get(code)
     if (!room) return
@@ -1932,21 +1945,51 @@ app.get('/api/stuck-deposits/:address', async (req, res) => {
 
     // Deduplicate by room_code (take most recent deposit per room)
     const seenCodes = new Set()
-    const stuck = deposits
-      .filter(d => {
-        if (claimedRooms.has(d.room_code)) return false
-        if (seenCodes.has(d.room_code)) return false
-        seenCodes.add(d.room_code)
-        return true
-      })
-      .map(d => ({
+    const pendingDeposits = deposits.filter(d => {
+      if (claimedRooms.has(d.room_code)) return false
+      if (seenCodes.has(d.room_code)) return false
+      seenCodes.add(d.room_code)
+      return true
+    })
+
+    // Auto-generate refund sigs for any stuck deposit that doesn't have one yet
+    // This ensures instant refunds — no 24h emergencyRefund fallback needed
+    if (SERVER_SIGNING_KEY) {
+      for (const d of pendingDeposits) {
+        if (!refundSigMap[d.room_code]) {
+          try {
+            const roomId    = (d.room_id_hash && d.room_id_hash.length === 66) ? d.room_id_hash : getRoomId(d.room_code)
+            const msgHash   = solidityPackedKeccak256(['bytes32', 'string'], [roomId, 'REFUND'])
+            const refundSig = await signMessage(SERVER_SIGNING_KEY, msgHash)
+            refundSigMap[d.room_code] = refundSig
+            // Persist so future calls don't regenerate
+            await supabase.from('escrow_events').insert({
+              event_type:     'refund_signed',
+              room_code:      d.room_code,
+              room_id_hash:   roomId,
+              chain_id:       d.chain_id,
+              escrow_address: d.escrow_address,
+              player_address: addr,
+              sig:            refundSig,
+              amount_usdt:    d.amount_usdt,
+              note:           'Auto-signed on stuck-deposits request',
+            }).catch(() => {})
+            console.log(`[stuck-deposits] Auto-signed refund for ${d.room_code} (${addr.slice(0,8)})`)
+          } catch (e) {
+            console.error(`[stuck-deposits] Failed to sign refund for ${d.room_code}:`, e.message)
+          }
+        }
+      }
+    }
+
+    const stuck = pendingDeposits.map(d => ({
         room_code:      d.room_code,
         room_id_hash:   (d.room_id_hash && d.room_id_hash.length === 66) ? d.room_id_hash : getRoomId(d.room_code),
         chain_id:       d.chain_id,
         escrow_address: d.escrow_address,
         amount_usdt:    d.amount_usdt,
         deposited_at:   d.created_at,
-        refund_sig:     refundSigMap[d.room_code] || null, // instant claimRefund if available
+        refund_sig:     refundSigMap[d.room_code] || null,
         refundable_at:  new Date(new Date(d.created_at).getTime() + 24 * 60 * 60 * 1000).toISOString(),
       }))
 

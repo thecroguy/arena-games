@@ -606,6 +606,7 @@ export default function Game() {
       })
     }
     ;(window as any)._arenaRejoin = rejoin
+    ;(window as any)._arenaSocket = socket
     if (socket.connected) rejoin()
     socket.on('connect', rejoin)
 
@@ -1056,6 +1057,21 @@ export default function Game() {
           )
           if (players.length < 2) return <p style={{ color: '#64748b', fontSize: '0.85rem' }}>Waiting for {isDuel ? 'challenger' : 'players'}…</p>
           return <p style={{ color: '#f59e0b', fontSize: '0.85rem' }}>Waiting for all players to lock funds…</p>
+        })()}
+
+        {/* Cancel game — available to any player in waiting room */}
+        {!connecting && players.some(p => p.address === myAddr) && (() => {
+          const myDeposited = (players.find(p => p.address === myAddr) as PlayerState & { deposited?: boolean })?.deposited
+          const anyDeposited = players.some(p => (p as PlayerState & { deposited?: boolean }).deposited)
+          return (
+            <button onClick={() => {
+              const socket = (window as any)._arenaSocket
+              if (socket) socket.emit('room:cancel', { code: roomCode })
+            }}
+              style={{ width: '100%', marginTop: '10px', background: 'transparent', border: `1px solid ${anyDeposited ? '#ef4444' : '#374151'}`, borderRadius: '10px', padding: '10px', color: anyDeposited ? '#ef4444' : '#475569', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}>
+              {myDeposited ? '↩ Cancel & Claim Refund' : '↩ Cancel Game'}
+            </button>
+          )
         })()}
 
         {/* Queue chat */}
