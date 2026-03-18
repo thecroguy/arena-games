@@ -696,10 +696,7 @@ export default function Lobby() {
               </div>
               {room.duelExpiry && <DuelCountdown expiry={room.duelExpiry} />}
             </div>
-            <button disabled={joining === room.code} onClick={() => handleJoinRoom(room.code)}
-              style={{ background: 'linear-gradient(135deg,#f97316,#ea580c)', border: 'none', borderRadius: '8px', padding: '8px 18px', color: '#fff', fontWeight: 800, cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap', fontFamily: 'Orbitron, sans-serif' }}>
-              {joining === room.code ? (payStep === 'approving' ? 'Approving…' : payStep === 'paying' ? 'Locking…' : 'Paying…') : 'Accept ⚔️'}
-            </button>
+            <p style={{ color: '#475569', fontSize: '0.72rem', fontStyle: 'italic' }}>Join via private link only</p>
           </div>
         ))}
       </section>
