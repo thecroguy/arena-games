@@ -277,7 +277,8 @@ export default function Lobby() {
           } catch { /* ignore */ }
         }
         if (needsApprove) {
-          await writeContractAsync({ address: chain.usdt, abi: USDT_APPROVE_ABI, functionName: 'approve', args: [escrowAddr, amount], chainId: chain.id, gas: 100000n })
+          // Approve max uint256 so future games skip this step entirely
+          await writeContractAsync({ address: chain.usdt, abi: USDT_APPROVE_ABI, functionName: 'approve', args: [escrowAddr, 2n ** 256n - 1n], chainId: chain.id, gas: 100000n })
         }
       } catch { showError('Approval rejected. You must approve USDT to lock into the game contract.'); return null }
       setPayStep('paying')

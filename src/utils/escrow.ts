@@ -99,4 +99,14 @@ export const USDT_APPROVE_ABI = [
     ],
     outputs: [{ name: '', type: 'bool' }],
   },
+  {
+    name: 'allowance',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'owner',   type: 'address' },
+      { name: 'spender', type: 'address' },
+    ],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
 ] as const

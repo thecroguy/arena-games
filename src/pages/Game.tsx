@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
-import { useAccount, useWriteContract, useChainId, useSwitchChain, useSignMessage } from 'wagmi'
+import { useAccount, useWriteContract, useChainId, useSwitchChain, useSignMessage, usePublicClient } from 'wagmi'
 import { connectSocket } from '../utils/socket'
 import { getAvatarUrl, getAvatarColor } from '../utils/avatar'
 import { getUsername } from '../utils/profile'
@@ -142,6 +142,7 @@ export default function Game() {
   const { switchChainAsync } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
   const { signMessageAsync } = useSignMessage()
+  const publicClient = usePublicClient()
   const authSigRef = useRef<string | null>(null)
   const addrRef    = useRef(myAddr)
   useEffect(() => { addrRef.current = myAddr }, [myAddr])
@@ -794,9 +795,21 @@ export default function Game() {
     const amount = BigInt(Math.round(entryFee * 1e6))
     const escrowAddr = getEscrowAddress(chain.id)
     if (!escrowAddr) { setError('Payments not configured for this network'); setJoinPayStep('idle'); return }
-    try {
-      await writeContractAsync({ address: chain.usdt, abi: USDT_APPROVE_ABI, functionName: 'approve', args: [escrowAddr, amount], chainId: chain.id, gas: 100000n })
-    } catch { setError('Approval rejected'); setJoinPayStep('idle'); return }
+    // Check existing allowance — skip approve tx if already sufficient
+    let needsApprove = true
+    if (publicClient) {
+      try {
+        const allowance = await publicClient.readContract({ address: chain.usdt, abi: USDT_APPROVE_ABI, functionName: 'allowance', args: [address as `0x${string}`, escrowAddr] }) as bigint
+        if (allowance >= amount) needsApprove = false
+      } catch { /* if read fails, fall through to approve */ }
+    }
+    if (needsApprove) {
+      // Approve max uint256 once — future deposits skip this step entirely (1-click from then on)
+      const MAX_UINT256 = 2n ** 256n - 1n
+      try {
+        await writeContractAsync({ address: chain.usdt, abi: USDT_APPROVE_ABI, functionName: 'approve', args: [escrowAddr, MAX_UINT256], chainId: chain.id, gas: 100000n })
+      } catch { setError('Approval rejected'); setJoinPayStep('idle'); return }
+    }
     setJoinPayStep('paying')
     let txHash: string
     try {
@@ -1039,7 +1052,7 @@ export default function Game() {
               ✓ Funds locked — waiting for host to start
             </div>
           )
-          const labels = { idle: `Pay $${entryFee} USDT to Lock In`, approving: 'Approving USDT…', paying: 'Locking funds…', joining: 'Confirming…' }
+          const labels = { idle: `Pay $${entryFee} USDT to Lock In`, approving: 'Setting up USDT…', paying: 'Locking funds…', joining: 'Confirming…' }
           return (
             <button onClick={payAndJoin} disabled={joinPayStep !== 'idle'}
               style={{ width: '100%', background: joinPayStep !== 'idle' ? '#1e1e30' : 'linear-gradient(135deg, #f97316, #ea580c)', border: 'none', borderRadius: '10px', padding: '14px', color: joinPayStep !== 'idle' ? '#64748b' : '#fff', fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1rem', cursor: joinPayStep !== 'idle' ? 'not-allowed' : 'pointer', letterSpacing: '0.05em', marginBottom: '8px' }}>
