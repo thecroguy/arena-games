@@ -849,10 +849,10 @@ export default function Lobby() {
         <div style={{
           position: 'fixed', bottom: 0, left: 0, right: 0,
           height: mobileDrawerOpen ? 'min(65vh, 520px)' : '48px',
-          background: mobileDrawerOpen ? '#0e0e1a' : 'linear-gradient(180deg,#0e0e1a,#12121a)',
+          background: 'linear-gradient(180deg,#0e0e1a,#0b0b14)',
           borderTop: mobileDrawerOpen ? '1px solid rgba(124,58,237,0.25)' : '1px solid rgba(124,58,237,0.15)',
           borderRadius: mobileDrawerOpen ? '18px 18px 0 0' : '14px 14px 0 0',
-          boxShadow: mobileDrawerOpen ? '0 -4px 24px rgba(124,58,237,0.12)' : '0 -2px 12px rgba(0,0,0,0.4)',
+          boxShadow: mobileDrawerOpen ? '0 -6px 32px rgba(124,58,237,0.15), 0 -2px 0 rgba(124,58,237,0.1)' : '0 -2px 12px rgba(0,0,0,0.4)',
           zIndex: 101, transition: 'height 0.3s cubic-bezier(0.4,0,0.2,1)',
           display: 'flex', flexDirection: 'column', overflow: 'hidden',
         }}>
