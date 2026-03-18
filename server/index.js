@@ -213,18 +213,21 @@ const globalChat = []
 // ════════════════════════════════════════════════════════════════════════════
 // Generate 1000 unique fake usernames using same Adj+Noun+number formula as real addrName()
 const _FADJS  = ['Brave','Swift','Dark','Iron','Bold','Sly','Wild','Frost','Storm','Blaze',
-                 'Cyber','Neon','Pixel','Steel','Ghost','Nova','Lunar','Solar','Turbo','Hyper',
-                 'Shadow','Crimson','Savage','Rogue','Sigma','Atomic','Hyper','Stealth','Blaze','Echo']
+                 'Cyber','Neon','Pixel','Steel','Ghost','Nova','Lunar','Solar','Turbo','Venom',
+                 'Shadow','Crimson','Savage','Rogue','Sigma','Atomic','Toxic','Stealth','Apex','Echo']
 const _FNOUNS = ['Fox','Wolf','Bear','Hawk','Lion','Tiger','Shark','Eagle','Viper','Dragon',
                  'Phoenix','Panda','Ninja','Rider','Coder','Sniper','Ranger','Hunter','Wizard','Knight',
                  'Pirate','Bandit','Nomad','Titan','Blade','Drifter','Stalker','Phantom','Ghost','Maverick']
+// Cycle: adjective outermost so all 30 adjs are evenly represented every 30 names
 const FAKE_USERS_SVR = (() => {
-  const set = new Set(), out = []
-  let a = 0, n = 0, num = 10
-  while (out.length < 1000) {
-    const name = `${_FADJS[a % _FADJS.length]}${_FNOUNS[n % _FNOUNS.length]}${String(num).padStart(2,'0')}`
-    if (!set.has(name)) { set.add(name); out.push(name) }
-    num = (num + 7) % 100; if (num === 10) { n++; if (n % _FNOUNS.length === 0) a++ }
+  const out = []
+  const nums = [10, 37]  // two number suffixes gives 30×30×2 = 1800 ≥ 1000
+  for (const num of nums) {
+    for (let n = 0; n < _FNOUNS.length && out.length < 1000; n++) {
+      for (let a = 0; a < _FADJS.length && out.length < 1000; a++) {
+        out.push(`${_FADJS[a]}${_FNOUNS[n]}${String(num).padStart(2,'0')}`)
+      }
+    }
   }
   return out
 })()
