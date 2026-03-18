@@ -831,6 +831,7 @@ function roomPublic(room) {
     maxPlayers: room.maxPlayers,
     status:     room.status,
     chainId:    room.chainId || 137,
+    roomType:   room.roomType || 'public',
     players:    room.players.map(p => ({ address: p.address, username: p.username || addrName(p.address), score: p.score, disconnected: !!p.disconnected, deposited: !!p.deposited })),
   }
 }

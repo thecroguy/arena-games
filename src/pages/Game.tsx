@@ -130,21 +130,18 @@ export default function Game() {
 
   const isBotMode      = location.state?.bot === true
 
-  // Persist room nav state in sessionStorage so navigating away and returning keeps the duel layout
-  const _stateKey = `ag_roomstate_${roomCode}`
-  if (location.state && Object.keys(location.state).length > 0) {
-    sessionStorage.setItem(_stateKey, JSON.stringify(location.state))
-  }
-  const _savedState = (() => { try { return JSON.parse(sessionStorage.getItem(_stateKey) || '{}') } catch { return {} } })()
-  const _st = (location.state && Object.keys(location.state).length > 0) ? location.state : _savedState
+  // Use location.state if present (first navigation); server fills the rest on rejoin
+  const gameModeLS     = location.state?.gameMode ?? 'math-arena'
+  const duelCreatedAt  = location.state?.duelCreatedAt as number | undefined
 
-  const isHost         = _st.host    ?? false
-  const entryFee       = _st.entry   ?? 1
-  const gameModeLS     = _st.gameMode ?? 'math-arena'
-  const roomChainId    = _st.chainId  ?? 137
-  const isDuel         = _st.roomType === 'duel'
-  const isJoining      = _st.joining === true   // joiner coming from DuelJoin page
-  const duelCreatedAt  = _st.duelCreatedAt as number | undefined
+  // All room properties are server-authoritative — populated from room:join/room:update
+  // Seeded with location.state so the UI is correct on the very first render too
+  const [isHost,     setIsHost]     = useState<boolean>(location.state?.host    ?? false)
+  const [entryFee,   setEntryFee]   = useState<number>(location.state?.entry   ?? 1)
+  const [roomChainId,setRoomChainId]= useState<number>(location.state?.chainId  ?? 137)
+  const [isDuel,     setIsDuel]     = useState<boolean>(location.state?.roomType === 'duel')
+  // isJoining: true when player is in the room but hasn't deposited yet (joiner flow)
+  const [isJoining,  setIsJoining]  = useState<boolean>(location.state?.joining === true)
   const myAddr         = isBotMode ? (address || 'YOU') : (address ?? '')
 
   const currentChainId    = useChainId()
@@ -609,6 +606,15 @@ export default function Game() {
           res.room.players.forEach((p: PlayerState) => { if (p.username) usernameCache.set(p.address.toLowerCase(), p.username) })
           setPlayers(res.room.players)
           if (res.room.gameMode) setGameMode(res.room.gameMode)
+          // Apply server-authoritative room properties
+          const r = res.room as typeof res.room & { host?: string; entryFee?: number; chainId?: number; roomType?: string }
+          if (r.entryFee)  setEntryFee(r.entryFee)
+          if (r.chainId)   setRoomChainId(r.chainId)
+          if (r.roomType)  setIsDuel(r.roomType === 'duel')
+          if (r.host)      setIsHost(r.host.toLowerCase() === addrRef.current.toLowerCase())
+          // If my player has deposited, they're no longer "joining" (payment done)
+          const myPlayer = res.room.players.find((p: PlayerState) => p.address.toLowerCase() === addrRef.current.toLowerCase())
+          if ((myPlayer as PlayerState & { deposited?: boolean })?.deposited) setIsJoining(false)
           if (res.room.players.some((p: PlayerState & { deposited?: boolean }) => p.deposited)) {
             setDepositedAt(prev => prev || Date.now())
           }
@@ -620,11 +626,18 @@ export default function Game() {
     if (socket.connected) rejoin()
     socket.on('connect', rejoin)
 
-    socket.on('room:update', (room: { players: PlayerState[]; status: string; gameMode?: string }) => {
+    socket.on('room:update', (room: { players: PlayerState[]; status: string; gameMode?: string; host?: string; entryFee?: number; chainId?: number; roomType?: string }) => {
       room.players.forEach(p => { if (p.username) usernameCache.set(p.address.toLowerCase(), p.username) })
       setPlayers(room.players)
       if (room.gameMode) setGameMode(room.gameMode)
+      if (room.entryFee)  setEntryFee(room.entryFee)
+      if (room.chainId)   setRoomChainId(room.chainId)
+      if (room.roomType)  setIsDuel(room.roomType === 'duel')
+      if (room.host)      setIsHost(room.host.toLowerCase() === addrRef.current.toLowerCase())
       setCanStart(room.players.length >= 2 && room.status === 'waiting')
+      // If my player has deposited, hide the Pay button
+      const myP = room.players.find(p => p.address.toLowerCase() === addrRef.current.toLowerCase())
+      if ((myP as PlayerState & { deposited?: boolean })?.deposited) setIsJoining(false)
       // Start countdown when first deposit is confirmed
       if (room.players.some((p: PlayerState & { deposited?: boolean }) => p.deposited)) {
         setDepositedAt(prev => prev || Date.now())
@@ -832,6 +845,7 @@ export default function Game() {
     const socket = connectSocket()
     socket.emit('room:deposit', { code: roomCode, txHash, address }, () => {})
     fetch(`${SERVER_URL}/api/report-deposit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address, room_code: roomCode, tx_hash: txHash, chain_id: chain.id, amount_usdt: entryFee }) }).catch(() => {})
+    setIsJoining(false) // deposit done — hide Pay button immediately
     setJoinPayStep('idle')
   }
 
