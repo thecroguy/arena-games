@@ -509,6 +509,7 @@ function startRound(room) {
   const cfg = GAME_MODES[room.gameMode] || GAME_MODES['math-arena']
   room.round++
   room.status = 'playing'
+  room.roundEnding = false
   room.roundStartAt = Date.now()
   room.players.forEach(p => { p.answered = false; p.correct = null; p.sealedPick = null })
 
@@ -582,6 +583,8 @@ function endBluffRound(room, winner, loser, bid, actualCount) {
 }
 
 function endRound(room) {
+  if (room.roundEnding) return
+  room.roundEnding = true
   clearTimeout(room.roundTimer)
   const cfg = GAME_MODES[room.gameMode] || GAME_MODES['math-arena']
   const isSealed = room.question.type === 'sealed'
@@ -616,6 +619,7 @@ function endRound(room) {
 }
 
 async function endGame(room) {
+  if (room.status === 'finished') return
   room.status = 'finished'
   const sorted = [...room.players].sort((a, b) => b.score - a.score)
   const winner = sorted[0]
