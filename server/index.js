@@ -1918,16 +1918,16 @@ app.get('/api/active-room/:address', async (req, res) => {
     }
   }
   if (candidates.length === 0) return res.json({ code: null })
-  // Filter out rooms where a refund has already been signed for this player
+  // Only filter out rooms where the refund was actually claimed on-chain (not just signed)
   if (supabase && candidates.length > 0) {
     try {
       const codes = candidates.map(c => c.code)
       const { data: refunds } = await supabase.from('escrow_events')
         .select('room_code').eq('player_address', addr)
-        .in('event_type', ['refund_signed', 'refund_claimed'])
+        .eq('event_type', 'refund_claimed')
         .in('room_code', codes)
-      const refundedCodes = new Set((refunds || []).map(r => r.room_code))
-      const active = candidates.find(c => !refundedCodes.has(c.code))
+      const claimedCodes = new Set((refunds || []).map(r => r.room_code))
+      const active = candidates.find(c => !claimedCodes.has(c.code))
       return res.json(active || { code: null })
     } catch { /* fall through */ }
   }
