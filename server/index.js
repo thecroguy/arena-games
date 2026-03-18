@@ -115,8 +115,8 @@ const GAME_MODES = {
   'math-arena':     { type: 'speed',  rounds: 10, roundMs: 12000, minP: 2, maxP: 10 },
   'pattern-memory': { type: 'speed',  rounds: 10, roundMs: 12000, minP: 2, maxP: 10 },
   'reaction-grid':  { type: 'speed',  rounds: 15, roundMs: 5000,  minP: 2, maxP: 10 },
-  'highest-unique': { type: 'sealed', rounds: 8,  roundMs: 20000, minP: 2, maxP: 20, min: 1, max: 100 },
-  'lowest-unique':  { type: 'sealed', rounds: 8,  roundMs: 20000, minP: 2, maxP: 20, min: 1, max: 50  },
+  'highest-unique': { type: 'sealed', rounds: 8,  roundMs: 20000, minP: 3, maxP: 20, min: 1, max: 100 },
+  'lowest-unique':  { type: 'sealed', rounds: 8,  roundMs: 20000, minP: 3, maxP: 20, min: 1, max: 50  },
   'liars-dice':     { type: 'bluff',  rounds: 8,  roundMs: 60000, minP: 2, maxP: 6,  dicePerPlayer: 3 },
 }
 
@@ -999,7 +999,9 @@ async function endGame(room) {
   if (room.status === 'finished') return
   room.status = 'finished'
   const sorted = [...room.players].sort((a, b) => b.score - a.score)
-  const winner = sorted[0]
+  const topScore = sorted[0].score
+  const tied = sorted.filter(p => p.score === topScore)
+  const winner = tied.length > 1 ? tied[Math.floor(Math.random() * tied.length)] : sorted[0]
   const pot    = (room.entryFee * room.players.length * 0.85).toFixed(2)
 
   // ── Sign claim authorization (server never sends a transaction) ──────────

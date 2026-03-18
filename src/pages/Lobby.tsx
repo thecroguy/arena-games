@@ -14,8 +14,8 @@ const GAME_META: Record<string, { title: string; emoji: string; desc: string; mi
   'math-arena':     { title: 'Math Arena',      emoji: '✚',  desc: 'Speed math quiz — first correct answer scores. 100% skill, zero luck.',           minPlayers: 2, maxPlayers: 10 },
   'pattern-memory': { title: 'Pattern Memory',    emoji: '🧠', desc: 'A grid of tiles flashes briefly — memorize which lit up, then tap them all. First correct scores.', minPlayers: 2, maxPlayers: 10 },
   'reaction-grid':  { title: 'Reaction Grid',   emoji: '⊞',  desc: 'A cell lights up — click it before anyone else. Pure reaction speed.',             minPlayers: 2, maxPlayers: 10 },
-  'highest-unique': { title: 'Highest Unique',  emoji: '↑',  desc: 'Pick the highest number nobody else picks. Read the crowd and outsmart them.',      minPlayers: 2, maxPlayers: 20 },
-  'lowest-unique':  { title: 'Lowest Unique',   emoji: '↓',  desc: 'Pick the lowest number nobody else picks. Contrarian thinking wins.',               minPlayers: 2, maxPlayers: 20 },
+  'highest-unique': { title: 'Highest Unique',  emoji: '↑',  desc: 'Pick the highest number nobody else picks. Read the crowd and outsmart them.',      minPlayers: 3, maxPlayers: 20 },
+  'lowest-unique':  { title: 'Lowest Unique',   emoji: '↓',  desc: 'Pick the lowest number nobody else picks. Contrarian thinking wins.',               minPlayers: 3, maxPlayers: 20 },
   'liars-dice':     { title: "Liar's Dice",      emoji: '🎲',  desc: 'Each player gets 3 dice. Bid on the total — bluff or call LIAR! to win.',          minPlayers: 2, maxPlayers: 6  },
 }
 
