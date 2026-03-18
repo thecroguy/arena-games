@@ -176,16 +176,24 @@ export default function Profile() {
         setStuckVerifying(false)
       })
       .catch(() => { setStuckVerifying(false) })
-    fetch(`${SERVER_URL}/api/pending-claim/${address}`)
-      .then(r => r.json()).then((data: PendingClaim[]) => {
+    Promise.all([
+      fetch(`${SERVER_URL}/api/pending-claim/${address}`).then(r => r.json()),
+      fetch(`${SERVER_URL}/api/claimed-rooms/${address}`).then(r => r.json()).catch(() => []),
+    ]).then(([data, claimedData]: [PendingClaim[], string[]]) => {
         const apiClaims: PendingClaim[] = Array.isArray(data) ? data : []
-        // Merge in any localStorage-backed claim sigs (set when game:over fires in Game.tsx)
-        // This ensures claim button appears on Profile even if user navigated away before claiming
+        const alreadyClaimedCodes = new Set((Array.isArray(claimedData) ? claimedData : []).map((c: string) => c))
+        // Merge in localStorage-backed claim sigs, skip stale ones already claimed on server
         const localClaims: PendingClaim[] = []
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i)
           if (key?.startsWith('ag_claimsig_')) {
-            try { const c = JSON.parse(localStorage.getItem(key) || ''); if (c?.claim_sig && (!c.winner_address || c.winner_address.toLowerCase() === address.toLowerCase())) localClaims.push(c) } catch {}
+            try {
+              const c = JSON.parse(localStorage.getItem(key) || '')
+              if (!c?.claim_sig) continue
+              if (c.winner_address && c.winner_address.toLowerCase() !== address.toLowerCase()) continue
+              if (alreadyClaimedCodes.has(c.room_code)) { localStorage.removeItem(key); continue } // stale — clean up
+              localClaims.push(c)
+            } catch {}
           }
         }
         const apiCodes = new Set(apiClaims.map(p => p.room_code))

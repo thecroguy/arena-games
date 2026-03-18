@@ -2048,6 +2048,27 @@ app.get('/api/stuck-deposits/:address', async (req, res) => {
   }
 })
 
+// ── Already-claimed rooms — used by Profile to purge stale localStorage entries ─
+app.get('/api/claimed-rooms/:address', async (req, res) => {
+  const { address } = req.params
+  if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
+  if (!supabase) return res.json([])
+  try {
+    const addr = address.toLowerCase()
+    const [{ data: fromHistory }, { data: fromEvents }] = await Promise.all([
+      supabase.from('game_history').select('room_code').eq('player_address', addr).eq('result', 'win').not('claimed_at', 'is', null),
+      supabase.from('escrow_events').select('room_code').eq('player_address', addr).in('event_type', ['claim_completed', 'refund_claimed']),
+    ])
+    const codes = [...new Set([
+      ...(fromHistory || []).map(r => r.room_code),
+      ...(fromEvents  || []).map(r => r.room_code),
+    ])]
+    res.json(codes)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ── Pending claims: wins where player has claim sig but may not have claimed ─
 // Winner closes browser before clicking Claim → comes back to Profile → sees it here
 app.get('/api/pending-claim/:address', async (req, res) => {
