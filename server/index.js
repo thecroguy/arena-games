@@ -1031,10 +1031,33 @@ async function endGame(room) {
   io.emit('leaderboard:delta', { username: winnerName, net: parseFloat(pot) })
 
   if (supabase) {
+    const roomIdHash = getRoomId(room.code)
+    const escrowAddr = getChainEscrowAddress(room.chainId) || null
+
+    // ── Write claim_signed FIRST, independently — this is what the winner needs to claim funds.
+    // Kept separate so game_history failures never prevent the winner from seeing their claim.
+    if (claimSig && escrowAddr) {
+      try {
+        await supabase.from('escrow_events').insert({
+          event_type:     'claim_signed',
+          room_code:      room.code,
+          room_id_hash:   roomIdHash,
+          chain_id:       room.chainId || 137,
+          escrow_address: escrowAddr,
+          player_address: winner.address.toLowerCase(),
+          amount_usdt:    parseFloat(pot),
+          sig:            claimSig,
+          note:           `Server authorized ${winner.address.slice(0, 8)} to claim $${pot} USDT`,
+        })
+        console.log(`[claim_signed] Stored claim sig for ${winner.address.slice(0, 8)} room ${room.code}`)
+      } catch (e) {
+        console.error('[claim_signed] escrow_events write failed:', e.message)
+      }
+    }
+
+    // ── Write game_history with retry (3 attempts) ──
     try {
-      const cfg          = GAME_MODES[room.gameMode] || GAME_MODES['math-arena']
-      const roomIdHash   = getRoomId(room.code)
-      const escrowAddr   = getChainEscrowAddress(room.chainId) || null
+      const cfg  = GAME_MODES[room.gameMode] || GAME_MODES['math-arena']
       const rows = room.players.map(p => ({
         room_code:      room.code,
         game_mode:      room.gameMode,
@@ -1049,46 +1072,37 @@ async function endGame(room) {
         payout_mode:    payoutMode,
         escrow_address: escrowAddr,
         room_id_hash:   roomIdHash,
-        // Store the claim signature on the winner's row — cryptographic proof of who server declared winner
         claim_sig:      p.address === winner.address ? claimSig : null,
       }))
-      await supabase.from('game_history').insert(rows)
-
-      // ── Referral credits — 2% of pot per referee per game (up to 20 games) ──
-      try {
-        const totalPot = room.entryFee * room.players.length
-        for (const p of room.players) {
-          const addr = p.address.toLowerCase()
-          const { data: ref } = await supabase.from('referrals')
-            .select('id, games_counted').eq('referee_address', addr).maybeSingle()
-          if (ref && ref.games_counted < 20) {
-            const fee = parseFloat((totalPot * 0.02).toFixed(4))
-            const { data: cur } = await supabase.from('referrals').select('earned_usdt').eq('id', ref.id).single()
-            const newEarned = parseFloat(((cur?.earned_usdt || 0) + fee).toFixed(4))
-            await supabase.from('referrals')
-              .update({ games_counted: ref.games_counted + 1, earned_usdt: newEarned, updated_at: new Date().toISOString() })
-              .eq('id', ref.id).lt('games_counted', 20)
-          }
-        }
-      } catch (e) { console.error('Referral credit error:', e.message) }
-
-      // Log claim authorization to escrow_events for full dispute audit trail
-      if (claimSig && escrowAddr) {
-        await supabase.from('escrow_events').insert({
-          event_type:     'claim_signed',
-          room_code:      room.code,
-          room_id_hash:   roomIdHash,
-          chain_id:       room.chainId || 137,
-          escrow_address: escrowAddr,
-          player_address: winner.address.toLowerCase(),
-          amount_usdt:    parseFloat(pot),
-          sig:            claimSig,
-          note:           `Server authorized ${winner.address.slice(0, 8)} to claim $${pot} USDT`,
-        })
+      let lastErr
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const { error } = await supabase.from('game_history').insert(rows)
+        if (!error) { lastErr = null; break }
+        lastErr = error
+        if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 1000))
       }
+      if (lastErr) console.error(`game_history insert failed after 3 attempts for room ${room.code}:`, lastErr.message)
     } catch (e) {
-      console.error('Supabase insert error:', e.message)
+      console.error('game_history insert error:', e.message)
     }
+
+    // ── Referral credits — 2% of pot per referee per game (up to 20 games) ──
+    try {
+      const totalPot = room.entryFee * room.players.length
+      for (const p of room.players) {
+        const addr = p.address.toLowerCase()
+        const { data: ref } = await supabase.from('referrals')
+          .select('id, games_counted').eq('referee_address', addr).maybeSingle()
+        if (ref && ref.games_counted < 20) {
+          const fee = parseFloat((totalPot * 0.02).toFixed(4))
+          const { data: cur } = await supabase.from('referrals').select('earned_usdt').eq('id', ref.id).single()
+          const newEarned = parseFloat(((cur?.earned_usdt || 0) + fee).toFixed(4))
+          await supabase.from('referrals')
+            .update({ games_counted: ref.games_counted + 1, earned_usdt: newEarned, updated_at: new Date().toISOString() })
+            .eq('id', ref.id).lt('games_counted', 20)
+        }
+      }
+    } catch (e) { console.error('Referral credit error:', e.message) }
   }
 
   setTimeout(() => cleanupRoom(room.code), 60_000)
@@ -2031,17 +2045,54 @@ app.get('/api/pending-claim/:address', async (req, res) => {
   if (!supabase) return res.json([])
   try {
     const addr = address.toLowerCase()
-    const { data } = await supabase
+
+    // Primary source: game_history (full row with pot, game_mode, etc.)
+    const { data: historyData } = await supabase
       .from('game_history')
       .select('room_code, game_mode, pot, entry_fee, claim_sig, escrow_address, room_id_hash, chain_id, played_at')
       .eq('player_address', addr)
       .eq('result', 'win')
       .eq('payout_mode', 'escrow')
       .not('claim_sig', 'is', null)
-      .is('claimed_at', null)   // only unclaimed wins
+      .is('claimed_at', null)
       .order('played_at', { ascending: false })
       .limit(50)
-    res.json(data || [])
+
+    // Fallback: escrow_events.claim_signed — catches wins where game_history insert failed
+    // (Supabase free tier rate limits, network blips, etc.)
+    const { data: eventData } = await supabase
+      .from('escrow_events')
+      .select('room_code, room_id_hash, chain_id, escrow_address, amount_usdt, sig, created_at')
+      .eq('player_address', addr)
+      .eq('event_type', 'claim_signed')
+      .order('created_at', { ascending: false })
+      .limit(50)
+
+    // Rooms already covered by game_history or already refunded
+    const historyCodes = new Set((historyData || []).map(h => h.room_code))
+    // Exclude rooms that have been refunded/claimed (refund_claimed or already claimed via escrow_events)
+    const { data: settled } = await supabase
+      .from('escrow_events')
+      .select('room_code')
+      .eq('player_address', addr)
+      .in('event_type', ['refund_claimed', 'refund_signed'])
+    const settledCodes = new Set((settled || []).map(s => s.room_code))
+
+    const extraClaims = (eventData || [])
+      .filter(e => !historyCodes.has(e.room_code) && !settledCodes.has(e.room_code))
+      .map(e => ({
+        room_code:      e.room_code,
+        game_mode:      'unknown',
+        pot:            e.amount_usdt,
+        entry_fee:      null,
+        claim_sig:      e.sig,
+        escrow_address: e.escrow_address,
+        room_id_hash:   e.room_id_hash,
+        chain_id:       e.chain_id,
+        played_at:      e.created_at,
+      }))
+
+    res.json([...(historyData || []), ...extraClaims])
   } catch (e) {
     res.status(500).json({ error: e.message })
   }
