@@ -71,7 +71,7 @@ export default function DuelJoin() {
         </div>
 
         <button
-          onClick={() => navigate(`/lobby/${room.gameMode}`, { state: { autoJoin: room.code, autoFee: room.entryFee } })}
+          onClick={() => navigate(`/lobby/${room.gameMode}`, { state: { autoJoin: room.code, autoFee: room.entryFee, autoChainId: room.chainId || 137 } })}
           style={{ width: '100%', background: 'linear-gradient(135deg,#f97316,#ea580c)', border: 'none', borderRadius: '12px', padding: '16px', color: '#fff', fontWeight: 800, fontSize: '1rem', fontFamily: 'Orbitron, sans-serif', cursor: 'pointer', marginBottom: '12px', letterSpacing: '0.04em' }}>
           Accept Challenge →
         </button>

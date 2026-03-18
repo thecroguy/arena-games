@@ -138,9 +138,8 @@ export default function Lobby() {
     if (!state?.autoJoin || !address || joining || creating) return
     const chain = getChain(state.autoChainId ?? 137) ?? selectedChain
     setSelectedChain(chain)
-    if (state.autoFee) setSelectedFee(state.autoFee)
     window.history.replaceState({}, '')
-    handleJoinRoom(state.autoJoin)
+    handleJoinRoom(state.autoJoin, state.autoFee)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state, address])
 
@@ -175,9 +174,16 @@ export default function Lobby() {
 
   async function getAuthSig(): Promise<string | null> {
     if (authSigRef.current) return authSigRef.current
+    const addr = address?.toLowerCase()
+    if (!addr) return null
+    // Re-use cached sig from this browser session (avoids re-prompting on navigation)
+    const cacheKey = `ag_authsig_${addr}`
+    const cached = sessionStorage.getItem(cacheKey)
+    if (cached) { authSigRef.current = cached; return cached }
     try {
-      const sig = await signMessageAsync({ message: `Arena Games: ${address?.toLowerCase()}` })
+      const sig = await signMessageAsync({ message: `Arena Games: ${addr}` })
       authSigRef.current = sig
+      sessionStorage.setItem(cacheKey, sig)
       return sig
     } catch {
       showError('Wallet signature required to join — this proves you own the address.')
@@ -354,11 +360,11 @@ export default function Lobby() {
     setDuelShareCode(code); setShowCreateDuel(false)
   }
 
-  async function handleJoinRoom(code: string) {
+  async function handleJoinRoom(code: string, feeOverride?: number) {
     if (!isConnected || !address) { showError('Connect your wallet first'); return }
     if (lockedInRoom && lockedInRoom !== code) { showError(`You have funds locked in room ${lockedInRoom}. Finish that game or claim a refund from your Profile first.`); return }
     const room = rooms.find(r => r.code === code)
-    const fee = room?.entry ?? selectedFee
+    const fee = feeOverride ?? room?.entry ?? selectedFee
     setJoining(code); setError('')
     const authSig = await getAuthSig()
     if (!authSig) { setJoining(null); return }
@@ -372,7 +378,7 @@ export default function Lobby() {
         socket.emit('room:deposit', { code, txHash, address }, () => {})
         fetch(`${SERVER_URL}/api/report-deposit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address, room_code: code, tx_hash: txHash, chain_id: selectedChain.id, amount_usdt: fee }) }).catch(() => {})
         setActiveRoom(code)
-        navigate(`/game/${code}`, { state: { gameMode, chainId: selectedChain.id } })
+        navigate(`/game/${code}`, { state: { gameMode, chainId: selectedChain.id, entry: fee } })
       }
     )
   }

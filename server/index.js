@@ -2172,6 +2172,7 @@ app.get('/api/room/:code', (req, res) => {
     code: room.code,
     gameMode: room.gameMode,
     entryFee: room.entryFee,
+    chainId: room.chainId || 137,
     players: room.players.length,
     max: room.maxPlayers,
     hostName: room.hostName || '',

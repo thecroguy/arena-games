@@ -124,9 +124,15 @@ export default function Game() {
   async function getAuthSig(): Promise<string | null> {
     if (authSigRef.current) return authSigRef.current
     const addr = addrRef.current
+    if (!addr) return null
+    // Re-use cached sig from this browser session (avoids re-prompting on navigation)
+    const cacheKey = `ag_authsig_${addr.toLowerCase()}`
+    const cached = sessionStorage.getItem(cacheKey)
+    if (cached) { authSigRef.current = cached; return cached }
     try {
       const sig = await signMessageAsync({ message: `Arena Games: ${addr.toLowerCase()}` })
       authSigRef.current = sig
+      sessionStorage.setItem(cacheKey, sig)
       return sig
     } catch {
       return null
@@ -155,6 +161,7 @@ export default function Game() {
   const [refundSig, setRefundSig] = useState<string | null>(null)
   const [claimState, setClaimState] = useState<'idle' | 'pending' | 'done' | 'error'>('idle')
   const [error, setError]       = useState('')
+  const [connecting, setConnecting] = useState(!isBotMode)
   const [canStart, setCanStart] = useState(false)
   const [botThinking, setBotThinking] = useState(false)
   const [patternVisible, setPatternVisible] = useState(true)
@@ -545,9 +552,11 @@ export default function Game() {
     async function rejoin() {
       const addr = addrRef.current
       if (!addr) return
+      setConnecting(true)
       const authSig = await getAuthSig()
-      if (!authSig) return
+      if (!authSig) { setConnecting(false); return }
       socket.emit('room:join', { code: roomCode, address: addr, authSig }, (res: { ok?: boolean; error?: string; reconnected?: boolean; room?: { players: PlayerState[]; gameMode?: string } }) => {
+        setConnecting(false)
         if (res.error === 'Room not found') {
           // Room was cleaned up (refund issued, game ended, or server restart with no DB record)
           // Don't strand user on a dead room page — send them back to lobby
@@ -566,6 +575,8 @@ export default function Game() {
         }
       })
     }
+    // Expose rejoin so the reconnect button can call it
+    ;(window as any)._arenaRejoin = rejoin
     rejoin()
     socket.on('connect', rejoin)
 
@@ -895,7 +906,22 @@ export default function Game() {
             </div>
           )
         })()}
-        {error && <p style={{ color: '#ef4444', marginBottom: '12px', fontSize: '0.9rem' }}>{error}</p>}
+        {connecting && (
+          <div style={{ color: '#64748b', fontSize: '0.82rem', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#7c3aed', animation: 'pulse 1.2s infinite' }} />
+            Connecting to room…
+          </div>
+        )}
+        {!connecting && error && (
+          <div style={{ marginBottom: '12px' }}>
+            <p style={{ color: '#ef4444', fontSize: '0.9rem', margin: '0 0 8px' }}>{error}</p>
+            <button onClick={() => (window as any)._arenaRejoin?.()}
+              style={{ background: 'transparent', border: '1px solid #7c3aed', borderRadius: '8px', padding: '8px 18px', color: '#a78bfa', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}>
+              Reconnect →
+            </button>
+          </div>
+        )}
+        {!connecting && !error && <span />}
         {isHost && canStart && (
           <button onClick={handleStart} style={{ width: '100%', background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '10px', padding: '14px', color: '#fff', fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1rem', cursor: 'pointer', letterSpacing: '0.05em' }}>
             Start Game
