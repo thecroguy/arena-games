@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="titleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="40%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="btnGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="25%" cy="30%" r="50%">
+      <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="80%" cy="25%" r="45%">
+      <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.13"/>
+      <stop offset="100%" stop-color="#06b6d4" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow3" cx="60%" cy="90%" r="40%">
+      <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#0a0a0f"/>
+
+  <!-- Glow blobs matching homepage -->
+  <rect width="1200" height="630" fill="url(#glow1)"/>
+  <rect width="1200" height="630" fill="url(#glow2)"/>
+  <rect width="1200" height="630" fill="url(#glow3)"/>
+
+  <!-- Subtle border -->
+  <rect x="1" y="1" width="1198" height="628" rx="0" fill="none" stroke="#1e1e30" stroke-width="2"/>
+
+  <!-- Logo bolt icon -->
+  <g transform="translate(490, 105) scale(3.6)">
+    <path fill="#863bff" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z"/>
+  </g>
+
+  <!-- "Join Arena" title — matching homepage gradient exactly -->
+  <text x="600" y="300" font-family="'Arial Black', Arial, sans-serif" font-size="100" font-weight="900" text-anchor="middle" fill="url(#titleGrad)">Join Arena</text>
+
+  <!-- Tagline -->
+  <text x="600" y="358" font-family="Arial, sans-serif" font-size="28" font-weight="400" text-anchor="middle" fill="#94a3b8">Multiplayer crypto skill games — Win real USDT</text>
+
+  <!-- LIVE badge matching homepage -->
+  <rect x="524" y="382" width="152" height="36" rx="18" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.35)" stroke-width="1.5"/>
+  <circle cx="547" cy="400" r="5" fill="#22c55e"/>
+  <text x="562" y="406" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#22c55e" letter-spacing="0.08em">LIVE NOW</text>
+
+  <!-- Game pill buttons row -->
+  <g font-family="Arial, sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+    <rect x="88" y="448" width="176" height="40" rx="20" fill="#12121a" stroke="#1e1e30" stroke-width="1.5"/>
+    <text x="176" y="473" fill="#94a3b8">✚ Math Arena</text>
+
+    <rect x="282" y="448" width="198" height="40" rx="20" fill="#12121a" stroke="#1e1e30" stroke-width="1.5"/>
+    <text x="381" y="473" fill="#94a3b8">🧠 Pattern Memory</text>
+
+    <rect x="498" y="448" width="168" height="40" rx="20" fill="#12121a" stroke="#1e1e30" stroke-width="1.5"/>
+    <text x="582" y="473" fill="#94a3b8">🎲 Liar's Dice</text>
+
+    <rect x="684" y="448" width="184" height="40" rx="20" fill="#12121a" stroke="#1e1e30" stroke-width="1.5"/>
+    <text x="776" y="473" fill="#94a3b8">⊞ Reaction Grid</text>
+
+    <rect x="886" y="448" width="192" height="40" rx="20" fill="#12121a" stroke="#1e1e30" stroke-width="1.5"/>
+    <text x="982" y="473" fill="#94a3b8">↑ Highest Unique</text>
+  </g>
+
+  <!-- Bottom row — CTA button style + domain -->
+  <rect x="436" y="514" width="328" height="56" rx="12" fill="url(#btnGrad)"/>
+  <text x="600" y="549" font-family="'Arial Black', Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle" fill="#ffffff" letter-spacing="0.04em">Play Now — Free to Join</text>
+
+  <!-- Domain -->
+  <text x="600" y="610" font-family="Arial, sans-serif" font-size="20" font-weight="600" text-anchor="middle" fill="#334155">joinarena.space</text>
+</svg>
