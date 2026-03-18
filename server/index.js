@@ -1894,17 +1894,33 @@ app.get('/api/active-deposit/:address', async (req, res) => {
 // ── Active room lookup ─────────────────────────────────────────────────────
 // Returns the room code the address is currently a player in (not finished),
 // or { code: null } if none. Used by Navbar and Lobby instead of localStorage.
-app.get('/api/active-room/:address', (req, res) => {
+app.get('/api/active-room/:address', async (req, res) => {
   const { address } = req.params
   if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
   const addr = address.toLowerCase()
+  // Find all rooms this player is in
+  const candidates = []
   for (const [code, room] of rooms) {
     if (room.status === 'finished' || room.status === 'abandoned') continue
     if (room.players.some(p => p.address.toLowerCase() === addr)) {
-      return res.json({ code, gameMode: room.gameMode })
+      candidates.push({ code, gameMode: room.gameMode })
     }
   }
-  return res.json({ code: null })
+  if (candidates.length === 0) return res.json({ code: null })
+  // Filter out rooms where a refund has already been signed for this player
+  if (supabase && candidates.length > 0) {
+    try {
+      const codes = candidates.map(c => c.code)
+      const { data: refunds } = await supabase.from('escrow_events')
+        .select('room_code').eq('player_address', addr)
+        .in('event_type', ['refund_signed', 'refund_claimed'])
+        .in('room_code', codes)
+      const refundedCodes = new Set((refunds || []).map(r => r.room_code))
+      const active = candidates.find(c => !refundedCodes.has(c.code))
+      return res.json(active || { code: null })
+    } catch { /* fall through */ }
+  }
+  return res.json(candidates[0] || { code: null })
 })
 
 // ── Stuck deposits: deposits with no payout or refund yet ─────────────────
@@ -2165,13 +2181,25 @@ app.post('/api/mark-refund-claimed', express.json(), async (req, res) => {
     const { roomCode, address } = req.body || {}
     if (!roomCode || !address) return res.status(400).json({ error: 'Missing fields' })
     if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
-    if (!supabase) return res.json({ ok: true })
-    await supabase.from('escrow_events').insert({
-      event_type:     'refund_claimed',
-      room_code:      roomCode,
-      player_address: address.toLowerCase(),
-      note:           'Player confirmed on-chain claimRefund',
-    })
+    if (supabase) {
+      await supabase.from('escrow_events').insert({
+        event_type:     'refund_claimed',
+        room_code:      roomCode,
+        player_address: address.toLowerCase(),
+        note:           'Player confirmed on-chain claimRefund',
+      })
+    }
+    // Clean up room from memory — player has been refunded, no reason to stay in active room
+    const room = rooms.get(roomCode)
+    if (room && room.status === 'waiting') {
+      room.players = room.players.filter(p => p.address.toLowerCase() !== address.toLowerCase())
+      if (room.players.length === 0) {
+        cleanupRoom(roomCode)
+      } else {
+        io.to(roomCode).emit('game:abandoned', { reason: 'A player claimed their refund — game cancelled.' })
+        cleanupRoom(roomCode)
+      }
+    }
     res.json({ ok: true })
   } catch (e) {
     res.status(500).json({ error: e.message })
