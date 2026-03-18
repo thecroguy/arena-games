@@ -695,6 +695,13 @@ export default function Game() {
     socket.on('game:over', (data: { winner: string; pot: string; payoutMode?: string; claimSig?: string; scores: Array<{ address: string; score: number; rank: number }> }) => {
       if (timerRef.current) clearInterval(timerRef.current)
       setPhase('finished'); setGameOver(data)
+      // Save claim sig to localStorage — Profile will show the claim button even if user navigates away before claiming
+      if (data.payoutMode === 'escrow' && data.claimSig && data.winner?.toLowerCase() === myAddr && roomCode) {
+        try {
+          const escrowAddr = getEscrowAddress(roomChainId)
+          localStorage.setItem(`ag_claimsig_${roomCode}`, JSON.stringify({ room_code: roomCode, game_mode: gameModeLS, pot: data.pot, claim_sig: data.claimSig, escrow_address: escrowAddr || '', room_id_hash: getRoomId(roomCode), chain_id: roomChainId, played_at: new Date().toISOString() }))
+        } catch {}
+      }
     })
     socket.on('game:refund_sig', ({ refundSig: sig }: { refundSig: string }) => {
       setRefundSig(sig)
@@ -789,6 +796,9 @@ export default function Game() {
         args: [getRoomId(roomCode ?? ''), gameOver.winner as `0x${string}`, gameOver.claimSig as `0x${string}`],
       })
       setClaimState('done')
+      // Clean up localStorage + mark claimed in DB so Profile doesn't show a stale claim button
+      if (roomCode) localStorage.removeItem(`ag_claimsig_${roomCode}`)
+      fetch(`${SERVER_URL}/api/mark-claimed`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: myAddr, room_code: roomCode }) }).catch(() => {})
     } catch {
       setClaimState('error')
     }
@@ -852,6 +862,8 @@ export default function Game() {
       txHash = await writeContractAsync({ address: escrowAddr, abi: ESCROW_ABI, functionName: 'deposit', args: [roomId, amount], chainId: chain.id, gas: 300000n })
       // Store txHash so rejoin() can re-send room:deposit if socket drops between here and server ack
       localStorage.setItem('ag_pending_deposit', JSON.stringify({ code: roomCode, address, chainId: chain.id, fee: entryFee, txHash, ts: Date.now() }))
+      // Persist deposit permanently — Profile uses this to auto-scan for refunds even if server missed the event
+      try { const d = JSON.parse(localStorage.getItem('ag_deposits') || '{}'); d[roomCode!] = { chainId: chain.id, escrow: escrowAddr, entryFee, ts: Date.now() }; localStorage.setItem('ag_deposits', JSON.stringify(d)) } catch {}
     } catch { localStorage.removeItem('ag_pending_deposit'); setError('Deposit failed — try again'); setJoinPayStep('idle'); return }
     // room:join was already called by rejoin() on mount — just confirm the deposit
     setJoinPayStep('joining')

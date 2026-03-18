@@ -287,6 +287,8 @@ export default function Lobby() {
         const txHash = await writeContractAsync({ address: escrowAddr, abi: ESCROW_ABI, functionName: 'deposit', args: [roomId, amount], chainId: chain.id, gas: 300000n })
         // Store txHash so Game.tsx rejoin can re-send room:deposit if socket dropped
         localStorage.setItem('ag_pending_deposit', JSON.stringify({ code: roomCode, address, chainId: chain.id, fee, txHash, ts: Date.now() }))
+        // Persist deposit permanently — Profile uses this to auto-scan for refunds even if server missed the event
+        try { const d = JSON.parse(localStorage.getItem('ag_deposits') || '{}'); d[roomCode] = { chainId: chain.id, escrow: escrowAddr, entryFee: fee, ts: Date.now() }; localStorage.setItem('ag_deposits', JSON.stringify(d)) } catch {}
         return txHash
       } catch { localStorage.removeItem('ag_pending_deposit'); showError('Deposit failed. Your USDT was not locked — please try again.'); return null }
     } else {

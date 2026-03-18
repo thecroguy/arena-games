@@ -177,7 +177,20 @@ export default function Profile() {
       })
       .catch(() => { setStuckVerifying(false) })
     fetch(`${SERVER_URL}/api/pending-claim/${address}`)
-      .then(r => r.json()).then(data => { if (Array.isArray(data)) setPendingClaims(data) })
+      .then(r => r.json()).then((data: PendingClaim[]) => {
+        const apiClaims: PendingClaim[] = Array.isArray(data) ? data : []
+        // Merge in any localStorage-backed claim sigs (set when game:over fires in Game.tsx)
+        // This ensures claim button appears on Profile even if user navigated away before claiming
+        const localClaims: PendingClaim[] = []
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          if (key?.startsWith('ag_claimsig_')) {
+            try { const c = JSON.parse(localStorage.getItem(key) || ''); if (c?.claim_sig) localClaims.push(c) } catch {}
+          }
+        }
+        const apiCodes = new Set(apiClaims.map(p => p.room_code))
+        setPendingClaims([...apiClaims, ...localClaims.filter(c => !apiCodes.has(c.room_code))])
+      })
       .catch(() => {})
   }, [address, publicClient])
 
@@ -209,17 +222,22 @@ export default function Profile() {
     return { deposit: null, reason: 'not_found' }
   }
 
-  // Server is source of truth — no localStorage dependency
+  // Server is source of truth, with localStorage fallback for rooms server may have missed
   const scanOnChain = useCallback(async () => {
     if (!address || !publicClient) return
     try {
       setScanningChain(true)
       const r = await fetch(`${SERVER_URL}/api/room-history/${address}`)
-      if (!r.ok) { setScanningChain(false); return }
-      const serverRooms: { code: string; chainId: number }[] = await r.json()
-      if (serverRooms.length === 0) { setScanningChain(false); return }
+      const serverRooms: { code: string; chainId: number }[] = r.ok ? await r.json() : []
+      // Also include any rooms tracked locally (persisted when deposit tx confirms)
+      // This ensures Profile finds deposits even if server was offline at deposit time
+      const localDeps: Record<string, { chainId: number }> = JSON.parse(localStorage.getItem('ag_deposits') || '{}')
+      const localRooms = Object.keys(localDeps).map(code => ({ code, chainId: localDeps[code].chainId || 137 }))
+      const allRooms = [...serverRooms]
+      for (const lr of localRooms) { if (!allRooms.some(sr => sr.code === lr.code)) allRooms.push(lr) }
+      if (allRooms.length === 0) { setScanningChain(false); return }
       const found: OnChainDeposit[] = []
-      for (const { code, chainId: rChainId } of serverRooms) {
+      for (const { code, chainId: rChainId } of allRooms) {
         const escrow = getEscrowAddress(rChainId)
         if (!escrow) continue
         try {
@@ -398,6 +416,7 @@ export default function Profile() {
       }
       setStuckDeposits(prev => prev.filter(d => d.room_code !== deposit.room_code))
       setOnChainDeposits(prev => prev.filter(d => d.code !== deposit.room_code))
+      try { const d = JSON.parse(localStorage.getItem('ag_deposits') || '{}'); delete d[deposit.room_code]; localStorage.setItem('ag_deposits', JSON.stringify(d)) } catch {}
       // Tell server the refund was claimed so it doesn't reappear on refresh
       fetch(`${SERVER_URL}/api/mark-refund-claimed`, {
         method: 'POST',
@@ -427,6 +446,7 @@ export default function Profile() {
         gas: 300000n,
       })
       setPendingClaims(prev => prev.filter(p => p.room_code !== pending.room_code))
+      localStorage.removeItem(`ag_claimsig_${pending.room_code}`)
       // Mark as claimed in DB so it doesn't show up again
       fetch(`${SERVER_URL}/api/mark-claimed`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -437,6 +457,7 @@ export default function Profile() {
       if (msg.includes('AlreadySettled')) {
         // Already claimed on-chain — mark it and remove from list
         setPendingClaims(prev => prev.filter(p => p.room_code !== pending.room_code))
+        localStorage.removeItem(`ag_claimsig_${pending.room_code}`)
         fetch(`${SERVER_URL}/api/mark-claimed`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ address, room_code: pending.room_code }),
@@ -726,6 +747,7 @@ export default function Profile() {
                     }
                     fetch(`${SERVER_URL}/api/mark-refund-claimed`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roomCode: d.code, address }) }).catch(() => {})
                     setOnChainDeposits(prev => prev.filter(x => x.code !== d.code))
+                    try { const deps = JSON.parse(localStorage.getItem('ag_deposits') || '{}'); delete deps[d.code]; localStorage.setItem('ag_deposits', JSON.stringify(deps)) } catch {}
                   } catch (e: unknown) {
                     const msg = e instanceof Error ? e.message : String(e)
                     if (msg.includes('TooEarlyForEmergency')) setError('Too early — wait 24h after deposit.')
