@@ -196,12 +196,12 @@ const disconnectTimers = new Map() // `${code}:${address}` → reconnect timer
 const matchmakingQueues = new Map()
 const matchmakingTimers = new Map()
 
-// ── Activity feed (last 20 events, broadcast to all) ─────────────────────
+// ── Activity feed (last 50 events, broadcast to all) ─────────────────────
 const activityFeed = []
 function pushActivity(msg) {
   activityFeed.unshift({ msg, ts: Date.now() })
-  if (activityFeed.length > 20) activityFeed.pop()
-  io.emit('activity:update', activityFeed.slice(0, 10))
+  if (activityFeed.length > 50) activityFeed.pop()
+  io.emit('activity:update', activityFeed)
 }
 
 // ── Global chat (last 50 messages) ───────────────────────────────────────
@@ -218,17 +218,24 @@ const _FADJS  = ['Brave','Swift','Dark','Iron','Bold','Sly','Wild','Frost','Stor
 const _FNOUNS = ['Fox','Wolf','Bear','Hawk','Lion','Tiger','Shark','Eagle','Viper','Dragon',
                  'Phoenix','Panda','Ninja','Rider','Coder','Sniper','Ranger','Hunter','Wizard','Knight',
                  'Pirate','Bandit','Nomad','Titan','Blade','Drifter','Stalker','Phantom','Ghost','Maverick']
-// Generate 1800 unique names cycling adj×noun×num evenly, then shuffle so picks feel random
+// Generate names: adj×noun with varied num suffixes (01-99 spread) + some no-number names
 const FAKE_USERS_SVR = (() => {
+  const nums = [4,7,9,13,17,21,24,28,31,35,39,42,44,47,51,55,58,62,65,68,72,75,79,83,86,91,94,97]
   const out = []
-  for (const num of [10, 37]) {
+  for (const num of nums) {
     for (let a = 0; a < _FADJS.length; a++) {
       for (let n = 0; n < _FNOUNS.length; n++) {
         out.push(`${_FADJS[a]}${_FNOUNS[n]}${String(num).padStart(2,'0')}`)
       }
     }
   }
-  // Fisher-Yates shuffle so random picks don't cluster by adjective
+  // ~25% of adj×noun combos also get a no-number variant (looks more natural)
+  for (let a = 0; a < _FADJS.length; a++) {
+    for (let n = 0; n < _FNOUNS.length; n++) {
+      if ((a + n) % 4 === 0) out.push(`${_FADJS[a]}${_FNOUNS[n]}`)
+    }
+  }
+  // Fisher-Yates shuffle
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [out[i], out[j]] = [out[j], out[i]]
@@ -277,6 +284,12 @@ const _FCHAT_BASE = [
   'just beat someone in math arena, easy $1.70',
   'up $6 since this morning, slow grind',
   'winning streak rn, do not challenge me lol',
+  // Matchmaking honest pain (makes it feel real, not fake)
+  'auto match takes forever when platform is quiet, just use duels',
+  'tip: create a duel and share link, way faster than waiting for auto match',
+  'auto matchmaking is slow rn, not enough players online yet',
+  'just use the duel link bro, share it and your friend joins instantly',
+  'platform is early so sometimes gotta wait for auto match, duel links are better',
 ]
 const FAKE_CHAT_SVR = (() => {
   const out = []
@@ -297,10 +310,10 @@ function _fakePushActivity() {
   const u = _fakePick(FAKE_PLAYERS_SVR), g = _fakePick(FAKE_GAMES_SVR), e = _fakePick(FAKE_ENTRIES_SVR)
   const pot = FAKE_POTS_SVR[e]
   const msgs = [
-    `🏆 ${u} won $${pot} — ${g}`,
-    `👤 ${u} joined ${g} (${e})`,
-    `🎮 ${u} opened a ${e} room — ${g}`,
-    `⚔️ ${u} created a ${e} duel — ${g}`,
+    `${u} won $${pot} in ${g}`,
+    `${u} joined ${g} (${e} entry)`,
+    `${u} opened a ${e} room — ${g}`,
+    `${u} created a ${e} duel — ${g}`,
   ]
   pushActivity(_fakePick(msgs))
   setTimeout(_fakePushActivity, _fakeRand(20000, 65000))
@@ -368,24 +381,43 @@ const _LEGIT_QUESTIONS = [
   'do they actually pay or is it fake?',
   'anyone have proof this is legit?',
 ]
+// Follow-up from the same lurker AFTER getting a reply (sounds like they believed it)
+const _LEGIT_FOLLOWUPS = [
+  'oh nice so it withdraws instant after the game ends?',
+  'damn okay gonna try $0.50 first',
+  'wait so no waiting period?? straight to wallet??',
+  'okay that actually sounds solid ngl',
+  'alright i trust it, gonna play',
+  'so it just claims automatically? no kyc or anything?',
+  'ok ok lets goo',
+  'bet gonna try a match rn',
+  'so i just need polygon USDT? thats it?',
+]
 
-function _fakeSendLegitReply(extraDelay = 0) {
-  // slight delay so it looks like someone typed a response
+function _fakeSendLegitReply(lurkerName = null, extraDelay = 0) {
+  // Player replies after a natural delay
   setTimeout(() => {
-    const reply = _fakePick(_LEGIT_REPLIES)
-    // sometimes a second fake user piles on with another reply
-    const entry = { username: _fakePick(FAKE_PLAYERS_SVR), message: reply, ts: Date.now() }
+    const entry = { username: _fakePick(FAKE_PLAYERS_SVR), message: _fakePick(_LEGIT_REPLIES), ts: Date.now() }
     globalChat.push(entry)
     if (globalChat.length > 50) globalChat.shift()
     io.emit('chat:message', entry)
-    // 40% chance a second fake player also chimes in
+    // 40% chance a second player also chimes in
     if (Math.random() < 0.4) {
       setTimeout(() => {
         const entry2 = { username: _fakePick(FAKE_PLAYERS_SVR), message: _fakePick(_LEGIT_REPLIES), ts: Date.now() }
         globalChat.push(entry2)
         if (globalChat.length > 50) globalChat.shift()
         io.emit('chat:message', entry2)
-      }, _fakeRand(6000, 18000))
+      }, _fakeRand(5000, 15000))
+    }
+    // The original lurker follows up with a reaction (sounds like they got convinced)
+    if (lurkerName && Math.random() < 0.6) {
+      setTimeout(() => {
+        const fu = { username: lurkerName, message: _fakePick(_LEGIT_FOLLOWUPS), ts: Date.now() }
+        globalChat.push(fu)
+        if (globalChat.length > 50) globalChat.shift()
+        io.emit('chat:message', fu)
+      }, _fakeRand(15000, 35000))
     }
   }, _fakeRand(8000, 25000) + extraDelay)
 }
@@ -395,11 +427,12 @@ function _fakePushChat() {
   if (Math.random() < 0.15 && globalChat.length > 2) {
     // Lurker (not a player) asks a doubt question — a player then replies
     const q = _fakePick(_LEGIT_QUESTIONS)
-    const qEntry = { username: _fakePick(FAKE_LURKERS_SVR), message: q, ts: Date.now() }
+    const lurker = _fakePick(FAKE_LURKERS_SVR)
+    const qEntry = { username: lurker, message: q, ts: Date.now() }
     globalChat.push(qEntry)
     if (globalChat.length > 50) globalChat.shift()
     io.emit('chat:message', qEntry)
-    _fakeSendLegitReply()  // a player answers
+    _fakeSendLegitReply(lurker)  // a player answers; lurker may follow up
     setTimeout(_fakePushChat, _fakeRand(60000, 150000))
     return
   }
@@ -419,9 +452,9 @@ function _fakePushChat() {
     const u = _fakePick(FAKE_PLAYERS_SVR), g = _fakePick(FAKE_GAMES_SVR), e = _fakePick(FAKE_ENTRIES_SVR)
     const pot = FAKE_POTS_SVR[e]
     const msgs = [
-      `🏆 ${u} won $${pot} — ${g}`,
-      `👤 ${u} joined ${g} (${e})`,
-      `🎮 ${u} opened a ${e} room — ${g}`,
+      `${u} won $${pot} in ${g}`,
+      `${u} joined ${g} (${e} entry)`,
+      `${u} opened a ${e} room — ${g}`,
     ]
     activityFeed.push({ msg: _fakePick(msgs), ts: Date.now() - i * _fakeRand(30000, 120000) })
   }
@@ -899,7 +932,7 @@ async function endGame(room) {
   })
   const winnerName = winner.username || addrName(winner.address)
   const gNameEnd = { 'math-arena': 'Math Arena', 'pattern-memory': 'Pattern Memory', 'reaction-grid': 'Reaction Grid', 'highest-unique': 'Highest Unique', 'lowest-unique': 'Lowest Unique', 'liars-dice': "Liar's Dice" }[room.gameMode] || room.gameMode
-  pushActivity(`🏆 ${winnerName} won $${pot} — ${gNameEnd}`)
+  pushActivity(`${winnerName} won $${pot} in ${gNameEnd}`)
 
   if (supabase) {
     try {
@@ -1090,8 +1123,8 @@ io.on('connection', (socket) => {
     cb({ code, chainId: resolvedChainId })
     console.log(`Room ${code} [${gameMode}] created by ${address.slice(0, 8)} on chain ${resolvedChainId}`)
     const gameName = { 'math-arena': 'Math Arena', 'pattern-memory': 'Pattern Memory', 'reaction-grid': 'Reaction Grid', 'highest-unique': 'Highest Unique', 'lowest-unique': 'Lowest Unique', 'liars-dice': "Liar's Dice" }[gameMode] || gameMode
-    if (resolvedRoomType === 'duel') pushActivity(`⚔️ ${hostUsername} created a $${entryFee} duel — ${gameName}`)
-    else pushActivity(`🎮 ${hostUsername} opened a $${entryFee} room — ${gameName}`)
+    if (resolvedRoomType === 'duel') pushActivity(`${hostUsername} created a $${entryFee} duel — ${gameName}`)
+    else pushActivity(`${hostUsername} opened a $${entryFee} room — ${gameName}`)
   })
 
   socket.on('room:join', async ({ code, address, txHash, authSig }, cb) => {
@@ -1186,7 +1219,7 @@ io.on('connection', (socket) => {
     socket.data.address  = address
 
     const gName = { 'math-arena': 'Math Arena', 'pattern-memory': 'Pattern Memory', 'reaction-grid': 'Reaction Grid', 'highest-unique': 'Highest Unique', 'lowest-unique': 'Lowest Unique', 'liars-dice': "Liar's Dice" }[room.gameMode] || room.gameMode
-    pushActivity(`👤 ${joinerUsername} joined ${gName} ($${room.entryFee})`)
+    pushActivity(`${joinerUsername} joined ${gName} ($${room.entryFee} entry)`)
 
     io.to(code).emit('room:update', roomPublic(room))
     cb({ ok: true, room: roomPublic(room) })
@@ -1472,7 +1505,7 @@ io.on('connection', (socket) => {
     io.emit('chat:message', entry)
     // ── FAKE DATA: auto-reply if real user asks about legitimacy/payouts ──────
     const lower = trimmed.toLowerCase()
-    if (_LEGIT_TRIGGERS.some(kw => lower.includes(kw))) _fakeSendLegitReply()
+    if (_LEGIT_TRIGGERS.some(kw => lower.includes(kw))) _fakeSendLegitReply(name)
     // ── END FAKE DATA ──────────────────────────────────────────────────────────
   })
 
@@ -1481,7 +1514,7 @@ io.on('connection', (socket) => {
   })
 
   socket.on('activity:get', (cb) => {
-    if (typeof cb === 'function') cb(activityFeed.slice(0, 10))
+    if (typeof cb === 'function') cb(activityFeed)
   })
 
   // Chat (lobby/queue only)
