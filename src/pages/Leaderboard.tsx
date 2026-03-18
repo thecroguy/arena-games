@@ -119,8 +119,8 @@ export default function Leaderboard() {
                     <div style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 900, fontSize: '1.1rem', color: '#e2e8f0' }}>
                       {p.wins} <span style={{ fontSize: '0.6rem', color: '#64748b' }}>WINS</span>
                     </div>
-                    {address && p.player_address === address.toLowerCase() && (
-                      <div style={{ color: '#22c55e', fontSize: '0.85rem', fontWeight: 700 }}>
+                    {period !== 'alltime' && (
+                      <div style={{ fontWeight: 700, fontSize: '0.85rem', color: Number(p.net_earned) >= 0 ? '#22c55e' : '#ef4444' }}>
                         {Number(p.net_earned) >= 0 ? '+' : ''}${Number(p.net_earned).toFixed(2)}
                       </div>
                     )}
@@ -136,7 +136,10 @@ export default function Leaderboard() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #1e1e30' }}>
-                    {['Rank', 'Player', 'Wins', 'Games', 'Win Rate'].map(h => (
+                    {(period === 'alltime'
+                      ? ['Rank', 'Player', 'Wins', 'Games', 'Win Rate']
+                      : ['Rank', 'Player', 'Profit', 'Wins', 'Games', 'Win Rate']
+                    ).map(h => (
                       <th key={h} style={{ padding: '12px 20px', textAlign: 'left', color: '#64748b', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', whiteSpace: 'nowrap', fontFamily: 'Orbitron, sans-serif' }}>{h}</th>
                     ))}
                   </tr>
@@ -145,6 +148,7 @@ export default function Leaderboard() {
                   {data.map((p, idx) => {
                     const isMe = address && p.player_address === address.toLowerCase()
                     const wr   = Number(p.win_rate)
+                    const net  = Number(p.net_earned)
                     return (
                       <tr key={p.player_address} style={{ borderBottom: idx < data.length - 1 ? '1px solid #0d0d14' : 'none', background: isMe ? 'rgba(124,58,237,0.07)' : 'transparent' }}>
                         <td style={{ padding: '14px 20px' }}>
@@ -159,6 +163,11 @@ export default function Leaderboard() {
                             {isMe && <span style={{ fontSize: '0.65rem', background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa', borderRadius: '4px', padding: '1px 6px', fontWeight: 700 }}>YOU</span>}
                           </div>
                         </td>
+                        {period !== 'alltime' && (
+                          <td style={{ padding: '14px 20px', fontWeight: 700, color: net >= 0 ? '#22c55e' : '#ef4444', fontSize: '0.9rem', fontFamily: 'Orbitron, sans-serif' }}>
+                            {net >= 0 ? '+' : ''}${net.toFixed(2)}
+                          </td>
+                        )}
                         <td style={{ padding: '14px 20px', fontFamily: 'Orbitron, sans-serif', fontWeight: 700, color: '#22c55e', fontSize: '0.9rem' }}>{p.wins}</td>
                         <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '0.9rem' }}>{p.games_played}</td>
                         <td style={{ padding: '14px 20px' }}>
@@ -169,11 +178,6 @@ export default function Leaderboard() {
                             <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>{wr}%</span>
                           </div>
                         </td>
-                        {isMe && (
-                          <td style={{ padding: '14px 20px', fontWeight: 700, color: Number(p.net_earned) >= 0 ? '#22c55e' : '#ef4444', fontSize: '0.9rem' }}>
-                            {Number(p.net_earned) >= 0 ? '+' : ''}${Number(p.net_earned).toFixed(2)}
-                          </td>
-                        )}
                       </tr>
                     )
                   })}
