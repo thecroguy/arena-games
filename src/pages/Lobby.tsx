@@ -80,7 +80,7 @@ export default function Lobby() {
   const [chatInput, setChatInput]           = useState('')
   const [panelTab, setPanelTab]             = useState<'activity' | 'chat'>('activity')
   const [showCreateDuel, setShowCreateDuel] = useState(false)
-  const [duelShareCode, setDuelShareCode]   = useState('')
+  const [duelShareCode, setDuelShareCode]   = useState(() => localStorage.getItem('ag_duel_share') || '')
   // Layout state
   const [isDesktop, setIsDesktop]           = useState(() => window.innerWidth >= 1100)
   const [panelOpen, setPanelOpen]           = useState(() => window.innerWidth >= 1100)
@@ -347,6 +347,7 @@ export default function Lobby() {
     setCreating(false); setPayStep('idle')
     localStorage.setItem(ACTIVE_ROOM_KEY, code); setActiveRoom(code)
     addToRoomHistory(code, selectedChain.id)
+    localStorage.setItem('ag_duel_share', code)
     setDuelShareCode(code); setShowCreateDuel(false)
   }
 
@@ -594,26 +595,37 @@ export default function Lobby() {
       )}
 
       {/* Duel share card */}
-      {duelShareCode && (
-        <div style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.4)', borderRadius: '14px', padding: '20px', marginBottom: '20px' }}>
-          <p style={{ color: '#f97316', fontWeight: 800, fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem', marginBottom: '6px' }}>⚔️ ${(selectedFee * 2).toFixed(0)} POT DUEL CREATED!</p>
-          <p style={{ color: '#e2e8f0', fontSize: '0.82rem', fontFamily: 'Orbitron, sans-serif', letterSpacing: '0.05em', marginBottom: '12px' }}>joinarena.space/r/{duelShareCode}</p>
-          <textarea readOnly
-            value={`⚔️ $${(selectedFee * 2).toFixed(0)} POT DUEL\n\n${meta.title}\nWinner takes $${(selectedFee * 2 * 0.85).toFixed(2)}\n\nThink you're faster?\n\njoinarena.space/r/${duelShareCode}`}
-            style={{ width: '100%', background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: '8px', padding: '10px', color: '#94a3b8', fontSize: '0.8rem', resize: 'none', height: '110px', marginBottom: '10px', boxSizing: 'border-box', lineHeight: 1.5 }}
-          />
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={() => copyToClipboard(`⚔️ $${(selectedFee * 2).toFixed(0)} POT DUEL\n\n${meta.title}\nWinner takes $${(selectedFee * 2 * 0.85).toFixed(2)}\n\nThink you're faster?\n\njoinarena.space/r/${duelShareCode}`)}
-              style={{ flex: 1, background: 'rgba(249,115,22,0.18)', border: '1px solid rgba(249,115,22,0.4)', borderRadius: '8px', padding: '10px', color: '#f97316', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
-              📋 Copy Challenge
-            </button>
-            <button onClick={() => navigate(`/game/${duelShareCode}`)}
-              style={{ flex: 1, background: 'linear-gradient(135deg,#f97316,#ea580c)', border: 'none', borderRadius: '8px', padding: '10px', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
-              Go to Room →
-            </button>
+      {duelShareCode && (() => {
+        const pot = (selectedFee * 2).toFixed(2)
+        const win = (selectedFee * 2 * 0.85).toFixed(2)
+        const duelUrl = `https://joinarena.space/r/${duelShareCode}`
+        const tweetText = `⚔️ $${pot} POT DUEL — ${meta.title}\n\nWinner takes $${win} USDT\nExpires in 15 min ⏱\n\nThink you can beat me?\n${duelUrl}`
+        return (
+          <div style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.4)', borderRadius: '14px', padding: '18px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <p style={{ color: '#f97316', fontWeight: 800, fontFamily: 'Orbitron, sans-serif', fontSize: '0.88rem' }}>⚔️ ${pot} DUEL CREATED!</p>
+              <button onClick={() => { localStorage.removeItem('ag_duel_share'); setDuelShareCode('') }}
+                style={{ background: 'none', border: 'none', color: '#475569', fontSize: '1rem', cursor: 'pointer', padding: '0 4px' }}>✕</button>
+            </div>
+            <p style={{ color: '#64748b', fontSize: '0.75rem', marginBottom: '10px' }}>Expires in 15 min ⏱ · Winner takes ${win}</p>
+            <div style={{ background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: '8px', padding: '10px 12px', marginBottom: '10px', fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.6, whiteSpace: 'pre-line', fontFamily: 'monospace' }}>{tweetText}</div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => copyToClipboard(tweetText)}
+                style={{ flex: 1, background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.4)', borderRadius: '8px', padding: '10px', color: '#f97316', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
+                📋 Copy Post
+              </button>
+              <button onClick={() => window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(tweetText)}`, '_blank')}
+                style={{ flex: 1, background: '#000', border: '1px solid #333', borderRadius: '8px', padding: '10px', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
+                𝕏 Post on X
+              </button>
+              <button onClick={() => navigate(`/game/${duelShareCode}`)}
+                style={{ flex: 1, background: 'linear-gradient(135deg,#f97316,#ea580c)', border: 'none', borderRadius: '8px', padding: '10px', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
+                Enter Room →
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Room code join */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
