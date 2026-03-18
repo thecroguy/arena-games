@@ -188,7 +188,7 @@ export default function Game() {
   const [error, setError]       = useState('')
   const [connecting, setConnecting] = useState(!isBotMode)
   const [joinPayStep, setJoinPayStep] = useState<'idle' | 'approving' | 'paying' | 'joining'>('idle')
-  const [canStart, setCanStart] = useState(false)
+  const [, setCanStart] = useState(false)
   const [botThinking, setBotThinking] = useState(false)
   const [patternVisible, setPatternVisible] = useState(true)
   const [selectedTiles, setSelectedTiles] = useState<number[]>([])
@@ -240,13 +240,6 @@ export default function Game() {
     return () => clearInterval(t)
   }, [phase, depositedAt])
 
-  // ── Auto-start duel when both players have deposited ───────────────────
-  useEffect(() => {
-    if (!isDuel || !isHost || connecting || phase !== 'waiting') return
-    const allDeposited = players.length >= 2 && players.every(p => (p as PlayerState & { deposited?: boolean }).deposited)
-    if (allDeposited) handleStart()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, isDuel, isHost, connecting, phase])
 
   // ── Bot mode ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -585,17 +578,19 @@ export default function Game() {
     if (isBotMode) return
     const socket = connectSocket()
 
+    let rejoinInFlight = false
     async function rejoin() {
+      if (rejoinInFlight) return   // prevent concurrent calls — race condition causes duplicate player
+      rejoinInFlight = true
       const addr = addrRef.current
-      if (!addr) return
+      if (!addr) { rejoinInFlight = false; return }
       setConnecting(true)
       const authSig = await getAuthSig()
-      if (!authSig) { setConnecting(false); return }
+      if (!authSig) { setConnecting(false); rejoinInFlight = false; return }
       socket.emit('room:join', { code: roomCode, address: addr, authSig }, (res: { ok?: boolean; error?: string; reconnected?: boolean; room?: { players: PlayerState[]; gameMode?: string } }) => {
+        rejoinInFlight = false
         setConnecting(false)
         if (res.error === 'Room not found') {
-          // Room was cleaned up (refund issued, game ended, or server restart with no DB record)
-          // Don't strand user on a dead room page — send them back to lobby
           navigate(`/lobby/${gameModeLS}`)
           return
         }
@@ -604,17 +599,13 @@ export default function Game() {
           res.room.players.forEach((p: PlayerState) => { if (p.username) usernameCache.set(p.address.toLowerCase(), p.username) })
           setPlayers(res.room.players)
           if (res.room.gameMode) setGameMode(res.room.gameMode)
-          // Restore countdown timer if any player already deposited
           if (res.room.players.some((p: PlayerState & { deposited?: boolean }) => p.deposited)) {
             setDepositedAt(prev => prev || Date.now())
           }
         }
       })
     }
-    // Expose rejoin so the reconnect button can call it
     ;(window as any)._arenaRejoin = rejoin
-    // Only call rejoin directly if socket is already connected — otherwise the 'connect'
-    // event below will call it. Prevents double room:join on page refresh.
     if (socket.connected) rejoin()
     socket.on('connect', rejoin)
 
@@ -813,14 +804,12 @@ export default function Game() {
       txHash = await writeContractAsync({ address: escrowAddr, abi: ESCROW_ABI, functionName: 'deposit', args: [roomId, amount], chainId: chain.id, gas: 300000n })
       localStorage.removeItem('ag_pending_deposit')
     } catch { localStorage.removeItem('ag_pending_deposit'); setError('Deposit failed — try again'); setJoinPayStep('idle'); return }
+    // room:join was already called by rejoin() on mount — just confirm the deposit
     setJoinPayStep('joining')
     const socket = connectSocket()
-    socket.emit('room:join', { code: roomCode, address, chainId: chain.id, txHash, authSig }, (res: { ok?: boolean; error?: string }) => {
-      setJoinPayStep('idle')
-      if (res.error && res.error !== 'Already in room') { setError(res.error); return }
-      socket.emit('room:deposit', { code: roomCode, txHash, address }, () => {})
-      fetch(`${SERVER_URL}/api/report-deposit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address, room_code: roomCode, tx_hash: txHash, chain_id: chain.id, amount_usdt: entryFee }) }).catch(() => {})
-    })
+    socket.emit('room:deposit', { code: roomCode, txHash, address }, () => {})
+    fetch(`${SERVER_URL}/api/report-deposit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address, room_code: roomCode, tx_hash: txHash, chain_id: chain.id, amount_usdt: entryFee }) }).catch(() => {})
+    setJoinPayStep('idle')
   }
 
   function submitAnswer(val: string) {
@@ -965,6 +954,17 @@ export default function Game() {
             </div>
           ))}
         </div>
+        {isDuel && !isHost && isJoining && (() => {
+          const pot = (entryFee * 2).toFixed(2)
+          const win = (entryFee * 2 * 0.85).toFixed(2)
+          const gameTitle = GAME_HELP[gameMode]?.title || gameMode
+          return (
+            <div style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.3)', borderRadius: '14px', padding: '14px 18px', marginBottom: '16px', textAlign: 'left' }}>
+              <p style={{ color: '#f97316', fontWeight: 800, fontFamily: 'Orbitron, sans-serif', fontSize: '0.85rem', margin: '0 0 8px' }}>⚔️ ${pot} DUEL — {gameTitle}</p>
+              <p style={{ color: '#64748b', fontSize: '0.8rem', margin: 0 }}>Winner takes <strong style={{ color: '#e2e8f0' }}>${win} USDT</strong> · Lock your funds to confirm you're in</p>
+            </div>
+          )
+        })()}
         {isDuel && isHost && players.length < 2 ? (() => {
           const pot = (entryFee * 2).toFixed(2)
           const win = (entryFee * 2 * 0.85).toFixed(2)
@@ -1030,11 +1030,15 @@ export default function Game() {
             </button>
           </div>
         )}
-        {/* Joiner: pay to join button */}
+        {/* Joiner: pay to lock in */}
         {isJoining && !connecting && (() => {
           const myP = players.find(p => p.address === myAddr) as (PlayerState & { deposited?: boolean }) | undefined
-          if (myP?.deposited) return <p style={{ color: '#22c55e', fontSize: '0.85rem' }}>✓ Funds locked — waiting for game to start</p>
-          const labels = { idle: `Pay $${entryFee} USDT to Join`, approving: 'Approving USDT…', paying: 'Locking funds…', joining: 'Joining room…' }
+          if (myP?.deposited) return (
+            <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '10px', padding: '12px 16px', marginBottom: '12px', color: '#22c55e', fontSize: '0.88rem', textAlign: 'center' }}>
+              ✓ Funds locked — waiting for host to start
+            </div>
+          )
+          const labels = { idle: `Pay $${entryFee} USDT to Lock In`, approving: 'Approving USDT…', paying: 'Locking funds…', joining: 'Confirming…' }
           return (
             <button onClick={payAndJoin} disabled={joinPayStep !== 'idle'}
               style={{ width: '100%', background: joinPayStep !== 'idle' ? '#1e1e30' : 'linear-gradient(135deg, #f97316, #ea580c)', border: 'none', borderRadius: '10px', padding: '14px', color: joinPayStep !== 'idle' ? '#64748b' : '#fff', fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1rem', cursor: joinPayStep !== 'idle' ? 'not-allowed' : 'pointer', letterSpacing: '0.05em', marginBottom: '8px' }}>
@@ -1042,14 +1046,17 @@ export default function Game() {
             </button>
           )
         })()}
-        {/* Host: manual start for non-duel rooms only */}
-        {isHost && !isDuel && canStart && (
-          <button onClick={handleStart} style={{ width: '100%', background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '10px', padding: '14px', color: '#fff', fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1rem', cursor: 'pointer', letterSpacing: '0.05em' }}>
-            Start Game
-          </button>
-        )}
-        {isHost && !isDuel && !canStart && <p style={{ color: '#f59e0b', fontSize: '0.85rem' }}>Need at least 2 players to start</p>}
-        {isHost && isDuel && !connecting && players.length < 2 && <p style={{ color: '#64748b', fontSize: '0.85rem' }}>Waiting for challenger…</p>}
+        {/* Host: Start Game when all players are deposited */}
+        {isHost && (() => {
+          const allDeposited = players.length >= 2 && players.every(p => (p as PlayerState & { deposited?: boolean }).deposited)
+          if (allDeposited) return (
+            <button onClick={handleStart} style={{ width: '100%', background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '10px', padding: '14px', color: '#fff', fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1rem', cursor: 'pointer', letterSpacing: '0.05em' }}>
+              Start Game ▶
+            </button>
+          )
+          if (players.length < 2) return <p style={{ color: '#64748b', fontSize: '0.85rem' }}>Waiting for {isDuel ? 'challenger' : 'players'}…</p>
+          return <p style={{ color: '#f59e0b', fontSize: '0.85rem' }}>Waiting for all players to lock funds…</p>
+        })()}
 
         {/* Queue chat */}
         <div style={{ maxHeight: 180, overflowY: 'auto', background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: 10, padding: 10, marginTop: 12, textAlign: 'left' }}>
