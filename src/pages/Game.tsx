@@ -707,7 +707,7 @@ export default function Game() {
       if (data.payoutMode === 'escrow' && data.claimSig && data.winner?.toLowerCase() === myAddr && roomCode) {
         try {
           const escrowAddr = getEscrowAddress(roomChainId)
-          localStorage.setItem(`ag_claimsig_${roomCode}`, JSON.stringify({ room_code: roomCode, game_mode: gameModeLS, pot: data.pot, claim_sig: data.claimSig, escrow_address: escrowAddr || '', room_id_hash: getRoomId(roomCode), chain_id: roomChainId, played_at: new Date().toISOString() }))
+          localStorage.setItem(`ag_claimsig_${roomCode}`, JSON.stringify({ room_code: roomCode, game_mode: gameModeLS, pot: data.pot, claim_sig: data.claimSig, escrow_address: escrowAddr || '', room_id_hash: getRoomId(roomCode), chain_id: roomChainId, played_at: new Date().toISOString(), winner_address: myAddr }))
         } catch {}
       }
     })
@@ -873,7 +873,7 @@ export default function Game() {
       // Store txHash so rejoin() can re-send room:deposit if socket drops between here and server ack
       localStorage.setItem('ag_pending_deposit', JSON.stringify({ code: roomCode, address, chainId: chain.id, fee: entryFee, txHash, ts: Date.now() }))
       // Persist deposit permanently — Profile uses this to auto-scan for refunds even if server missed the event
-      try { const d = JSON.parse(localStorage.getItem('ag_deposits') || '{}'); d[roomCode!] = { chainId: chain.id, escrow: escrowAddr, entryFee, ts: Date.now() }; localStorage.setItem('ag_deposits', JSON.stringify(d)) } catch {}
+      try { const d = JSON.parse(localStorage.getItem('ag_deposits') || '{}'); d[roomCode!] = { chainId: chain.id, escrow: escrowAddr, entryFee, ts: Date.now(), address: myAddr?.toLowerCase() }; localStorage.setItem('ag_deposits', JSON.stringify(d)) } catch {}
     } catch { localStorage.removeItem('ag_pending_deposit'); setError('Deposit failed — try again'); setJoinPayStep('idle'); return }
     // room:join was already called by rejoin() on mount — just confirm the deposit
     setJoinPayStep('joining')

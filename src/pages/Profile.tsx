@@ -185,7 +185,7 @@ export default function Profile() {
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i)
           if (key?.startsWith('ag_claimsig_')) {
-            try { const c = JSON.parse(localStorage.getItem(key) || ''); if (c?.claim_sig) localClaims.push(c) } catch {}
+            try { const c = JSON.parse(localStorage.getItem(key) || ''); if (c?.claim_sig && (!c.winner_address || c.winner_address.toLowerCase() === address.toLowerCase())) localClaims.push(c) } catch {}
           }
         }
         const apiCodes = new Set(apiClaims.map(p => p.room_code))
@@ -231,8 +231,10 @@ export default function Profile() {
       const serverRooms: { code: string; chainId: number }[] = r.ok ? await r.json() : []
       // Also include any rooms tracked locally (persisted when deposit tx confirms)
       // This ensures Profile finds deposits even if server was offline at deposit time
-      const localDeps: Record<string, { chainId: number }> = JSON.parse(localStorage.getItem('ag_deposits') || '{}')
-      const localRooms = Object.keys(localDeps).map(code => ({ code, chainId: localDeps[code].chainId || 137 }))
+      const localDeps: Record<string, { chainId: number; address?: string }> = JSON.parse(localStorage.getItem('ag_deposits') || '{}')
+      const localRooms = Object.keys(localDeps)
+        .filter(code => !localDeps[code].address || localDeps[code].address === address.toLowerCase())
+        .map(code => ({ code, chainId: localDeps[code].chainId || 137 }))
       const allRooms = [...serverRooms]
       for (const lr of localRooms) { if (!allRooms.some(sr => sr.code === lr.code)) allRooms.push(lr) }
       if (allRooms.length === 0) { setScanningChain(false); return }
