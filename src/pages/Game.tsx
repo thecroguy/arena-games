@@ -969,8 +969,9 @@ export default function Game() {
           ))}
         </div>
         {isDuel && !isHost && isJoining && (() => {
-          const pot = (entryFee * 2).toFixed(2)
-          const win = (entryFee * 2 * 0.85).toFixed(2)
+          const fmt = (n: number) => parseFloat(n.toFixed(2)).toString()
+          const pot = fmt(entryFee * 2)
+          const win = fmt(entryFee * 2 * 0.85)
           const gameTitle = GAME_HELP[gameMode]?.title || gameMode
           return (
             <div style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.3)', borderRadius: '14px', padding: '14px 18px', marginBottom: '16px', textAlign: 'left' }}>
@@ -980,11 +981,12 @@ export default function Game() {
           )
         })()}
         {isDuel && isHost && players.length < 2 ? (() => {
-          const pot = (entryFee * 2).toFixed(2)
-          const win = (entryFee * 2 * 0.85).toFixed(2)
+          const fmt = (n: number) => parseFloat(n.toFixed(2)).toString()
+          const pot = fmt(entryFee * 2)
+          const win = fmt(entryFee * 2 * 0.85)
           const gameTitle = GAME_HELP[gameMode]?.title || gameMode
           const duelUrl = `https://joinarena.space/r/${roomCode}`
-          const tweetText = `⚔️ $${pot} POT DUEL — ${gameTitle}\n\nEntry fee: $${entryFee} USDT each\nWinner takes $${win} USDT\nExpires in 15 min ⏱\n\nThink you can beat me?\n${duelUrl}`
+          const tweetText = `⚔️ $${pot} POT DUEL — ${gameTitle}\n\nEntry fee: $${fmt(entryFee)} USDT each\nWinner takes $${win} USDT\nExpires in 15 min ⏱\n\nThink you can beat me?\n${duelUrl}`
           const expiryMs = (duelCreatedAt || Date.now()) + 15 * 60 * 1000
           return (
             <div style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.4)', borderRadius: '14px', padding: '18px', marginBottom: '16px' }}>
