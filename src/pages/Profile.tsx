@@ -182,9 +182,8 @@ export default function Profile() {
   useEffect(() => { fetchStuck() }, [fetchStuck])
 
   // Scan room history against the contract on-chain
-  async function scanRoomCode(code: string, existingDeposits: OnChainDeposit[] = onChainDeposits): Promise<OnChainDeposit | null> {
-    if (!address || !publicClient || !code) return null
-    // Try all supported chains
+  async function scanRoomCode(code: string, existingDeposits: OnChainDeposit[] = onChainDeposits): Promise<{ deposit: OnChainDeposit | null; reason: 'found' | 'settled' | 'not_found' }> {
+    if (!address || !publicClient || !code) return { deposit: null, reason: 'not_found' }
     for (const chainId137 of [137, 80002]) {
       const escrow = getEscrowAddress(chainId137)
       if (!escrow) continue
@@ -196,17 +195,16 @@ export default function Profile() {
         ])
         if (deposited) {
           const [, , settled] = info as [bigint, bigint, boolean, string[]]
-          if (!settled) {
-            const deposit = { code, chainId: chainId137, escrow, roomId, createdAt: 0, settled }
-            if (!existingDeposits.some(d => d.code === code)) {
-              setOnChainDeposits(prev => [...prev.filter(d => d.code !== code), deposit])
-            }
-            return deposit
+          if (settled) return { deposit: null, reason: 'settled' }
+          const deposit = { code, chainId: chainId137, escrow, roomId, createdAt: 0, settled }
+          if (!existingDeposits.some(d => d.code === code)) {
+            setOnChainDeposits(prev => [...prev.filter(d => d.code !== code), deposit])
           }
+          return { deposit, reason: 'found' }
         }
       } catch { /* wrong chain — try next */ }
     }
-    return null
+    return { deposit: null, reason: 'not_found' }
   }
 
   // Server is source of truth — no localStorage dependency
@@ -742,7 +740,7 @@ export default function Profile() {
 
       {/* Manual room code recovery */}
       <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '12px', padding: '14px 16px', marginBottom: '24px' }}>
-        <p style={{ color: '#475569', fontSize: '0.75rem', marginBottom: '8px' }}>Missing a deposit? Enter the room code to recover it from any device.</p>
+        <p style={{ color: '#475569', fontSize: '0.75rem', marginBottom: '8px' }}>Missing a deposit? Enter the room code — or your recent rooms are scanned automatically above.</p>
         <div style={{ display: 'flex', gap: '8px' }}>
           <input value={manualRoomCode} onChange={e => setManualRoomCode(e.target.value.toUpperCase())} placeholder="ROOM CODE" maxLength={6}
             style={{ flex: 1, background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: '8px', padding: '8px 12px', color: '#e2e8f0', fontFamily: 'Orbitron, sans-serif', fontSize: '0.85rem', letterSpacing: '0.12em', outline: 'none' }} />
@@ -750,10 +748,11 @@ export default function Profile() {
             const code = manualRoomCode.trim().toUpperCase()
             if (!code || code.length < 4) return
             setManualScanning(true)
-            const result = await scanRoomCode(code)
+            const { deposit, reason } = await scanRoomCode(code)
             setManualScanning(false)
-            if (!result) setError(`No active deposit found for room ${code} on this wallet.`)
-            else setManualRoomCode('')
+            if (reason === 'settled') setError(`Room ${code} is already settled — funds were distributed or previously claimed.`)
+            else if (reason === 'not_found') setError(`No deposit found for room ${code} on this wallet.`)
+            else { setManualRoomCode('') }
           }} disabled={manualScanning}
             style={{ background: manualScanning ? '#1e1e30' : 'linear-gradient(135deg,#7c3aed,#06b6d4)', border: 'none', borderRadius: '8px', padding: '8px 16px', color: manualScanning ? '#475569' : '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: manualScanning ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
             {manualScanning ? 'Scanning…' : 'Find Deposit'}
