@@ -596,8 +596,11 @@ export default function Lobby() {
           style={{ flex: 1, background: activeCreateMode === 'room' ? 'rgba(124,58,237,0.2)' : 'rgba(124,58,237,0.08)', border: `1px solid ${activeCreateMode === 'room' ? 'rgba(124,58,237,0.6)' : 'rgba(124,58,237,0.3)'}`, borderRadius: '10px', padding: '11px', color: isConnected ? '#a78bfa' : '#475569', fontWeight: 700, fontSize: '0.88rem', cursor: isConnected ? 'pointer' : 'not-allowed' }}>
           ➕ CREATE ROOM
         </button>
-        <button onClick={() => setActiveCreateMode(activeCreateMode === 'duel' ? null : 'duel')} disabled={!isConnected}
-          style={{ flex: 1, background: activeCreateMode === 'duel' ? 'rgba(249,115,22,0.2)' : 'rgba(249,115,22,0.08)', border: `1px solid ${activeCreateMode === 'duel' ? 'rgba(249,115,22,0.6)' : 'rgba(249,115,22,0.3)'}`, borderRadius: '10px', padding: '11px', color: '#f97316', fontWeight: 700, fontSize: '0.88rem', cursor: isConnected ? 'pointer' : 'not-allowed' }}>
+        <button
+          onClick={() => setActiveCreateMode(activeCreateMode === 'duel' ? null : 'duel')}
+          disabled={!isConnected || gameMode === 'highest-unique' || gameMode === 'lowest-unique'}
+          title={gameMode === 'highest-unique' || gameMode === 'lowest-unique' ? 'Duels unavailable — needs 3+ players' : undefined}
+          style={{ flex: 1, background: activeCreateMode === 'duel' ? 'rgba(249,115,22,0.2)' : 'rgba(249,115,22,0.08)', border: `1px solid ${activeCreateMode === 'duel' ? 'rgba(249,115,22,0.6)' : 'rgba(249,115,22,0.3)'}`, borderRadius: '10px', padding: '11px', color: (gameMode === 'highest-unique' || gameMode === 'lowest-unique') ? '#475569' : '#f97316', fontWeight: 700, fontSize: '0.88rem', cursor: (!isConnected || gameMode === 'highest-unique' || gameMode === 'lowest-unique') ? 'not-allowed' : 'pointer', opacity: (gameMode === 'highest-unique' || gameMode === 'lowest-unique') ? 0.45 : 1 }}>
           ⚔️ CREATE DUEL
         </button>
       </div>
