@@ -756,9 +756,16 @@ function makeQuestion(gameMode, round = 1) {
       return { type: 'math', a, b, op, answer }
     }
     case 'pattern-memory': {
-      const len    = Math.min(3 + Math.floor((round - 1) / 3), 6)
-      const digits = Array.from({ length: len }, () => Math.floor(Math.random() * 9) + 1)
-      return { type: 'pattern', sequence: digits.join(' '), answer: digits.join('') }
+      const gridSize = round <= 3 ? 3 : 4
+      const total    = gridSize * gridSize
+      const patLen   = Math.min(3 + Math.floor((round - 1) / 2), gridSize === 3 ? 5 : 8)
+      const indices  = Array.from({ length: total }, (_, i) => i)
+      for (let i = indices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indices[i], indices[j]] = [indices[j], indices[i]]
+      }
+      const pattern = indices.slice(0, patLen).sort((a, b) => a - b)
+      return { type: 'pattern', gridSize, pattern, answer: pattern.join(',') }
     }
     case 'reaction-grid': {
       const target = Math.floor(Math.random() * 16)
@@ -784,7 +791,9 @@ function checkAnswer(gameMode, question, rawAnswer) {
     return !isNaN(n) && isFinite(n) && n === question.answer
   }
   if (question.type === 'pattern') {
-    return rawAnswer.trim().replace(/\s+/g, '') === question.answer
+    // answer is comma-joined sorted tile indices; compare both sides sorted
+    const submitted = rawAnswer.split(',').map(Number).filter(n => !isNaN(n)).sort((a, b) => a - b).join(',')
+    return submitted === question.answer
   }
   if (question.type === 'grid') {
     return rawAnswer === question.answer

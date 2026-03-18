@@ -17,7 +17,7 @@ interface Question {
   // math
   a?: number; b?: number; op?: string
   // pattern-memory
-  sequence?: string
+  pattern?: number[]; _patternAnswer?: string
   // grid
   target?: number; gridSize?: number
   // sealed
@@ -72,9 +72,16 @@ function solveMath(q: Question): number {
 }
 
 function makePatternQ(round: number): Question {
-  const len = Math.min(3 + Math.floor((round - 1) / 3), 6)
-  const digits = Array.from({ length: len }, () => Math.floor(Math.random() * 9) + 1)
-  return { round, total: TOTAL_BOT_ROUNDS, sequence: digits.join(' '), type: 'pattern', timeMs: 12000, _patternAnswer: digits.join('') } as Question & { _patternAnswer: string }
+  const gridSize = round <= 3 ? 3 : 4
+  const total    = gridSize * gridSize
+  const patLen   = Math.min(3 + Math.floor((round - 1) / 2), gridSize === 3 ? 5 : 8)
+  const indices  = Array.from({ length: total }, (_, i) => i)
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]]
+  }
+  const pattern = indices.slice(0, patLen).sort((a, b) => a - b)
+  return { round, total: TOTAL_BOT_ROUNDS, type: 'pattern', timeMs: 12000, gridSize, pattern, _patternAnswer: pattern.join(',') }
 }
 
 function makeGridQ(round: number): Question {
@@ -179,6 +186,7 @@ export default function Game() {
   const [canStart, setCanStart] = useState(false)
   const [botThinking, setBotThinking] = useState(false)
   const [patternVisible, setPatternVisible] = useState(true)
+  const [selectedTiles, setSelectedTiles] = useState<number[]>([])
   // Liar's Dice bluff state
   const [bluffMyDice, setBluffMyDice] = useState<number[]>([])
   const [bluffBid, setBluffBid] = useState<{ count: number; face: number; bidder: string } | null>(null)
@@ -390,7 +398,7 @@ export default function Game() {
     const q = gm === 'pattern-memory' ? makePatternQ(round)
             : gm === 'reaction-grid'  ? makeGridQ(round)
             : makeMathQ(round)
-    setQuestion(q); setPhase('playing'); setInput(''); setRoundAnswer(null); setSelectedCell(null)
+    setQuestion(q); setPhase('playing'); setInput(''); setRoundAnswer(null); setSelectedCell(null); setSelectedTiles([])
     setPlayers(prev => prev.map(p => ({ ...p, answered: false, correct: null })))
     const roundSecs = gm === 'reaction-grid' ? 8 : ROUND_TIME_S
     setTimeLeft(roundSecs)
@@ -434,7 +442,7 @@ export default function Game() {
 
   function endBotRound(q: Question) {
     clearBotTimer(); setPhase('round_end')
-    const ans = q.type === 'pattern' ? (q as Question & { _patternAnswer?: string })._patternAnswer ?? ''
+    const ans = q.type === 'pattern' ? (q._patternAnswer ?? '')
               : q.type === 'grid'    ? String(q.target ?? '')
               : String(solveMath(q))
     setRoundAnswer(ans)
@@ -510,7 +518,8 @@ export default function Game() {
     if (!question) return
     let correct = false
     if (question.type === 'pattern') {
-      correct = input.trim().replace(/\s+/g, '') === ((question as Question & { _patternAnswer?: string })._patternAnswer ?? '')
+      const myAnswer = [...selectedTiles].sort((a, b) => a - b).join(',')
+      correct = myAnswer === (question._patternAnswer ?? '')
     } else if (question.type === 'grid') {
       return // grid handled by handleGridClick
     } else {
@@ -607,7 +616,7 @@ export default function Game() {
     socket.on('game:countdown', (n: number) => { setPhase('countdown'); setCountdown(n) })
     socket.on('game:question', (q: Question) => {
       setPhase('playing'); setQuestion(q); setInput(''); setRoundAnswer(null)
-      setSealedResult(null); setSealedCount(0); setSelectedCell(null)
+      setSealedResult(null); setSealedCount(0); setSelectedCell(null); setSelectedTiles([])
       setPlayers(prev => prev.map(p => ({ ...p, answered: false, correct: null })))
       if (q.type === 'pattern') { setPatternVisible(true); setTimeout(() => setPatternVisible(false), 3000) }
       if (q.type === 'bluff') {
@@ -777,11 +786,10 @@ export default function Game() {
   }
 
   function handlePatternSubmit() {
-    const val = input.trim().replace(/\s+/g, '')
-    if (!val) return
+    if (selectedTiles.length === 0) return
     if (isBotMode) { handleBotSubmit(); return }
-    submitAnswer(val)
-    setInput('')
+    const answer = [...selectedTiles].sort((a, b) => a - b).join(',')
+    submitAnswer(answer)
   }
 
   function handleGridClick(cell: number) {
@@ -1214,35 +1222,46 @@ export default function Game() {
           )}
 
           {/* ── PATTERN MEMORY ── */}
-          {isPatternGame && (
-            <>
-              <p style={{ color: '#64748b', fontSize: '0.78rem', letterSpacing: '0.1em', fontFamily: 'Orbitron, sans-serif', marginBottom: '12px' }}>
-                {phase === 'round_end' ? 'ROUND OVER' : patternVisible ? 'MEMORIZE!' : 'TYPE FROM MEMORY'}
-              </p>
-              <div style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(2rem,8vw,4rem)', fontWeight: 900, marginBottom: '24px', letterSpacing: '0.3em', minHeight: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {phase === 'round_end'
-                  ? <span style={{ color: '#f59e0b' }}>{roundAnswer}</span>
-                  : patternVisible
-                    ? <span style={{ color: '#a855f7' }}>{question.sequence}</span>
-                    : <span style={{ color: '#2a2a40', fontSize: '2rem', letterSpacing: '0.5em' }}>{'? '.repeat((question.sequence?.split(' ').length ?? 3)).trim()}</span>
-                }
-              </div>
-              {phase !== 'round_end' && (
-                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', maxWidth: '360px', margin: '0 auto' }}>
-                  <input ref={inputRef} type="text" value={input} onChange={e => setInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handlePatternSubmit()}
-                    disabled={!!myPlayer?.answered || patternVisible}
-                    placeholder={patternVisible ? 'Watch the sequence…' : myPlayer?.answered ? 'Submitted ✓' : 'Type the digits'}
-                    maxLength={10}
-                    style={{ flex: 1, background: '#0a0a0f', border: `2px solid ${myPlayer?.correct === true ? '#22c55e' : myPlayer?.correct === false ? '#ef4444' : '#2a2a40'}`, borderRadius: '10px', padding: '12px 14px', color: '#e2e8f0', fontFamily: 'Orbitron, sans-serif', fontSize: '1.1rem', textAlign: 'center', outline: 'none' }} />
-                  <button onClick={handlePatternSubmit} disabled={!!myPlayer?.answered || patternVisible}
-                    style={{ background: (myPlayer?.answered || patternVisible) ? '#1e1e30' : 'linear-gradient(135deg, #a855f7, #7c3aed)', border: 'none', borderRadius: '10px', padding: '12px 20px', color: (myPlayer?.answered || patternVisible) ? '#64748b' : '#fff', fontWeight: 700, cursor: (myPlayer?.answered || patternVisible) ? 'not-allowed' : 'pointer', fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem' }}>
-                    {myPlayer?.answered ? (myPlayer.correct ? '✓' : '✗') : 'GO'}
-                  </button>
+          {isPatternGame && (() => {
+            const gs = question.gridSize ?? 3
+            const pat = question.pattern ?? []
+            const canClick = phase === 'playing' && !patternVisible && !myPlayer?.answered
+            return (
+              <>
+                <p style={{ color: '#64748b', fontSize: '0.78rem', letterSpacing: '0.1em', fontFamily: 'Orbitron, sans-serif', marginBottom: '16px' }}>
+                  {phase === 'round_end' ? 'ROUND OVER' : patternVisible ? 'MEMORIZE THE TILES!' : myPlayer?.answered ? 'SUBMITTED' : `TAP THE TILES YOU SAW (${selectedTiles.length}/${pat.length})`}
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${gs}, 1fr)`, gap: '8px', maxWidth: `${gs * 76}px`, margin: '0 auto 20px' }}>
+                  {Array.from({ length: gs * gs }, (_, i) => {
+                    const inPat = pat.includes(i)
+                    const inSel = selectedTiles.includes(i)
+                    let bg = '#1e1e30', border = '1px solid #2a2a40', shadow = 'none'
+                    if (phase === 'round_end') {
+                      if (inPat && inSel)  { bg = 'rgba(34,197,94,0.35)';  border = '2px solid #22c55e' }
+                      else if (inPat)      { bg = 'rgba(168,85,247,0.45)'; border = '2px solid #a855f7' }
+                      else if (inSel)      { bg = 'rgba(239,68,68,0.35)';  border = '2px solid #ef4444' }
+                    } else if (patternVisible) {
+                      if (inPat) { bg = 'rgba(168,85,247,0.85)'; border = '2px solid #a855f7'; shadow = '0 0 18px rgba(168,85,247,0.7)' }
+                    } else {
+                      if (inSel) { bg = 'rgba(34,197,94,0.35)'; border = '2px solid #22c55e' }
+                    }
+                    return (
+                      <button key={i}
+                        onClick={() => { if (!canClick) return; setSelectedTiles(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]) }}
+                        style={{ aspectRatio: '1', borderRadius: '10px', background: bg, border, boxShadow: shadow, cursor: canClick ? 'pointer' : 'default', transition: 'all 0.12s' }}
+                      />
+                    )
+                  })}
                 </div>
-              )}
-            </>
-          )}
+                {phase !== 'round_end' && !patternVisible && (
+                  <button onClick={handlePatternSubmit} disabled={!!myPlayer?.answered || selectedTiles.length === 0}
+                    style={{ background: myPlayer?.answered ? '#1e1e30' : selectedTiles.length === 0 ? '#1e1e30' : 'linear-gradient(135deg, #a855f7, #7c3aed)', border: 'none', borderRadius: '10px', padding: '12px 28px', color: myPlayer?.answered || selectedTiles.length === 0 ? '#64748b' : '#fff', fontWeight: 700, cursor: myPlayer?.answered || selectedTiles.length === 0 ? 'not-allowed' : 'pointer', fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem' }}>
+                    {myPlayer?.answered ? (myPlayer.correct ? '✓ CORRECT' : '✗ WRONG') : `SUBMIT (${selectedTiles.length} selected)`}
+                  </button>
+                )}
+              </>
+            )
+          })()}
 
           {/* ── GRID ── */}
           {isGridGame && (
@@ -1485,7 +1504,7 @@ export default function Game() {
       {!isSealedGame && !isGridGame && !isBluffGame && (
         <p style={{ textAlign: 'center', color: '#475569', fontSize: '0.78rem', marginTop: '10px' }}>
           {isPatternGame
-            ? 'Sequence shows for 3 seconds — memorize then type'
+            ? 'Tiles flash for 3 seconds — tap from memory then submit'
             : <>Press <kbd style={{ background: '#1e1e30', borderRadius: '4px', padding: '1px 5px', fontSize: '0.72rem' }}>Enter</kbd> to submit</>
           }
         </p>
