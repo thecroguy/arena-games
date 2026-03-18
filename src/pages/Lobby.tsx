@@ -618,7 +618,7 @@ export default function Lobby() {
                 style={{ flex: 1, background: '#000', border: '1px solid #333', borderRadius: '8px', padding: '10px', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
                 𝕏 Post on X
               </button>
-              <button onClick={() => navigate(`/game/${duelShareCode}`)}
+              <button onClick={() => navigate(`/game/${duelShareCode}`, { state: { host: true, entry: selectedFee, maxPlayers: 2, gameMode, chainId: selectedChain.id } })}
                 style={{ flex: 1, background: 'linear-gradient(135deg,#f97316,#ea580c)', border: 'none', borderRadius: '8px', padding: '10px', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
                 Enter Room →
               </button>

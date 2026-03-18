@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
-import { useAccount, useWriteContract, useChainId, useSwitchChain } from 'wagmi'
+import { useAccount, useWriteContract, useChainId, useSwitchChain, useSignMessage } from 'wagmi'
 import { connectSocket } from '../utils/socket'
 import { getAvatarUrl, getAvatarColor } from '../utils/avatar'
 import { getUsername } from '../utils/profile'
@@ -116,6 +116,19 @@ export default function Game() {
   const currentChainId    = useChainId()
   const { switchChainAsync } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
+  const { signMessageAsync } = useSignMessage()
+  const authSigRef = useRef<string | null>(null)
+
+  async function getAuthSig(): Promise<string | null> {
+    if (authSigRef.current) return authSigRef.current
+    try {
+      const sig = await signMessageAsync({ message: `Arena Games: ${address?.toLowerCase()}` })
+      authSigRef.current = sig
+      return sig
+    } catch {
+      return null
+    }
+  }
 
   const [phase, setPhase]       = useState<Phase>(isBotMode ? 'countdown' : 'waiting')
   const [countdown, setCountdown] = useState(3)
@@ -526,9 +539,11 @@ export default function Game() {
     if (isBotMode) return
     const socket = connectSocket()
 
-    function rejoin() {
+    async function rejoin() {
       if (!myAddr) return
-      socket.emit('room:join', { code: roomCode, address: myAddr }, (res: { ok?: boolean; error?: string; reconnected?: boolean; room?: { players: PlayerState[]; gameMode?: string } }) => {
+      const authSig = await getAuthSig()
+      if (!authSig) return
+      socket.emit('room:join', { code: roomCode, address: myAddr, authSig }, (res: { ok?: boolean; error?: string; reconnected?: boolean; room?: { players: PlayerState[]; gameMode?: string } }) => {
         if (res.error === 'Room not found') {
           // Room was cleaned up (refund issued, game ended, or server restart with no DB record)
           // Don't strand user on a dead room page — send them back to lobby
