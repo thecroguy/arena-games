@@ -241,10 +241,11 @@ export default function Lobby() {
     }
   }, [gameMode])
 
-  // Auto-scroll chat
+  // Auto-scroll chat — fires on new messages, tab switch, drawer open, panel open
   useEffect(() => {
-    if (panelTab === 'chat') chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [globalChat, panelTab])
+    const isVisible = (isDesktop && panelOpen && panelTab === 'chat') || (!isDesktop && mobileDrawerOpen && panelTab === 'chat')
+    if (isVisible) chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [globalChat, panelTab, mobileDrawerOpen, panelOpen, isDesktop])
 
   async function payEntryFee(fee: number, chain: SupportedChain, roomCode: string): Promise<string | null> {
     if (currentChainId !== chain.id) {
