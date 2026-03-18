@@ -211,27 +211,94 @@ const globalChat = []
 // ── FAKE DATA — server-side generators (remove this entire block when real
 //    users grow — search "FAKE DATA" to find all integration points) ────────
 // ════════════════════════════════════════════════════════════════════════════
-const FAKE_USERS_SVR = [
-  'SwiftWolf23','DarkFox07','BoldHawk44','IronPhoenix15','NeonDragon33',
-  'FrostShark62','BlazeTiger08','ShadowLion55','StormNinja77','LunarViper21',
-  'TurboEagle48','GhostPanda09','SteelKnight36','NovaRider63','CrimsonNomad17',
-  'SavageTitan52','RogueWizard28','SigmaSniper71','HyperCoder39','PixelPirate56',
-  'WildRanger82','SlyHunter13','BraveBlade94','CyberBear91','SolarBandit84',
-]
+// Generate 1000 unique fake usernames using same Adj+Noun+number formula as real addrName()
+const _FADJS  = ['Brave','Swift','Dark','Iron','Bold','Sly','Wild','Frost','Storm','Blaze',
+                 'Cyber','Neon','Pixel','Steel','Ghost','Nova','Lunar','Solar','Turbo','Hyper',
+                 'Shadow','Crimson','Savage','Rogue','Sigma','Atomic','Hyper','Stealth','Blaze','Echo']
+const _FNOUNS = ['Fox','Wolf','Bear','Hawk','Lion','Tiger','Shark','Eagle','Viper','Dragon',
+                 'Phoenix','Panda','Ninja','Rider','Coder','Sniper','Ranger','Hunter','Wizard','Knight',
+                 'Pirate','Bandit','Nomad','Titan','Blade','Drifter','Stalker','Phantom','Ghost','Maverick']
+const FAKE_USERS_SVR = (() => {
+  const set = new Set(), out = []
+  let a = 0, n = 0, num = 10
+  while (out.length < 1000) {
+    const name = `${_FADJS[a % _FADJS.length]}${_FNOUNS[n % _FNOUNS.length]}${String(num).padStart(2,'0')}`
+    if (!set.has(name)) { set.add(name); out.push(name) }
+    num = (num + 7) % 100; if (num === 10) { n++; if (n % _FNOUNS.length === 0) a++ }
+  }
+  return out
+})()
+
 const FAKE_GAMES_SVR   = ['Math Arena','Pattern Memory','Reaction Grid','Highest Unique',"Liar's Dice"]
 const FAKE_ENTRIES_SVR = ['$0.50','$1','$2','$5']
 const FAKE_POTS_SVR    = { '$0.50':'0.85','$1':'1.70','$2':'3.40','$5':'8.50' }
-const FAKE_CHAT_SVR    = [
-  'anyone for $1 match?','gg wp','who wants to duel?','just won nice',
-  'math arena is my game','reaction grid is brutal','easy tonight',
-  'lets go 🔥','highest unique is hard when smart ppl here',
-  'pattern memory is actually tough','lost twice :(','rematch?',
-  'this platform is underrated','good game everyone','duel open',
-  'who tryna play','gg','nice win','first time here',
-  'been grinding all day','quick match anyone','love liar dice',
-  'anyone on polygon?','down for a game','solid platform ngl',
-  'cant believe i won that','on a streak rn','nice round','wp all',
+
+// Generate 5000 chat messages from template combinations
+const _FCHAT_TEMPLATES = [
+  u => `anyone want to play against me?`,
+  u => `gg wp`,
+  u => `just won a match, feeling good`,
+  u => `who wants to duel for $2?`,
+  u => `math arena is too easy lol`,
+  u => `pattern memory is actually hard`,
+  u => `reaction grid is brutal`,
+  u => `lets go 🔥`,
+  u => `highest unique is hard when smart ppl here`,
+  u => `lost twice :(`,
+  u => `rematch anyone?`,
+  u => `this platform is underrated`,
+  u => `good game everyone`,
+  u => `duel open, anyone?`,
+  u => `who tryna play right now`,
+  u => `nice win`,
+  u => `first time here, how does it work?`,
+  u => `been grinding all day`,
+  u => `quick match anyone?`,
+  u => `love liar's dice`,
+  u => `anyone on polygon?`,
+  u => `down for a game`,
+  u => `solid platform ngl`,
+  u => `cant believe i won that`,
+  u => `on a streak rn`,
+  u => `nice round everyone`,
+  u => `wp all`,
+  u => `$1 match anyone?`,
+  u => `who has the highest win rate here`,
+  u => `pattern memory is wild`,
+  u => `just lost $2, need a rematch`,
+  u => `reaction grid too fast for me`,
+  u => `highest unique is my best game`,
+  u => `math arena is pure speed`,
+  u => `anyone tried liar dice?`,
+  u => `easy money in math arena`,
+  u => `grinding leaderboard today`,
+  u => `gg no re`,
+  u => `close match that was`,
+  u => `who's on a win streak?`,
+  u => `just joined the platform`,
+  u => `is escrow instant?`,
+  u => `polygon fees are low, nice`,
+  u => `$5 duel open if anyone brave`,
+  u => `game crashed on me ugh`,
+  u => `that liar dice bluff was perfect`,
+  u => `wp, good game`,
+  u => `anyone playing highest unique?`,
+  u => `pattern memory round 8 is insane`,
+  u => `need one more player`,
 ]
+const FAKE_CHAT_SVR = (() => {
+  const out = []
+  for (let i = 0; i < 5000; i++) {
+    const fn = _FCHAT_TEMPLATES[i % _FCHAT_TEMPLATES.length]
+    out.push(fn())
+  }
+  // shuffle
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
+})()
 let _fakeLastChat = ''  // prevent consecutive repeat
 
 function _fakePick(arr) { return arr[Math.floor(Math.random() * arr.length)] }
