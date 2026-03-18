@@ -101,6 +101,7 @@ export default function Profile() {
 
   // Stuck deposits + pending winnings
   const [stuckDeposits, setStuckDeposits]   = useState<StuckDeposit[]>([])
+  const [stuckVerifying, setStuckVerifying] = useState(false)
   const [pendingClaims, setPendingClaims]   = useState<PendingClaim[]>([])
   const [claimingRoom, setClaimingRoom]     = useState<string | null>(null)
   const [now, setNow]                       = useState(Date.now())
@@ -149,32 +150,32 @@ export default function Profile() {
 
   const fetchStuck = useCallback(() => {
     if (!address) return
+    setStuckVerifying(true)
     fetch(`${SERVER_URL}/api/stuck-deposits/${address}`)
       .then(r => r.json())
-      .then((data: StuckDeposit[]) => {
-        if (!Array.isArray(data) || data.length === 0) { setStuckDeposits([]); return }
-        // Show server data immediately — don't block on on-chain verification
-        setStuckDeposits(data)
-        // Background: verify each deposit on-chain and silently remove already-claimed ones
-        if (publicClient) {
-          data.forEach(async d => {
-            if (!d.escrow_address || !d.room_id_hash || d.room_id_hash.length !== 66) return
-            try {
-              const stillHeld = await publicClient.readContract({
-                address: d.escrow_address as `0x${string}`,
-                abi: [{ name: 'hasDeposited', type: 'function', stateMutability: 'view', inputs: [{ name: 'roomId', type: 'bytes32' }, { name: 'player', type: 'address' }], outputs: [{ type: 'bool' }] }],
-                functionName: 'hasDeposited',
-                args: [d.room_id_hash as `0x${string}`, address as `0x${string}`],
-              })
-              if (!stillHeld) {
-                fetch(`${SERVER_URL}/api/mark-refund-claimed`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roomCode: d.room_code, address }) }).catch(() => {})
-                setStuckDeposits(prev => prev.filter(x => x.room_code !== d.room_code))
-              }
-            } catch { /* RPC fail — leave entry visible */ }
-          })
-        }
+      .then(async (data: StuckDeposit[]) => {
+        if (!Array.isArray(data) || data.length === 0) { setStuckDeposits([]); setStuckVerifying(false); return }
+        // Verify all on-chain first, then show only genuinely stuck ones
+        const verified = await Promise.all(data.map(async d => {
+          if (!publicClient || !d.escrow_address || !d.room_id_hash || d.room_id_hash.length !== 66) return d
+          try {
+            const stillHeld = await publicClient.readContract({
+              address: d.escrow_address as `0x${string}`,
+              abi: [{ name: 'hasDeposited', type: 'function', stateMutability: 'view', inputs: [{ name: 'roomId', type: 'bytes32' }, { name: 'player', type: 'address' }], outputs: [{ type: 'bool' }] }],
+              functionName: 'hasDeposited',
+              args: [d.room_id_hash as `0x${string}`, address as `0x${string}`],
+            })
+            if (!stillHeld) {
+              fetch(`${SERVER_URL}/api/mark-refund-claimed`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roomCode: d.room_code, address }) }).catch(() => {})
+              return null
+            }
+          } catch { /* RPC fail — show it */ }
+          return d
+        }))
+        setStuckDeposits(verified.filter(Boolean) as StuckDeposit[])
+        setStuckVerifying(false)
       })
-      .catch(() => {})
+      .catch(() => { setStuckVerifying(false) })
     fetch(`${SERVER_URL}/api/pending-claim/${address}`)
       .then(r => r.json()).then(data => { if (Array.isArray(data)) setPendingClaims(data) })
       .catch(() => {})
@@ -645,7 +646,12 @@ export default function Profile() {
       )}
 
       {/* Stuck deposits — paid but game never started */}
-      {stuckDeposits.length > 0 && (
+      {stuckVerifying && (
+        <div style={{ color: '#64748b', fontSize: '0.8rem', textAlign: 'center', padding: '12px 0', marginBottom: '8px' }}>
+          Checking deposits…
+        </div>
+      )}
+      {!stuckVerifying && stuckDeposits.length > 0 && (
         <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: '16px', padding: '20px 24px', marginBottom: '24px' }}>
           <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.7rem', color: '#f59e0b', letterSpacing: '0.1em', marginBottom: '4px' }}>
             ⚠ PENDING DEPOSITS
