@@ -129,13 +129,22 @@ export default function Game() {
   const { address }   = useAccount()
 
   const isBotMode      = location.state?.bot === true
-  const isHost         = location.state?.host    ?? false
-  const entryFee       = location.state?.entry   ?? 1
-  const gameModeLS     = location.state?.gameMode ?? 'math-arena'
-  const roomChainId    = location.state?.chainId  ?? 137
-  const isDuel         = location.state?.roomType === 'duel'
-  const isJoining      = location.state?.joining === true   // joiner coming from DuelJoin page
-  const duelCreatedAt  = location.state?.duelCreatedAt as number | undefined
+
+  // Persist room nav state in sessionStorage so navigating away and returning keeps the duel layout
+  const _stateKey = `ag_roomstate_${roomCode}`
+  if (location.state && Object.keys(location.state).length > 0) {
+    sessionStorage.setItem(_stateKey, JSON.stringify(location.state))
+  }
+  const _savedState = (() => { try { return JSON.parse(sessionStorage.getItem(_stateKey) || '{}') } catch { return {} } })()
+  const _st = (location.state && Object.keys(location.state).length > 0) ? location.state : _savedState
+
+  const isHost         = _st.host    ?? false
+  const entryFee       = _st.entry   ?? 1
+  const gameModeLS     = _st.gameMode ?? 'math-arena'
+  const roomChainId    = _st.chainId  ?? 137
+  const isDuel         = _st.roomType === 'duel'
+  const isJoining      = _st.joining === true   // joiner coming from DuelJoin page
+  const duelCreatedAt  = _st.duelCreatedAt as number | undefined
   const myAddr         = isBotMode ? (address || 'YOU') : (address ?? '')
 
   const currentChainId    = useChainId()
@@ -950,12 +959,14 @@ export default function Game() {
   if (phase === 'waiting') return (
     <Center>
       <div style={{ textAlign: 'center', maxWidth: '400px', width: '100%', padding: '0 16px' }}>
-        <div style={{ color: '#64748b', fontFamily: 'Orbitron, sans-serif', fontSize: '0.75rem', letterSpacing: '0.1em', marginBottom: '6px' }}>ROOM</div>
-        <div style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(2rem,8vw,3rem)', fontWeight: 900, letterSpacing: '0.2em', background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+        <div style={{ color: isDuel ? '#f97316' : '#64748b', fontFamily: 'Orbitron, sans-serif', fontSize: '0.75rem', letterSpacing: '0.1em', marginBottom: '6px' }}>{isDuel ? 'DUEL' : 'ROOM'}</div>
+        <div style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(2rem,8vw,3rem)', fontWeight: 900, letterSpacing: '0.2em', background: isDuel ? 'linear-gradient(135deg, #f97316, #ea580c)' : 'linear-gradient(135deg, #7c3aed, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
           {roomCode}
         </div>
         <p style={{ color: '#94a3b8', margin: '12px 0 24px', fontSize: '0.95rem' }}>
-          {players.length} player{players.length !== 1 ? 's' : ''} — waiting for more…
+          {isDuel
+            ? players.length >= 2 ? '⚔️ Both players ready' : '⚔️ Waiting for challenger…'
+            : `${players.length} player${players.length !== 1 ? 's' : ''} — waiting for more…`}
         </p>
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '24px' }}>
           {players.map(p => (
