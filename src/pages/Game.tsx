@@ -92,11 +92,11 @@ const REACTION_EMOJIS = ['😭','💀','🔥','😂','🤯','👀','🫡','😤'
 // ── Game help text ─────────────────────────────────────────────────────────
 const GAME_HELP: Record<string, { title: string; rules: string[] }> = {
   'math-arena':     { title: 'Math Arena',      rules: ['A math equation appears each round.', 'Type the correct answer and press Enter or GO.', 'First player to answer correctly scores a point.', '10 rounds — most points wins the pot.'] },
-  'pattern-memory': { title: 'Pattern Memory 🧠', rules: ['A digit sequence flashes on screen for 3 seconds.', 'Memorize it — then it disappears!', 'Type the sequence from memory and press Enter.', 'First correct answer scores. 10 rounds — most points wins.'] },
+  'pattern-memory': { title: 'Pattern Memory',    rules: ['A grid of tiles appears — some flash briefly.', 'Memorize which tiles lit up before they go dark.', 'Tap all the correct tiles from memory.', 'First to select all correct tiles scores. Most points wins.'] },
   'reaction-grid':  { title: 'Reaction Grid',   rules: ['A 4×4 grid appears — one cell lights up.', 'Click the highlighted cell as fast as possible.', 'First click wins the round point.', '15 rounds — most points wins the pot.'] },
   'highest-unique': { title: 'Highest Unique',  rules: ['Pick any number 1–100 each round.', 'The player with the highest UNIQUE number scores.', 'If two players pick the same number, both lose.', '8 rounds — most round wins takes the pot.'] },
   'lowest-unique':  { title: 'Lowest Unique',   rules: ['Pick any number 1–50 each round.', 'The player with the lowest UNIQUE number scores.', 'If two players pick the same number, both lose.', '8 rounds — most round wins takes the pot.'] },
-  'liars-dice':     { title: "Liar's Dice 🎲",  rules: ['Each player gets 3 dice — you can only see yours.', 'Take turns bidding: "At least X dice show face Y across all dice."', 'Each bid must be higher (more dice, or same count + higher face).', 'Call LIAR! to challenge — if the bid was valid, YOU lose. If it was a bluff, THEY lose.'] },
+  'liars-dice':     { title: "Liar's Dice",      rules: ['Each player gets 3 dice — you can only see yours.', 'Take turns bidding: "At least X dice show face Y across all dice."', 'Each bid must be higher (more dice, or same count + higher face).', 'Call LIAR! to challenge — if the bid was valid, YOU lose. If it was a bluff, THEY lose.'] },
 }
 
 // ── Component ──────────────────────────────────────────────────────────────

@@ -284,8 +284,8 @@ export default function Guide() {
           <div style={{ padding: '18px 24px', borderBottom: '1px solid #1e1e30', background: 'rgba(168,85,247,0.06)', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>🧠</div>
             <div>
-              <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: '#e2e8f0' }}>Pattern Memory 🧠</h3>
-              <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '2px' }}>Memorize digits · 10 rounds · 12s each</p>
+              <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: '#e2e8f0' }}>Pattern Memory</h3>
+              <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '2px' }}>Flash tiles · 10 rounds · memorize &amp; tap</p>
             </div>
             <button onClick={() => navigate('/lobby/pattern-memory')} style={{ marginLeft: 'auto', background: 'linear-gradient(135deg,#a855f7,#7c3aed)', border: 'none', borderRadius: '8px', padding: '7px 16px', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>Play →</button>
           </div>
@@ -414,7 +414,7 @@ export default function Guide() {
           <div style={{ padding: '18px 24px', borderBottom: '1px solid #1e1e30', background: 'rgba(249,115,22,0.06)', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>🎲</div>
             <div>
-              <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: '#e2e8f0' }}>Liar's Dice 🎲</h3>
+              <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: '#e2e8f0' }}>Liar's Dice</h3>
               <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '2px' }}>Bluff · 8 rounds · 60s each</p>
             </div>
             <button onClick={() => navigate('/lobby/liars-dice')} style={{ marginLeft: 'auto', background: 'linear-gradient(135deg,#f97316,#ea580c)', border: 'none', borderRadius: '8px', padding: '7px 16px', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>Play →</button>

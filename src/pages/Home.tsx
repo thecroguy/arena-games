@@ -73,8 +73,8 @@ const GAMES = [
   },
   {
     id: 'pattern-memory',
-    title: 'Pattern Memory 🧠',
-    desc: 'Memorize a sequence of digits, then type it from memory. First correct scores.',
+    title: 'Pattern Memory',
+    desc: 'A grid of tiles flashes briefly — memorize which ones lit up, then tap them all. First to get all correct scores.',
     tags: ['Memory', 'Skill', 'Speed'],
     entry: '$0.50 – $50',
     players: '2–10',
@@ -117,7 +117,7 @@ const GAMES = [
   },
   {
     id: 'liars-dice',
-    title: "Liar's Dice 🎲",
+    title: "Liar's Dice",
     desc: 'Each player gets 3 dice. Bid on totals, call LIAR! on bluffs. Classic casino bluffing game.',
     tags: ['Bluff', 'Dice', 'Strategy'],
     entry: '$1 – $50',
