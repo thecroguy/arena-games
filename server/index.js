@@ -342,6 +342,10 @@ function _fakePushActivity() {
     tmpl === 'opened'  ? `${u} opened a ${e} room — ${g}` :
                          `${u} created a ${e} duel — ${g}`
   pushActivity(msg)
+  // Emit leaderboard delta so the board updates live when someone wins
+  if (tmpl === 'won') {
+    io.emit('leaderboard:delta', { username: u, net: parseFloat(pot) })
+  }
   setTimeout(_fakePushActivity, _fakeRand(20000, 65000))
 }
 
@@ -995,6 +999,7 @@ async function endGame(room) {
   const winnerName = winner.username || addrName(winner.address)
   const gNameEnd = { 'math-arena': 'Math Arena', 'pattern-memory': 'Pattern Memory', 'reaction-grid': 'Reaction Grid', 'highest-unique': 'Highest Unique', 'lowest-unique': 'Lowest Unique', 'liars-dice': "Liar's Dice" }[room.gameMode] || room.gameMode
   pushActivity(`${winnerName} won $${pot} in ${gNameEnd}`)
+  io.emit('leaderboard:delta', { username: winnerName, net: parseFloat(pot) })
 
   if (supabase) {
     try {

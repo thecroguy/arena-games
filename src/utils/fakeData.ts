@@ -93,15 +93,27 @@ const FAKE_LB_RAW = [
   { idx: 11, wins:  7, games: 14,  net:  2.60 },
 ]
 
-export function getFakeLeaderboard(): LeaderboardEntry[] {
-  return FAKE_LB_RAW.map((e, i) => ({
-    player_address: FAKE_USERS[e.idx].addr,
-    wins:           e.wins,
-    games_played:   e.games,
-    win_rate:       Math.round((e.wins / e.games) * 100),
-    net_earned:     e.net,
-    rank:           i + 1,
-  }))
+// Scale factors per period — daily/weekly show proportionally smaller activity
+const PERIOD_SCALE: Record<string, number> = { daily: 0.10, weekly: 0.40, alltime: 1 }
+
+export function getFakeLeaderboard(period: 'daily' | 'weekly' | 'alltime' = 'alltime'): LeaderboardEntry[] {
+  const s = PERIOD_SCALE[period]
+  return FAKE_LB_RAW.map((e, i) => {
+    const wins  = Math.max(1, Math.round(e.wins  * s))
+    const games = Math.max(wins, Math.round(e.games * s))
+    const net   = Math.round(e.net * s * 100) / 100
+    return {
+      player_address: FAKE_USERS[e.idx].addr,
+      wins,
+      games_played: games,
+      win_rate:     Math.round((wins / games) * 100),
+      net_earned:   net,
+      rank:         i + 1,
+    }
+  })
 }
+
+// Names list — used by leaderboard to match incoming socket deltas
+export const FAKE_LB_NAMES: string[] = FAKE_LB_RAW.map(e => FAKE_USERS[e.idx].name)
 
 // ── END FAKE DATA MODULE ──────────────────────────────────────────────────

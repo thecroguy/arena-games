@@ -1,21 +1,24 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAccount } from 'wagmi'
 import { fetchLeaderboard, fetchUsernames, type LeaderboardEntry } from '../utils/supabase'
 import { getAvatarUrl, getAvatarColor } from '../utils/avatar'
 import { getUsername } from '../utils/profile'
+import { connectSocket } from '../utils/socket'
 // ── FAKE DATA (remove next line when real users grow) ─────────────────────────
-import { getFakeLeaderboard, FAKE_USER_NAMES } from '../utils/fakeData'
+import { getFakeLeaderboard, FAKE_USER_NAMES, FAKE_LB_NAMES } from '../utils/fakeData'
 
 type Period = 'alltime' | 'weekly' | 'daily'
 
 const MEDAL: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' }
 
 export default function Leaderboard() {
-  const [period, setPeriod]   = useState<Period>('alltime')
+  const [period, setPeriod]   = useState<Period>('daily')
   const [data, setData]       = useState<LeaderboardEntry[]>([])
   const [usernames, setUsernames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
+  const [lastWin, setLastWin] = useState<{ name: string; net: number } | null>(null)
+  const dataRef = useRef<LeaderboardEntry[]>([])
   const { address } = useAccount()
 
   function displayName(addr: string) {
@@ -29,23 +32,58 @@ export default function Leaderboard() {
     fetchLeaderboard(period)
       .then(async rows => {
         // ── FAKE DATA: merge real + fake, re-rank by wins (remove fake merge when real users grow) ──
-        const fake = getFakeLeaderboard()
+        const fake = getFakeLeaderboard(period)
         const merged = [...rows, ...fake]
           .sort((a, b) => b.wins - a.wins)
           .map((e, i) => ({ ...e, rank: i + 1 }))
         setData(merged)
+        dataRef.current = merged
         const names = await fetchUsernames(rows.map(r => r.player_address))
         setUsernames(names)
         // ── END FAKE DATA ──
       })
       .catch(() => {
         // ── FAKE DATA: show fake data even if backend unavailable (remove catch body when real users grow) ──
-        const fake = getFakeLeaderboard()
+        const fake = getFakeLeaderboard(period)
         setData(fake)
+        dataRef.current = fake
         // ── END FAKE DATA ──
       })
       .finally(() => setLoading(false))
   }, [period])
+
+  // Live leaderboard updates — apply win deltas from server/fake activity
+  useEffect(() => {
+    const socket = connectSocket()
+    function onDelta({ username, net }: { username: string; net: number }) {
+      setData(prev => {
+        // Find matching entry by username, or fall back to top player
+        const idx = prev.findIndex(p =>
+          (FAKE_USER_NAMES[p.player_address] ?? usernames[p.player_address.toLowerCase()] ?? getUsername(p.player_address))
+            .toLowerCase() === username.toLowerCase()
+        )
+        const target = idx >= 0 ? idx : 0  // default bump #1 player
+        if (target < 0 || prev.length === 0) return prev
+        const updated = prev.map((p, i) => i !== target ? p : {
+          ...p,
+          wins:       p.wins + 1,
+          games_played: p.games_played + 1,
+          net_earned: Math.round((Number(p.net_earned) + net) * 100) / 100,
+          win_rate:   Math.round(((p.wins + 1) / (p.games_played + 1)) * 100),
+        })
+        // Re-sort and re-rank
+        return updated
+          .sort((a, b) => b.wins - a.wins)
+          .map((e, i) => ({ ...e, rank: i + 1 }))
+      })
+      // Show brief flash of who just won
+      const displayedName = FAKE_LB_NAMES.find(n => n.toLowerCase() === username.toLowerCase()) ?? username
+      setLastWin({ name: displayedName, net })
+      setTimeout(() => setLastWin(null), 4000)
+    }
+    socket.on('leaderboard:delta', onDelta)
+    return () => { socket.off('leaderboard:delta', onDelta) }
+  }, [usernames])
 
   const myEntry = address ? data.find(p => p.player_address === address.toLowerCase()) ?? null : null
   const myRank  = myEntry?.rank ?? null
@@ -68,6 +106,14 @@ export default function Leaderboard() {
         </h1>
         <p style={{ color: '#94a3b8', fontSize: '0.95rem' }}>Top performers ranked by wins</p>
       </div>
+
+      {/* Live win flash */}
+      {lastWin && (
+        <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '10px', padding: '10px 18px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.88rem' }}>
+          <span style={{ color: '#22c55e', fontWeight: 700, fontSize: '1rem' }}>⚡</span>
+          <span style={{ color: '#94a3b8' }}><strong style={{ color: '#e2e8f0' }}>{lastWin.name}</strong> just won <strong style={{ color: '#22c55e' }}>${lastWin.net.toFixed(2)}</strong> — leaderboard updated</span>
+        </div>
+      )}
 
       {/* Period tabs */}
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '28px' }}>
