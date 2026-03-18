@@ -647,6 +647,8 @@ async function recoverStuckRooms() {
   }
 }
 recoverStuckRooms()
+// Re-run every 30 min — catches rooms whose refund_signed failed to write first time
+setInterval(() => recoverStuckRooms(), 30 * 60 * 1000)
 
 // ── Simple per-socket rate limiter ────────────────────────────────────────
 const rateLimits = new Map()
@@ -1005,32 +1007,38 @@ async function endGame(room) {
 // their own wallet, paying ~$0.01 gas to receive 100% of their entry fee back.
 async function escrowRefund(room) {
   const escrowAddr = getChainEscrowAddress(room.chainId)
-  if (!SERVER_SIGNING_KEY || !escrowAddr) return
+  if (!SERVER_SIGNING_KEY || !escrowAddr) {
+    console.error(`[CRITICAL] escrowRefund: cannot sign for room ${room.code} — SERVER_SIGNING_KEY=${!!SERVER_SIGNING_KEY} escrow=${!!escrowAddr}. recoverStuckRooms will retry on next restart.`)
+    return
+  }
   try {
     const roomId  = getRoomId(room.code)
-    // Must match: keccak256(abi.encodePacked(roomId, "REFUND")) in the contract
     const msgHash   = solidityPackedKeccak256(['bytes32', 'string'], [roomId, 'REFUND'])
     const refundSig = await signMessage(SERVER_SIGNING_KEY, msgHash)
     io.to(room.code).emit('game:refund_sig', { refundSig })
     console.log(`Signed refund for abandoned room ${room.code}`)
 
-    // Log refund authorization for every deposited player — dispute evidence
     if (supabase) {
       const depositedPlayers = room.players.filter(p => p.deposited)
       if (depositedPlayers.length > 0) {
-        await supabase.from('escrow_events').insert(
-          depositedPlayers.map(p => ({
-            event_type:     'refund_signed',
-            room_code:      room.code,
-            room_id_hash:   roomId,
-            chain_id:       room.chainId || 137,
-            escrow_address: escrowAddr,
-            player_address: p.address.toLowerCase(),
-            amount_usdt:    room.entryFee,
-            sig:            refundSig, // same sig — each player uses it individually
-            note:           `Refund authorized for abandoned room ${room.code}`,
-          }))
-        )
+        const rows = depositedPlayers.map(p => ({
+          event_type:     'refund_signed',
+          room_code:      room.code,
+          room_id_hash:   roomId,
+          chain_id:       room.chainId || 137,
+          escrow_address: escrowAddr,
+          player_address: p.address.toLowerCase(),
+          amount_usdt:    room.entryFee,
+          sig:            refundSig,
+          note:           `Refund authorized for abandoned room ${room.code}`,
+        }))
+        // Retry up to 3× so a transient Supabase blip doesn't strand users
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          const { error } = await supabase.from('escrow_events').insert(rows)
+          if (!error) break
+          console.error(`[escrowRefund] Supabase insert attempt ${attempt} failed for ${room.code}:`, error.message)
+          if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 2000))
+        }
       }
     }
   } catch (e) {
@@ -1284,8 +1292,8 @@ io.on('connection', (socket) => {
         if (!confirmed) return cb({ error: 'Deposit not found on-chain. Please wait a moment and try again.' })
       } catch (e) {
         console.error('Escrow verification error:', e.message)
-        // If RPC fails, fall back to trusting the txHash
-        if (!txHash || !VALID_TX_HASH.test(txHash)) return cb({ error: 'Could not verify deposit. Please try again.' })
+        // RPC temporarily down — ask player to retry rather than blindly trusting any txHash
+        return cb({ error: 'Could not verify deposit on-chain — network temporarily unavailable. Please wait 30 seconds and try again.' })
       }
     } else {
       // Escrow not configured for this chain — trust txHash (legacy fallback)
@@ -1320,7 +1328,7 @@ io.on('connection', (socket) => {
 
     // Log deposit confirmation — evidence player paid; dispute-proof if they deny depositing
     if (supabase && escrowAddr) {
-      supabase.from('escrow_events').insert({
+      const row = {
         event_type:     'deposit_confirmed',
         room_code:      code,
         room_id_hash:   getRoomId(code),
@@ -1330,7 +1338,15 @@ io.on('connection', (socket) => {
         amount_usdt:    room.entryFee,
         tx_hash:        txHash || null,
         note:           `On-chain deposit verified for room ${code}`,
-      }).then(({ error }) => error && console.error('escrow_events insert error:', error.message))
+      };
+      (async () => {
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          const { error } = await supabase.from('escrow_events').insert(row)
+          if (!error) break
+          console.error(`[deposit_confirmed] insert attempt ${attempt} failed for ${code}:`, error.message)
+          if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 2000))
+        }
+      })()
     }
   })
 
