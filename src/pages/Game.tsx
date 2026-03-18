@@ -1054,14 +1054,14 @@ export default function Game() {
           )
         })() : isDuel && isHost && players.length >= 2 ? (
           <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '10px', padding: '10px 16px', marginBottom: '12px', fontSize: '0.85rem', color: '#22c55e', textAlign: 'center' }}>
-            ⚔️ Challenger accepted — game starting when both players lock funds
+            ⚔️ Challenger in — waiting for them to lock funds
           </div>
         ) : !isDuel && isHost ? (
           <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '10px', padding: '12px 18px', marginBottom: '12px', fontSize: '0.85rem', color: '#64748b' }}>
             Share code <strong style={{ color: '#a78bfa', fontFamily: 'Orbitron, sans-serif' }}>{roomCode}</strong> with friends
           </div>
         ) : null}
-        {depositedAt > 0 && (() => {
+        {depositedAt > 0 && !isDuel && (() => {
           const secsLeft = Math.max(0, Math.round((depositedAt + 10 * 60 * 1000 - waitNow) / 1000))
           const mm = String(Math.floor(secsLeft / 60)).padStart(2, '0')
           const ss = String(secsLeft % 60).padStart(2, '0')

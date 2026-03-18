@@ -1408,11 +1408,7 @@ io.on('connection', (socket) => {
     }
     console.log(`${address.slice(0, 8)} deposited for room ${code} (chain ${room.chainId})`)
 
-    // Auto-start when room is at capacity AND every player has deposited
-    if (room.players.length >= room.maxPlayers && room.players.every(p => p.deposited)) {
-      console.log(`All players deposited in full room ${code} — auto-starting`)
-      setTimeout(() => startCountdown(room), 2000) // 2s grace so UI can update first
-    }
+    // No auto-start — host must click Start Game manually (prevents game starting before joiner is ready)
 
     // Start 10-min timeout on first deposit — if room never fills, auto-refund
     if (!room.depositTimeoutHandle) {
