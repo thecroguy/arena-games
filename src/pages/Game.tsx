@@ -118,11 +118,14 @@ export default function Game() {
   const { writeContractAsync } = useWriteContract()
   const { signMessageAsync } = useSignMessage()
   const authSigRef = useRef<string | null>(null)
+  const addrRef    = useRef(myAddr)
+  useEffect(() => { addrRef.current = myAddr }, [myAddr])
 
   async function getAuthSig(): Promise<string | null> {
     if (authSigRef.current) return authSigRef.current
+    const addr = addrRef.current
     try {
-      const sig = await signMessageAsync({ message: `Arena Games: ${address?.toLowerCase()}` })
+      const sig = await signMessageAsync({ message: `Arena Games: ${addr.toLowerCase()}` })
       authSigRef.current = sig
       return sig
     } catch {
@@ -540,10 +543,11 @@ export default function Game() {
     const socket = connectSocket()
 
     async function rejoin() {
-      if (!myAddr) return
+      const addr = addrRef.current
+      if (!addr) return
       const authSig = await getAuthSig()
       if (!authSig) return
-      socket.emit('room:join', { code: roomCode, address: myAddr, authSig }, (res: { ok?: boolean; error?: string; reconnected?: boolean; room?: { players: PlayerState[]; gameMode?: string } }) => {
+      socket.emit('room:join', { code: roomCode, address: addr, authSig }, (res: { ok?: boolean; error?: string; reconnected?: boolean; room?: { players: PlayerState[]; gameMode?: string } }) => {
         if (res.error === 'Room not found') {
           // Room was cleaned up (refund issued, game ended, or server restart with no DB record)
           // Don't strand user on a dead room page — send them back to lobby
