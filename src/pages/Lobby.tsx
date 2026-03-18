@@ -80,7 +80,8 @@ export default function Lobby() {
   // Online count comes from server (already includes fake offset server-side)
   const displayOnlineCount = onlineCount
 
-  const chatEndRef  = useRef<HTMLDivElement>(null)
+  const chatEndRef     = useRef<HTMLDivElement>(null)
+  const activityEndRef = useRef<HTMLDivElement>(null)
   const errorTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const meta = GAME_META[gameMode ?? ''] ?? { title: gameMode ?? 'Game', emoji: '🎮', desc: '', minPlayers: 2, maxPlayers: 10 }
@@ -246,6 +247,12 @@ export default function Lobby() {
     const isVisible = (isDesktop && panelOpen && panelTab === 'chat') || (!isDesktop && mobileDrawerOpen && panelTab === 'chat')
     if (isVisible) chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [globalChat, panelTab, mobileDrawerOpen, panelOpen, isDesktop])
+
+  // Auto-scroll activity
+  useEffect(() => {
+    const isVisible = (isDesktop && panelOpen && panelTab === 'activity') || (!isDesktop && mobileDrawerOpen && panelTab === 'activity')
+    if (isVisible) activityEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [activityFeed, panelTab, mobileDrawerOpen, panelOpen, isDesktop])
 
   async function payEntryFee(fee: number, chain: SupportedChain, roomCode: string): Promise<string | null> {
     if (currentChainId !== chain.id) {
@@ -440,11 +447,12 @@ export default function Lobby() {
         <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px' }}>
           {activityFeed.length === 0
             ? <p style={{ color: '#475569', fontSize: '0.78rem', textAlign: 'center', padding: '24px 0' }}>No recent activity</p>
-            : activityFeed.map((item, i) => (
-              <p key={i} style={{ color: '#94a3b8', fontSize: '0.77rem', padding: '5px 0', borderBottom: i < activityFeed.length - 1 ? '1px solid #0d0d18' : 'none', lineHeight: 1.4 }}>
+            : [...activityFeed].reverse().map((item, i, arr) => (
+              <p key={i} style={{ color: '#94a3b8', fontSize: '0.77rem', padding: '5px 0', borderBottom: i < arr.length - 1 ? '1px solid #0d0d18' : 'none', lineHeight: 1.4 }}>
                 {item.msg}
               </p>
             ))}
+          <div ref={activityEndRef} />
         </div>
       )}
 
