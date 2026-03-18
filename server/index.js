@@ -1909,10 +1909,10 @@ app.get('/api/room-history/:address', async (req, res) => {
     const { data } = await supabase
       .from('escrow_events')
       .select('room_code, chain_id')
-      .eq('event_type', 'deposit_confirmed')
+      .in('event_type', ['deposit_confirmed', 'refund_signed'])
       .eq('player_address', addr)
       .order('created_at', { ascending: false })
-      .limit(100)
+      .limit(200)
     // Deduplicate by room_code
     const seen = new Set()
     const rooms = (data || []).filter(r => {

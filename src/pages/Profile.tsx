@@ -109,6 +109,8 @@ export default function Profile() {
   type OnChainDeposit = { code: string; chainId: number; escrow: `0x${string}`; roomId: `0x${string}`; createdAt: number; settled: boolean }
   const [onChainDeposits, setOnChainDeposits] = useState<OnChainDeposit[]>([])
   const [scanningChain, setScanningChain]     = useState(false)
+  const [manualRoomCode, setManualRoomCode]   = useState('')
+  const [manualScanning, setManualScanning]   = useState(false)
 
   const [referralStats, setReferralStats]       = useState<ReferralStats | null>(null)
   const [generatingCode, setGeneratingCode]     = useState(false)
@@ -180,29 +182,44 @@ export default function Profile() {
   useEffect(() => { fetchStuck() }, [fetchStuck])
 
   // Scan room history against the contract on-chain
-  // Primary source: server's escrow_events table (persistent, cross-device)
-  // Fallback: localStorage ag_room_history (for deposits made while server was down)
+  async function scanRoomCode(code: string, existingDeposits: OnChainDeposit[] = onChainDeposits): Promise<OnChainDeposit | null> {
+    if (!address || !publicClient || !code) return null
+    // Try all supported chains
+    for (const chainId137 of [137, 80002]) {
+      const escrow = getEscrowAddress(chainId137)
+      if (!escrow) continue
+      try {
+        const roomId = getRoomId(code)
+        const [deposited, info] = await Promise.all([
+          publicClient.readContract({ address: escrow, abi: ESCROW_ABI, functionName: 'hasDeposited', args: [roomId, address] }),
+          publicClient.readContract({ address: escrow, abi: ESCROW_ABI, functionName: 'roomInfo', args: [roomId] }),
+        ])
+        if (deposited) {
+          const [, , settled] = info as [bigint, bigint, boolean, string[]]
+          if (!settled) {
+            const deposit = { code, chainId: chainId137, escrow, roomId, createdAt: 0, settled }
+            if (!existingDeposits.some(d => d.code === code)) {
+              setOnChainDeposits(prev => [...prev.filter(d => d.code !== code), deposit])
+            }
+            return deposit
+          }
+        }
+      } catch { /* wrong chain — try next */ }
+    }
+    return null
+  }
+
+  // Server is source of truth — no localStorage dependency
   const scanOnChain = useCallback(async () => {
     if (!address || !publicClient) return
     try {
       setScanningChain(true)
-      // 1. Fetch from server (escrow_events — reliable, survives browser clears)
-      let serverRooms: { code: string; chainId: number }[] = []
-      try {
-        const r = await fetch(`${SERVER_URL}/api/room-history/${address}`)
-        if (r.ok) serverRooms = await r.json()
-      } catch { /* server unreachable — fall through to localStorage */ }
-
-      // 2. Merge with localStorage (catches deposits made when server was down)
-      const localRooms: { code: string; chainId: number }[] = (() => {
-        try { return JSON.parse(localStorage.getItem('ag_room_history') || '[]') } catch { return [] }
-      })()
-      const serverCodes = new Set(serverRooms.map(r => r.code))
-      const combined = [...serverRooms, ...localRooms.filter(r => !serverCodes.has(r.code))]
-
-      if (combined.length === 0) { setScanningChain(false); return }
+      const r = await fetch(`${SERVER_URL}/api/room-history/${address}`)
+      if (!r.ok) { setScanningChain(false); return }
+      const serverRooms: { code: string; chainId: number }[] = await r.json()
+      if (serverRooms.length === 0) { setScanningChain(false); return }
       const found: OnChainDeposit[] = []
-      for (const { code, chainId: rChainId } of combined) {
+      for (const { code, chainId: rChainId } of serverRooms) {
         const escrow = getEscrowAddress(rChainId)
         if (!escrow) continue
         try {
@@ -212,12 +229,10 @@ export default function Profile() {
             publicClient.readContract({ address: escrow, abi: ESCROW_ABI, functionName: 'roomInfo', args: [roomId] }),
           ])
           if (deposited) {
-            const [, , settled, ] = info as [bigint, bigint, boolean, string[]]
-            if (!settled) {
-              found.push({ code, chainId: rChainId, escrow, roomId, createdAt: 0, settled })
-            }
+            const [, , settled] = info as [bigint, bigint, boolean, string[]]
+            if (!settled) found.push({ code, chainId: rChainId, escrow, roomId, createdAt: 0, settled })
           }
-        } catch { /* room not on this chain or RPC error — skip */ }
+        } catch { /* skip */ }
       }
       setOnChainDeposits(found)
     } catch { /* ignore */ } finally {
@@ -724,6 +739,27 @@ export default function Profile() {
       {scanningChain && onChainDeposits.length === 0 && (
         <div style={{ color: '#475569', fontSize: '0.78rem', textAlign: 'center', marginBottom: '16px' }}>Scanning blockchain for deposits…</div>
       )}
+
+      {/* Manual room code recovery */}
+      <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '12px', padding: '14px 16px', marginBottom: '24px' }}>
+        <p style={{ color: '#475569', fontSize: '0.75rem', marginBottom: '8px' }}>Missing a deposit? Enter the room code to recover it from any device.</p>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <input value={manualRoomCode} onChange={e => setManualRoomCode(e.target.value.toUpperCase())} placeholder="ROOM CODE" maxLength={6}
+            style={{ flex: 1, background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: '8px', padding: '8px 12px', color: '#e2e8f0', fontFamily: 'Orbitron, sans-serif', fontSize: '0.85rem', letterSpacing: '0.12em', outline: 'none' }} />
+          <button onClick={async () => {
+            const code = manualRoomCode.trim().toUpperCase()
+            if (!code || code.length < 4) return
+            setManualScanning(true)
+            const result = await scanRoomCode(code)
+            setManualScanning(false)
+            if (!result) setError(`No active deposit found for room ${code} on this wallet.`)
+            else setManualRoomCode('')
+          }} disabled={manualScanning}
+            style={{ background: manualScanning ? '#1e1e30' : 'linear-gradient(135deg,#7c3aed,#06b6d4)', border: 'none', borderRadius: '8px', padding: '8px 16px', color: manualScanning ? '#475569' : '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: manualScanning ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+            {manualScanning ? 'Scanning…' : 'Find Deposit'}
+          </button>
+        </div>
+      </div>
 
       {/* Referral Program */}
       <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '16px', padding: '24px', marginBottom: '24px' }}>
