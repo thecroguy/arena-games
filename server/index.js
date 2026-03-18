@@ -1038,18 +1038,23 @@ async function endGame(room) {
     // Kept separate so game_history failures never prevent the winner from seeing their claim.
     if (claimSig && escrowAddr) {
       try {
-        await supabase.from('escrow_events').insert({
-          event_type:     'claim_signed',
-          room_code:      room.code,
-          room_id_hash:   roomIdHash,
-          chain_id:       room.chainId || 137,
-          escrow_address: escrowAddr,
-          player_address: winner.address.toLowerCase(),
-          amount_usdt:    parseFloat(pot),
-          sig:            claimSig,
-          note:           `Server authorized ${winner.address.slice(0, 8)} to claim $${pot} USDT`,
-        })
-        console.log(`[claim_signed] Stored claim sig for ${winner.address.slice(0, 8)} room ${room.code}`)
+        // Check for duplicate first (game:over can fire twice in edge cases)
+        const { data: existing } = await supabase.from('escrow_events').select('id')
+          .eq('event_type', 'claim_signed').eq('room_code', room.code).eq('player_address', winner.address.toLowerCase()).limit(1)
+        if (!existing || existing.length === 0) {
+          await supabase.from('escrow_events').insert({
+            event_type:     'claim_signed',
+            room_code:      room.code,
+            room_id_hash:   roomIdHash,
+            chain_id:       room.chainId || 137,
+            escrow_address: escrowAddr,
+            player_address: winner.address.toLowerCase(),
+            amount_usdt:    parseFloat(pot),
+            sig:            claimSig,
+            note:           `Server authorized ${winner.address.slice(0, 8)} to claim $${pot} USDT`,
+          })
+          console.log(`[claim_signed] Stored claim sig for ${winner.address.slice(0, 8)} room ${room.code}`)
+        }
       } catch (e) {
         console.error('[claim_signed] escrow_events write failed:', e.message)
       }
@@ -2068,18 +2073,26 @@ app.get('/api/pending-claim/:address', async (req, res) => {
       .order('created_at', { ascending: false })
       .limit(50)
 
-    // Rooms already covered by game_history or already refunded
+    // Rooms already covered by game_history (unclaimed wins already in primary list)
     const historyCodes = new Set((historyData || []).map(h => h.room_code))
-    // Exclude rooms that have been refunded/claimed (refund_claimed or already claimed via escrow_events)
-    const { data: settled } = await supabase
-      .from('escrow_events')
-      .select('room_code')
-      .eq('player_address', addr)
-      .in('event_type', ['refund_claimed', 'refund_signed'])
-    const settledCodes = new Set((settled || []).map(s => s.room_code))
 
+    // Exclude rooms already claimed (game_history has claimed_at set) or refunded
+    const [{ data: alreadyClaimed }, { data: settled }] = await Promise.all([
+      supabase.from('game_history').select('room_code').eq('player_address', addr).eq('result', 'win').not('claimed_at', 'is', null),
+      supabase.from('escrow_events').select('room_code').eq('player_address', addr).in('event_type', ['refund_claimed', 'refund_signed', 'claim_completed']),
+    ])
+    const claimedCodes  = new Set((alreadyClaimed || []).map(r => r.room_code))
+    const settledCodes  = new Set((settled || []).map(s => s.room_code))
+
+    // Dedup escrow_events by room_code (take most recent sig), then exclude covered/claimed rooms
+    const seen = new Set()
     const extraClaims = (eventData || [])
-      .filter(e => !historyCodes.has(e.room_code) && !settledCodes.has(e.room_code))
+      .filter(e => {
+        if (historyCodes.has(e.room_code) || claimedCodes.has(e.room_code) || settledCodes.has(e.room_code)) return false
+        if (seen.has(e.room_code)) return false  // keep only most recent (array already ordered desc)
+        seen.add(e.room_code)
+        return true
+      })
       .map(e => ({
         room_code:      e.room_code,
         game_mode:      'unknown',
@@ -2092,7 +2105,14 @@ app.get('/api/pending-claim/:address', async (req, res) => {
         played_at:      e.created_at,
       }))
 
-    res.json([...(historyData || []), ...extraClaims])
+    // Final dedup across both sources (history takes priority)
+    const finalSeen = new Set()
+    const result = [...(historyData || []), ...extraClaims].filter(r => {
+      if (finalSeen.has(r.room_code)) return false
+      finalSeen.add(r.room_code)
+      return true
+    })
+    res.json(result)
   } catch (e) {
     res.status(500).json({ error: e.message })
   }
@@ -2177,11 +2197,22 @@ app.post('/api/mark-claimed', express.json(), async (req, res) => {
     if (!address || !room_code) return res.status(400).json({ error: 'Missing fields' })
     if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
     if (!supabase) return res.json({ ok: true })
+    const addr  = address.toLowerCase()
+    const code  = String(room_code).toUpperCase().slice(0, 8)
+    // Update game_history row (may be a no-op if insert previously failed — that's OK)
     await supabase.from('game_history')
       .update({ claimed_at: new Date().toISOString() })
-      .eq('player_address', address.toLowerCase())
-      .eq('room_code', room_code)
-      .eq('result', 'win')
+      .eq('player_address', addr).eq('room_code', code).eq('result', 'win')
+    // Also write a claim_completed event so the escrow_events fallback query knows to skip this room
+    // This handles the case where game_history insert failed but claim_signed event exists
+    const { data: existing } = await supabase.from('escrow_events').select('id')
+      .eq('event_type', 'claim_completed').eq('room_code', code).eq('player_address', addr).limit(1)
+    if (!existing || existing.length === 0) {
+      await supabase.from('escrow_events').insert({
+        event_type: 'claim_completed', room_code: code, player_address: addr,
+        note: `Winner claimed on-chain for room ${code}`,
+      }).catch(() => {}) // best-effort
+    }
     res.json({ ok: true })
   } catch (e) {
     res.status(500).json({ error: e.message })
