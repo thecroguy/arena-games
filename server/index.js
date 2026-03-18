@@ -1578,11 +1578,13 @@ io.on('connection', (socket) => {
 
     if (!wasActive) {
       // Waiting phase — remove immediately
-      const hadDeposits = room.players.some(p => p.deposited)
+      const leavingPlayer = room.players.find(p => p.id === socket.id)
+      const leavingDeposited = leavingPlayer?.deposited === true
+      // Issue refund sig BEFORE removing — escrowRefund iterates room.players
+      if (leavingDeposited) escrowRefund(room).catch(() => {})
       room.players = room.players.filter(p => p.id !== socket.id)
       console.log(`- ${address} left ${code} (${room.players.length} remaining, waiting)`)
       if (room.players.length === 0) {
-        if (hadDeposits) escrowRefund(room).catch(() => {}) // refund any locked funds
         cleanupRoom(code)
         return
       }
