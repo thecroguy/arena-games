@@ -555,15 +555,17 @@ export default function Lobby() {
         @keyframes panel-row-in { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:translateX(0); } }
         @keyframes panel-glow   { 0%,100% { box-shadow: 0 0 0 0 rgba(124,58,237,0); } 50% { box-shadow: 0 0 18px 2px rgba(124,58,237,0.18); } }
         @keyframes unread-pop   { 0% { transform:scale(0.6); opacity:0; } 70% { transform:scale(1.15); } 100% { transform:scale(1); opacity:1; } }
-        .lobby-fee-btn:hover    { border-color:#7c3aed !important; color:#a78bfa !important; }
-        .lobby-chain-btn:hover  { opacity:0.85; }
-        .lobby-room-card:hover  { border-color:#2d2d45 !important; background:#14141e !important; }
-        .lobby-create-btn:hover { filter: brightness(1.12); }
-        .panel-tab-btn:hover    { color:#e2e8f0 !important; background:rgba(255,255,255,0.05) !important; }
-        .panel-act-row:hover    { background:rgba(255,255,255,0.03) !important; }
-        .chat-row:hover         { background:rgba(255,255,255,0.03) !important; }
         .chat-input-wrap:focus-within { border-color:#7c3aed !important; box-shadow: 0 0 0 2px rgba(124,58,237,0.18) !important; }
-        .panel-collapsed-btn:hover { border-color:#7c3aed !important; box-shadow: 0 0 14px 2px rgba(124,58,237,0.22) !important; }
+        @media (hover: hover) {
+          .lobby-fee-btn:hover    { border-color:#7c3aed !important; color:#a78bfa !important; }
+          .lobby-chain-btn:hover  { opacity:0.85; }
+          .lobby-room-card:hover  { border-color:#2d2d45 !important; background:#14141e !important; }
+          .lobby-create-btn:hover { filter: brightness(1.12); }
+          .panel-tab-btn:hover    { color:#e2e8f0 !important; background:rgba(255,255,255,0.05) !important; }
+          .panel-act-row:hover    { background:rgba(255,255,255,0.03) !important; }
+          .chat-row:hover         { background:rgba(255,255,255,0.03) !important; }
+          .panel-collapsed-btn:hover { border-color:#7c3aed !important; box-shadow: 0 0 14px 2px rgba(124,58,237,0.22) !important; }
+        }
       `}</style>
 
       {/* Header */}
