@@ -140,6 +140,10 @@ export default function Game() {
   const [entryFee,   setEntryFee]   = useState<number>(location.state?.entry   ?? 1)
   const [roomChainId,setRoomChainId]= useState<number>(location.state?.chainId  ?? 137)
   const [isDuel,     setIsDuel]     = useState<boolean>(location.state?.roomType === 'duel')
+  // duelExpiryMs: authoritative from server; falls back to duelCreatedAt+15min on first load
+  const [duelExpiryMs, setDuelExpiryMs] = useState<number>(
+    duelCreatedAt ? duelCreatedAt + 15 * 60 * 1000 : Date.now() + 15 * 60 * 1000
+  )
   // isJoining: true when player is in the room but hasn't deposited yet (joiner flow)
   const [isJoining,  setIsJoining]  = useState<boolean>(location.state?.joining === true)
   const myAddr         = isBotMode ? (address || 'YOU') : (address ?? '')
@@ -607,11 +611,12 @@ export default function Game() {
           setPlayers(res.room.players)
           if (res.room.gameMode) setGameMode(res.room.gameMode)
           // Apply server-authoritative room properties
-          const r = res.room as typeof res.room & { host?: string; entryFee?: number; chainId?: number; roomType?: string }
+          const r = res.room as typeof res.room & { host?: string; entryFee?: number; chainId?: number; roomType?: string; duelExpiry?: number }
           if (r.entryFee)  setEntryFee(r.entryFee)
           if (r.chainId)   setRoomChainId(r.chainId)
           if (r.roomType)  setIsDuel(r.roomType === 'duel')
           if (r.host)      setIsHost(r.host.toLowerCase() === addrRef.current.toLowerCase())
+          if (r.duelExpiry) setDuelExpiryMs(r.duelExpiry)
           // If my player has deposited, they're no longer "joining" (payment done)
           const myPlayer = res.room.players.find((p: PlayerState) => p.address.toLowerCase() === addrRef.current.toLowerCase())
           if ((myPlayer as PlayerState & { deposited?: boolean })?.deposited) setIsJoining(false)
@@ -639,7 +644,7 @@ export default function Game() {
     if (socket.connected) rejoin()
     socket.on('connect', rejoin)
 
-    socket.on('room:update', (room: { players: PlayerState[]; status: string; gameMode?: string; host?: string; entryFee?: number; chainId?: number; roomType?: string }) => {
+    socket.on('room:update', (room: { players: PlayerState[]; status: string; gameMode?: string; host?: string; entryFee?: number; chainId?: number; roomType?: string; duelExpiry?: number }) => {
       room.players.forEach(p => { if (p.username) usernameCache.set(p.address.toLowerCase(), p.username) })
       setPlayers(room.players)
       if (room.gameMode) setGameMode(room.gameMode)
@@ -647,6 +652,7 @@ export default function Game() {
       if (room.chainId)   setRoomChainId(room.chainId)
       if (room.roomType)  setIsDuel(room.roomType === 'duel')
       if (room.host)      setIsHost(room.host.toLowerCase() === addrRef.current.toLowerCase())
+      if (room.duelExpiry) setDuelExpiryMs(room.duelExpiry)
       setCanStart(room.players.length >= 2 && room.status === 'waiting')
       // If my player has deposited, hide the Pay button
       const myP = room.players.find(p => p.address.toLowerCase() === addrRef.current.toLowerCase())
@@ -1010,7 +1016,11 @@ export default function Game() {
         </div>
         <p style={{ color: '#94a3b8', margin: '12px 0 24px', fontSize: '0.95rem' }}>
           {isDuel
-            ? players.length >= 2 ? '⚔️ Both players ready' : '⚔️ Waiting for challenger…'
+            ? players.length < 2
+              ? '⚔️ Waiting for challenger…'
+              : players.every(p => (p as PlayerState & { deposited?: boolean }).deposited)
+                ? '⚔️ Both locked in — ready to start!'
+                : '⚔️ Challenger in — waiting for funds to lock…'
             : `${players.length} player${players.length !== 1 ? 's' : ''} — waiting for more…`}
         </p>
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '24px' }}>
@@ -1043,12 +1053,11 @@ export default function Game() {
           const gameTitle = GAME_HELP[gameMode]?.title || gameMode
           const duelUrl = `https://joinarena.space/r/${roomCode}`
           const tweetText = `⚔️ $${pot} POT DUEL — ${gameTitle}\n\nEntry fee: $${fmt(entryFee)} USDT each\nWinner takes $${win} USDT\nExpires in 15 min ⏱\n\nThink you can beat me?\n${duelUrl}`
-          const expiryMs = (duelCreatedAt || Date.now()) + 15 * 60 * 1000
           return (
             <div style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.4)', borderRadius: '14px', padding: '18px', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                 <p style={{ color: '#f97316', fontWeight: 800, fontFamily: 'Orbitron, sans-serif', fontSize: '0.88rem', margin: 0 }}>⚔️ ${pot} DUEL CREATED!</p>
-                <DuelCountdownTimer expiryMs={expiryMs} />
+                <DuelCountdownTimer expiryMs={duelExpiryMs} />
               </div>
               <p style={{ color: '#64748b', fontSize: '0.75rem', marginBottom: '10px' }}>Winner takes <strong style={{ color: '#e2e8f0' }}>${win} USDT</strong> · Share this link to challenge someone</p>
               <div onClick={() => navigator.clipboard.writeText(duelUrl).catch(() => {})}
