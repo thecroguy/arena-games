@@ -675,7 +675,7 @@ export default function Profile() {
           <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.7rem', color: '#ef4444', letterSpacing: '0.1em', marginBottom: '4px' }}>
             🔍 FOUND ON-CHAIN (not yet in server records)
           </p>
-          <p style={{ color: '#64748b', fontSize: '0.75rem', marginBottom: '14px' }}>These deposits exist on the blockchain but the server has no record. If 24h has passed since deposit, you can claim a full refund.</p>
+          <p style={{ color: '#64748b', fontSize: '0.75rem', marginBottom: '14px' }}>These deposits exist on the blockchain but the server has no record. Click to get your refund — you may need to sign once to verify your wallet.</p>
           {onChainDeposits.filter(d => !stuckDeposits.some(s => s.room_code === d.code)).map(d => {
             const isClaiming = claimingRoom === d.code
             return (
@@ -688,16 +688,32 @@ export default function Profile() {
                   setClaimingRoom(d.code)
                   try {
                     if (chainId !== d.chainId) await switchChainAsync({ chainId: d.chainId })
-                    await writeContractAsync({ address: d.escrow, abi: EMERGENCY_REFUND_ABI, functionName: 'emergencyRefund', args: [d.roomId], chainId: d.chainId, gas: 300000n })
+                    // Try to get a server-signed refund first (instant, no 24h wait)
+                    let refundSig: string | null = null
+                    try {
+                      const authSig = await signMessageAsync({ message: `Arena Games: ${address?.toLowerCase()}` })
+                      const r = await fetch(`${SERVER_URL}/api/request-refund-sig`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ roomCode: d.code, address, chainId: d.chainId, escrowAddress: d.escrow, authSig }),
+                      })
+                      if (r.ok) { const data = await r.json(); refundSig = data.refundSig }
+                    } catch { /* fall through to emergency */ }
+
+                    if (refundSig) {
+                      await writeContractAsync({ address: d.escrow, abi: CLAIM_REFUND_ABI, functionName: 'claimRefund', args: [d.roomId, refundSig as `0x${string}`], chainId: d.chainId, gas: 300000n })
+                    } else {
+                      await writeContractAsync({ address: d.escrow, abi: EMERGENCY_REFUND_ABI, functionName: 'emergencyRefund', args: [d.roomId], chainId: d.chainId, gas: 300000n })
+                    }
+                    fetch(`${SERVER_URL}/api/mark-refund-claimed`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roomCode: d.code, address }) }).catch(() => {})
                     setOnChainDeposits(prev => prev.filter(x => x.code !== d.code))
                   } catch (e: unknown) {
                     const msg = e instanceof Error ? e.message : String(e)
                     if (msg.includes('TooEarlyForEmergency')) setError('Too early — wait 24h after deposit.')
-                    else if (!msg.includes('rejected')) setError('Claim failed. Try again.')
+                    else if (!msg.includes('rejected') && !msg.includes('denied')) setError('Claim failed. Try again.')
                   } finally { setClaimingRoom(null) }
                 }} disabled={isClaiming}
                   style={{ background: isClaiming ? '#1e1e30' : 'linear-gradient(135deg,#ef4444,#f59e0b)', border: 'none', borderRadius: '8px', padding: '8px 18px', color: isClaiming ? '#475569' : '#0a0a0f', fontWeight: 700, fontSize: '0.82rem', cursor: isClaiming ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
-                  {isClaiming ? 'Claiming…' : 'Emergency Refund →'}
+                  {isClaiming ? 'Claiming…' : 'Get Refund →'}
                 </button>
               </div>
             )

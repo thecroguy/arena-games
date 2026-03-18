@@ -1945,6 +1945,51 @@ app.post('/api/mark-claimed', express.json(), async (req, res) => {
 })
 
 // ── Mark refund claimed — removes from stuck deposits on refresh ──────────
+// ── Request refund sig for a deposit the server has no record of ─────────────
+// Player proves wallet ownership via authSig, server signs a refund so they
+// can call claimRefund() immediately without waiting 24h for emergencyRefund.
+app.post('/api/request-refund-sig', express.json(), async (req, res) => {
+  try {
+    const { roomCode, address, chainId, escrowAddress, authSig } = req.body || {}
+    if (!roomCode || !address || !authSig) return res.status(400).json({ error: 'Missing fields' })
+    if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
+    if (!SERVER_SIGNING_KEY) return res.status(503).json({ error: 'Signing not configured' })
+
+    // Verify wallet ownership
+    try {
+      const recovered = verifyMessage(`Arena Games: ${address.toLowerCase()}`, authSig)
+      if (recovered.toLowerCase() !== address.toLowerCase()) return res.status(401).json({ error: 'Signature mismatch' })
+    } catch { return res.status(401).json({ error: 'Invalid signature' }) }
+
+    const resolvedChainId = chainId || 137
+    const escrowAddr = escrowAddress || getChainEscrowAddress(resolvedChainId)
+    if (!escrowAddr) return res.status(400).json({ error: 'Unknown chain' })
+
+    const roomId = getRoomId(roomCode)
+    const msgHash = solidityPackedKeccak256(['bytes32', 'string'], [roomId, 'REFUND'])
+    const refundSig = await signMessage(SERVER_SIGNING_KEY, msgHash)
+
+    // Store in Supabase so Profile's stuck-deposits endpoint finds it next time
+    if (supabase) {
+      await supabase.from('escrow_events').insert({
+        event_type:     'refund_signed',
+        room_code:      roomCode,
+        room_id_hash:   roomId,
+        chain_id:       resolvedChainId,
+        escrow_address: escrowAddr,
+        player_address: address.toLowerCase(),
+        sig:            refundSig,
+        note:           'Player-requested refund sig — deposit found on-chain, not in server records',
+      })
+    }
+
+    console.log(`[refund-request] Issued refund sig for ${address.slice(0,8)} room ${roomCode}`)
+    res.json({ refundSig })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 app.post('/api/mark-refund-claimed', express.json(), async (req, res) => {
   try {
     const { roomCode, address } = req.body || {}
