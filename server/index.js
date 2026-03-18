@@ -313,45 +313,64 @@ const _LEGIT_TRIGGERS = [
 // ── Word banks — messages are assembled from these at runtime ─────────────
 // Every send combines different slots → near-infinite unique sentences
 const _WB = {
-  opener:   ['bro', 'man', 'dude', 'ngl', 'honestly', 'fr', 'real talk', 'lowkey', 'not gonna lie'],
-  cashVerb: ['cashed out', 'withdrew', 'claimed', 'got paid', 'pulled'],
-  amounts:  ['$4', '$5', '$6', '$7', '$8', '$10', '$12', '$14', '$17', '$20', '$23', '$25', '$4.25', '$8.50', '$3.40', '$1.70'],
-  timing:   ['yesterday', 'today', 'just now', 'an hour ago', 'this morning', '30 mins ago', 'earlier today', 'last night', 'like 10 mins ago', 'a few hours ago'],
-  speed:    ['hit my wallet instantly', 'straight to wallet no issues', 'instant no waiting', 'went straight to my wallet', 'landed in seconds', 'super fast', 'no delays at all', 'claimed in like 10 secs'],
-  games:    ['math arena', 'pattern memory', 'reaction grid', "liar's dice", 'highest unique'],
-  durations:['a week', '2 weeks', '3 weeks', 'a month', 'a few days', '10 days'],
-  totals:   ['$15', '$20', '$30', '$40', '$50', '$12', '$25', '$35', '$18', '$28'],
-  chainRef: ['escrow is on-chain', 'smart contract handles it', 'check polygonscan', 'contract is open source', 'all funds on-chain', 'everything is verifiable'],
-  trustEnd: ['nobody can touch your funds', 'fully transparent', 'verify it yourself', 'no middleman at all', 'immutable contract', 'you can audit it'],
-  startTip: ['just connect metamask and pick a game', 'grab polygon USDT and go', 'start with a $0.50 match', 'takes 2 mins to set up', 'super easy to start'],
-  gasNote:  ['gas on polygon is like cents', 'polygon fees are basically nothing', 'like $0.01 gas max', 'gas is negligible on polygon'],
-  doubt:    ['i was skeptical at first too', 'thought it was bs honestly', 'was doubtful before i tried', 'almost didnt try it', 'was worried at first'],
-  confirm:  ['its real', 'works perfectly', 'legit af', 'fully on-chain', 'cant lie its solid', '100% real'],
-  payNote:  ['platform takes 15% cut', 'winner gets 85% of the pot', '15% fee then rest to wallet', 'small 15% fee, winner takes rest'],
-  refNote:  ['if nobody joins it refunds automatically', 'stuck? profile page has refund button', 'escrow refunds if game doesnt start', 'full refund if no match found'],
-  doubtQ:   ['real money', 'legit', 'paying out', 'for real', 'not a scam'],
-  payVerb:  ['pay out', 'work', 'send money', 'actually pay', 'be legit'],
-  withdrawRef: ['withdrawn from here', 'cashed out', 'got paid', 'claimed winnings'],
-  fakeAlt:  ['points', 'fake credits', 'not real USDT', 'just fake'],
-  realAlt:  ['cash out your winnings', 'withdraw', 'get real USDT', 'actually claim'],
-  scamWord: ['scam', 'rug', 'fake site', 'honeypot'],
-  lookWord: ['too good to be real', 'sus', 'sketchy', 'suspicious'],
-  proofWord:['proof this is legit', 'withdrawal proof', 'receipts', 'evidence'],
-  paySpeed: ['withdraws instant', 'pays out right away', 'sends direct to wallet'],
-  startAmt: ['$0.50', '$1', 'a $0.50 match', '$1 match'],
-  waitless: ['no waiting period', 'straight to wallet', 'instant'],
-  solidWord:['sounds solid', 'makes sense', 'checks out', 'actually good'],
-  tryWord:  ['try it', 'play a match', 'give it a shot', 'jump in'],
-  noKyc:    ['kyc', 'waiting period', 'manual approval', 'identity check'],
-  needWord: ['polygon USDT', 'metamask', 'USDT on polygon', 'a polygon wallet'],
-  winReact: ['won', 'took', 'got the W on', 'cleaned up in', 'won back-to-back in'],
-  lossReact:['lost', 'took an L in', 'got cooked in', 'lost that one in'],
-  gameAdj:  ['close', 'quick', 'solid', 'intense', 'wild', 'brutal', 'clean', 'crazy'],
-  whoQ:     ['anyone', 'who', 'anyone here'],
-  smallAmt: ['$0.50', '$1', '$2', '$3', '$5'],
-  streakW:  ['win streak', '3-game streak', 'hot streak', 'run rn'],
-  grindLen: ['all day', 'for hours', 'since this morning', 'all night', 'the last 2 hours'],
-  backReact:['ready to play', 'looking for a match', "who's next", 'who wants a game'],
+  opener:   ['bro', 'man', 'dude', 'ngl', 'honestly', 'fr', 'real talk', 'lowkey', 'not gonna lie', 'yo', 'ok so', 'wait', 'actually', 'tbh', 'bruh', 'fam', 'omg', 'lmao', 'ok but'],
+  cashVerb: ['cashed out', 'withdrew', 'claimed', 'got paid', 'pulled', 'pocketed', 'collected', 'swept', 'grabbed', 'secured'],
+  amounts:  ['$4', '$5', '$6', '$7', '$8', '$10', '$12', '$14', '$17', '$20', '$23', '$25', '$4.25', '$8.50', '$3.40', '$1.70', '$30', '$35', '$42', '$50', '$0.85', '$2.55', '$6.80'],
+  timing:   ['yesterday', 'today', 'just now', 'an hour ago', 'this morning', '30 mins ago', 'earlier today', 'last night', 'like 10 mins ago', 'a few hours ago', '5 mins ago', 'literally just now', 'like 2 hrs ago', 'earlier this week', 'this afternoon', 'like an hour back'],
+  speed:    ['hit my wallet instantly', 'straight to wallet no issues', 'instant no waiting', 'went straight to my wallet', 'landed in seconds', 'super fast', 'no delays at all', 'claimed in like 10 secs', 'boom straight in', 'no confirmation wait', 'practically instant', 'was in my wallet before i even closed the tab'],
+  games:    ['math arena', 'pattern memory', 'reaction grid', "liar's dice", 'highest unique', 'lowest unique'],
+  durations:['a week', '2 weeks', '3 weeks', 'a month', 'a few days', '10 days', '2 days', 'about a week', 'nearly a month', 'like 5 days'],
+  totals:   ['$15', '$20', '$30', '$40', '$50', '$12', '$25', '$35', '$18', '$28', '$45', '$60', '$22', '$16', '$38', '$55'],
+  chainRef: ['escrow is on-chain', 'smart contract handles it', 'check polygonscan', 'contract is open source', 'all funds on-chain', 'everything is verifiable', 'its all in the contract', 'funds locked in escrow', 'you can verify every tx', 'its trustless by design'],
+  trustEnd: ['nobody can touch your funds', 'fully transparent', 'verify it yourself', 'no middleman at all', 'immutable contract', 'you can audit it', 'zero custodial risk', 'server cant steal anything', 'code is the law here', 'math doesnt lie'],
+  startTip: ['just connect metamask and pick a game', 'grab polygon USDT and go', 'start with a $0.50 match', 'takes 2 mins to set up', 'super easy to start', 'wallet + USDT thats it', 'no account needed just connect', 'literally 3 clicks to start playing'],
+  gasNote:  ['gas on polygon is like cents', 'polygon fees are basically nothing', 'like $0.01 gas max', 'gas is negligible on polygon', 'paid like $0.02 gas total', 'polygon gas is basically free', 'gas cost me less than a cent'],
+  doubt:    ['i was skeptical at first too', 'thought it was bs honestly', 'was doubtful before i tried', 'almost didnt try it', 'was worried at first', 'didnt believe it at first either', 'i was super hesitant ngl', 'thought it was just another site', 'almost scrolled past this', 'laughed at it initially lol'],
+  confirm:  ['its real', 'works perfectly', 'legit af', 'fully on-chain', 'cant lie its solid', '100% real', 'no cap', 'genuinely works', 'been proven multiple times', 'i vouch for it', 'facts tho', 'no bs'],
+  payNote:  ['platform takes 15% cut', 'winner gets 85% of the pot', '15% fee then rest to wallet', 'small 15% fee, winner takes rest', '85% to winner is fair', 'only 15% rake thats nothing'],
+  refNote:  ['if nobody joins it refunds automatically', 'stuck? profile page has refund button', 'escrow refunds if game doesnt start', 'full refund if no match found', 'profile page handles refunds', 'worst case you get it back from profile'],
+  doubtQ:   ['real money', 'legit', 'paying out', 'for real', 'not a scam', 'actually working', 'real USDT', 'not just points'],
+  payVerb:  ['pay out', 'work', 'send money', 'actually pay', 'be legit', 'hold up', 'deliver', 'actually work'],
+  withdrawRef: ['withdrawn from here', 'cashed out', 'got paid', 'claimed winnings', 'pulled money out', 'withdrew to wallet'],
+  fakeAlt:  ['points', 'fake credits', 'not real USDT', 'just fake', 'play money', 'tokens with no value'],
+  realAlt:  ['cash out your winnings', 'withdraw', 'get real USDT', 'actually claim', 'get actual money', 'pull your funds'],
+  scamWord: ['scam', 'rug', 'fake site', 'honeypot', 'fraud', 'exit scam'],
+  lookWord: ['too good to be real', 'sus', 'sketchy', 'suspicious', 'shady ngl', 'kinda weird'],
+  proofWord:['proof this is legit', 'withdrawal proof', 'receipts', 'evidence', 'transaction proof', 'polygonscan tx'],
+  paySpeed: ['withdraws instant', 'pays out right away', 'sends direct to wallet', 'hits wallet immediately', 'no delay on payout'],
+  startAmt: ['$0.50', '$1', 'a $0.50 match', '$1 match', '$2 to start', '$0.50 to test'],
+  waitless: ['no waiting period', 'straight to wallet', 'instant', 'no manual review', 'automated payout'],
+  solidWord:['sounds solid', 'makes sense', 'checks out', 'actually good', 'pretty solid ngl', 'legit facts', 'fair enough'],
+  tryWord:  ['try it', 'play a match', 'give it a shot', 'jump in', 'just try a $0.50 game', 'run a quick match', 'test it yourself'],
+  noKyc:    ['kyc', 'waiting period', 'manual approval', 'identity check', 'email verification', 'phone number'],
+  needWord: ['polygon USDT', 'metamask', 'USDT on polygon', 'a polygon wallet', 'just a wallet and USDT', 'metamask + polygon USDT'],
+  winReact: ['won', 'took', 'got the W on', 'cleaned up in', 'won back-to-back in', 'bodied someone in', 'swept a match of', 'clocked someone in', 'took the pot in'],
+  lossReact:['lost', 'took an L in', 'got cooked in', 'lost that one in', 'fumbled the bag in', 'choked in', 'got outplayed in', 'folded in'],
+  gameAdj:  ['close', 'quick', 'solid', 'intense', 'wild', 'brutal', 'clean', 'crazy', 'sweaty', 'smooth', 'one-sided', 'tight', 'electric', 'nerve-wracking', 'calm', 'chaotic'],
+  whoQ:     ['anyone', 'who', 'anyone here', 'anybody', 'anyone online'],
+  smallAmt: ['$0.50', '$1', '$2', '$3', '$5', '$0.50 entry', '$1 entry', '$2 stakes'],
+  streakW:  ['win streak', '3-game streak', 'hot streak', 'run rn', '4-game run', 'unbeaten streak', 'winning spree', 'momentum rn'],
+  grindLen: ['all day', 'for hours', 'since this morning', 'all night', 'the last 2 hours', 'like 3 hours straight', 'since noon', 'the past hour', 'most of today', 'a good while'],
+  backReact:['ready to play', 'looking for a match', "who's next", 'who wants a game', 'open to duels', 'challenge me', 'need a warm-up match'],
+  stratWord:['always pick mid range', 'never go with the obvious number', 'react first ask later', 'pattern memory is all focus', 'liar dice is pure reads', 'unique games are about psychology', 'math arena is just speed', 'grid is all reflex no thinking'],
+  feelWord: ['pumped', 'in the zone', 'tilted rn', 'focused', 'confident', 'nervous lol', 'calm', 'hyped', 'locked in', 'a bit rusty', 'warmed up'],
+  oppDesc:  ['the last guy', 'my opponent', 'whoever i just played', 'that last player', 'them', 'the other person'],
+  opinionW: ['underrated', 'overhyped', 'actually really good', 'kinda addicting', 'slept on', 'harder than it looks', 'easier than people think', 'not for everyone', 'a hidden gem', 'surprisingly deep'],
+  tipWord:  ['tip', 'pro tip', 'fyi', 'heads up', 'advice', 'real talk', 'insider tip', 'piece of advice'],
+  tipContent:['in liar dice watch how fast people bid not just what they bid', 'pattern memory gets easier after round 5 once you know the grid size', 'reaction grid is all about anticipating not reacting', 'lowest unique — everyone picks 1 so pick 2 or 3', 'highest unique — avoid round numbers everyone picks those', 'math arena speed beats accuracy if the gap is close', 'liar dice bluff early it sets the tone', 'in pattern memory blink resets faster than focusing hard', 'duel links are clutch if matchmaking is slow'],
+  rankTalk: ['top of leaderboard', 'climbing the ranks', 'middle of the pack', 'grinding the board', 'trying to hit top 10', 'going for number one', 'checking my rank rn'],
+  numRef:   ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+  roundRef: ['round 3', 'round 5', 'round 7', 'the final round', 'last round', 'early rounds', 'mid game'],
+  moodEnd:  ['lol', 'ngl', 'fr', 'no cap', 'not even joking', 'deadass', 'on god', 'lowkey', 'highkey', 'genuinely'],
+  chatReact:['wait what', 'no way', 'facts', 'same', 'lmaooo', 'bro same', 'fr fr', 'real', 'thatss crazy', 'damn', 'sheesh', 'gg', 'wp', 'nice', 'well played', 'ggs', 'respect', 'clean'],
+  platformW:['arena games', 'this platform', 'this site', 'this app', 'here'],
+  posAdj:   ['clean', 'solid', 'dope', 'smooth', 'well built', 'well designed', 'tight', 'sharp', 'crisp'],
+  grindGoal:['hit $100 profit', 'go positive today', 'win 5 in a row', 'beat my record', 'make rent lol', 'get to $50 total', 'just have fun tbh', 'learn the meta'],
+  waitTalk: ['waiting for a match', 'queue is slow', 'nobody online rn?', 'matchmaking taking a sec', 'where is everyone'],
+  inviteW:  ['duel me', 'send me a link', 'lets run one', 'lets play', 'challenge open', 'anyone wanna duel'],
+  closeGame:['that was a 1 point game', 'literally came down to the last round', 'won by one point', 'overtime vibes', 'closest game ive played', 'could have gone either way'],
+  missedW:  ['almost had it', 'so close', 'one more second', 'cost me the game', 'threw it', 'fumbled at the end', 'choked the last round'],
+  sickPlay: ['that was clean', 'that move was nasty', 'perfect read', 'called it exactly', 'predicted that perfectly', 'that was calculated'],
 }
 
 // Generators — called each time so every message is uniquely assembled from the banks
@@ -415,47 +434,88 @@ function _genFollowup() {
 function _genChat() {
   const w = _WB, pick = _fakePick
   const g = () => pick(w.games)
-  const reactions = ['gg','wp','gg wp','nice','well played','gj','nice one','good game']
-  const t = Math.floor(Math.random() * 38)
+  const t = Math.floor(Math.random() * 80)
   switch (t) {
-    case 0:  return `${pick(['anyone','who'])} want to ${pick(['play','duel','match up'])} for ${pick(w.smallAmt)}?`
-    case 1:  return pick(reactions)
+    case 0:  return `${pick(['anyone','who','anybody'])} want to ${pick(['play','duel','match up','run one'])} for ${pick(w.smallAmt)}?`
+    case 1:  return pick(w.chatReact)
     case 2:  return `just ${pick(w.winReact)} a ${g()} match`
     case 3:  return `${pick(w.lossReact)} ${g()}, need a rematch`
-    case 4:  return `${g()} is ${pick(['too easy','actually hard','my best game','brutal','kinda fun','hard to master','pure luck','a mind game'])}`
-    case 5:  return `${pick(w.smallAmt)} duel open, ${pick(['anyone?','who wants it?','come get it','whos in?'])}`
-    case 6:  return `on a ${pick(w.streakW)} ${pick(['lol','ngl','fr','not gonna lie'])}`
-    case 7:  return `that was ${pick(['close','a good match','way too quick','intense','one-sided lol','actually fun'])}`
-    case 8:  return `just joined, ${pick(['first time here','looks interesting','excited to try this','how does this work'])}`
-    case 9:  return `${g()} is my ${pick(['best','worst','favorite','main','go-to'])} game`
+    case 4:  return `${g()} is ${pick(['too easy','actually hard','my best game','brutal','kinda fun','hard to master','pure luck','a mind game','deceptively hard','all about reads'])}`
+    case 5:  return `${pick(w.smallAmt)} duel open, ${pick(['anyone?','who wants it?','come get it','whos in?','step up'])}`
+    case 6:  return `on a ${pick(w.streakW)} ${pick(w.moodEnd)}`
+    case 7:  return `that was ${pick(w.closeGame)}`
+    case 8:  return `just joined, ${pick(['first time here','looks interesting','excited to try this','how does this work','heard about this from a friend'])}`
+    case 9:  return `${g()} is my ${pick(['best','worst','favorite','main','go-to','weakest','strongest'])} game`
     case 10: return `just ${pick(w.cashVerb)} ${pick(w.amounts)}, ${pick(w.speed)}`
     case 11: return `up ${pick(w.amounts)} today from ${g()} matches`
     case 12: return `${pick(w.smallAmt)} match anyone?`
-    case 13: return `need ${pick(['1 more player','someone to duel','a game','an opponent','a warm-up match'])}`
-    case 14: return `${pick(['this platform','arena games','this site'])} is ${pick(['underrated','actually solid','pretty good ngl','kinda addictive','slept on'])}`
-    case 15: return `lost ${pick(w.amounts)} 😭 ${pick(['gg though','wp to them','rematch when?','they were good','learned something'])}`
-    case 16: return `${pick(['polygon fees are','gas on here is','fees are'])} ${pick(['low','basically nothing','negligible','like pennies','cents max'])}, love it`
-    case 17: return `${g()} round ${pick(['3','4','5','6','7','8'])} is ${pick(['insane','brutal','wild','no joke','not easy'])}`
-    case 18: return `${pick(['anyone','who'])} playing ${g()} rn?`
-    case 19: return `${pick(['tip:','pro tip:','fyi:'])} ${pick(['duels are faster than auto match','create a duel and share the link','polygon USDT is what you need to start','duel links are the move'])}`
-    case 20: return `${pick(['just won 3 in a row','won back to back','on a run rn'])}, ${pick(['do not challenge me lol','feeling unstoppable','riding it while it lasts','someone stop me'])}`
-    case 21: return `${g()} is ${pick(['pure speed','a mind game','all reaction time','pure logic','skill-based fr'])}`
-    case 22: return `${pick(['rematch?','wanna run it back?','one more?','again?','round 2?'])}`
-    case 23: return `been grinding ${pick(w.grindLen)}, ${pick(['worth it','tired now lol','up overall though','decent session'])}`
-    case 24: return `who has the highest win rate here ${pick(['lol','fr','genuinely curious','asking for a friend'])}`
-    case 25: return `quick match anyone? ${pick(['i have 5 mins','quick one','wont take long','be fast'])}`
-    case 26: return `${pick(['lost','took an L in'])} ${g()} but ${pick(['learned the strat','gonna win next time','still fun','gg to them','respect though'])}`
-    case 27: return `${pick(['auto match','matchmaking'])} is ${pick(['slow rn','kind of slow','quiet right now'])}, just ${pick(['use duels','create a duel','share a duel link'])}`
-    case 28: return `duel open — ${g()}, ${pick(w.smallAmt)} pot`
-    case 29: return `${pick(['won','lost'])} a ${pick(w.gameAdj)} one in ${g()}, ${pick(['great game','gg','good match','wp to them','was fun'])}`
-    case 30: return `${pick(['ngl','honestly','not gonna lie'])} ${g()} is ${pick(['addicting','actually fun','better than i expected','my go-to now','worth trying'])}`
-    case 31: return `${pick(['liar dice bluff','pattern memory round 8','reaction grid wave 5','math arena speed round'])} is ${pick(['no joke','actually insane','wild','so hard','unreal'])}`
-    case 32: return `${pick(['first win today','finally won one','got one finally'])}, ${pick(["let's go","that's what im talking about",'feeling good','took long enough lol'])}`
-    case 33: return `${pick(w.amounts)} pot, ${g()}, ${pick(['who wants it?','anyone?','open now','come play'])}`
-    case 34: return `${pick(['back','just back','im back'])}, ${pick(w.backReact)}`
-    case 35: return `${pick(['just beat someone in','won a','finished a'])} ${g()} ${pick(['match','duel','game'])}, easy ${pick(w.amounts)}`
-    case 36: return `${pick(['deposited','started with'])} ${pick(w.smallAmt)}, now at ${pick(w.amounts)}, ${pick(['not bad','decent run','slow grind','slow and steady'])}`
-    default: return `${pick(['nothing better than','best feeling is'])} ${pick(['winning and getting paid instantly','beating someone and claiming the pot','winning a tight match'])}`
+    case 13: return `need ${pick(['1 more player','someone to duel','a game','an opponent','a warm-up match','a challenger'])}`
+    case 14: return `${pick(w.platformW)} is ${pick(w.opinionW)}`
+    case 15: return `lost ${pick(w.amounts)}, ${pick(['gg though','wp to them','rematch when?','they were good','learned something','onto the next one'])}`
+    case 16: return `${pick(['polygon fees','gas fees on here','the gas'])} are ${pick(['basically nothing','literally cents','negligible','like $0.01 max','crazy low'])}, love it`
+    case 17: return `${g()} ${pick(w.roundRef)} is ${pick(['insane','brutal','wild','no joke','not easy','where it gets real','the turning point'])}`
+    case 18: return `${pick(w.whoQ)} playing ${g()} rn?`
+    case 19: return `${pick(w.tipWord)}: ${pick(w.tipContent)}`
+    case 20: return `${pick(['just won 3 in a row','won back to back','on a run rn','cant lose today'])}, ${pick(['do not challenge me lol','feeling unstoppable','riding it while it lasts','someone stop me','pls send competition'])}`
+    case 21: return `${g()} is ${pick(['pure speed','a mind game','all reaction time','pure logic','skill-based fr','about reading people','50% luck 50% skill','all psychological'])}`
+    case 22: return `${pick(['rematch?','wanna run it back?','one more?','again?','round 2?','you wanna go again?'])}`
+    case 23: return `been grinding ${pick(w.grindLen)}, ${pick(['worth it','tired now lol','up overall though','decent session','positive overall','had fun at least'])}`
+    case 24: return `who has the highest win rate here ${pick(w.moodEnd)}`
+    case 25: return `quick match anyone? ${pick(['i have 5 mins','quick one','wont take long','be fast','fast game'])}`
+    case 26: return `${pick(w.lossReact)} ${g()} but ${pick(['learned the strat','gonna win next time','still fun','gg to them','respect though','ill be back'])}`
+    case 27: return `${pick(['auto match','matchmaking'])} is ${pick(['slow rn','kinda slow','quiet right now','empty'])}, just ${pick(['use duels','create a duel','share a duel link','make a room'])}`
+    case 28: return `duel open — ${g()}, ${pick(w.smallAmt)}`
+    case 29: return `${pick(['won','lost'])} a ${pick(w.gameAdj)} one in ${g()}, ${pick(['great game','gg','good match','wp to them','was fun','would play again'])}`
+    case 30: return `${pick(w.opener)} ${g()} is ${pick(['addicting','actually fun','better than i expected','my go-to now','worth trying','different every time'])}`
+    case 31: return `${pick(['first win today','finally won one','got one finally','first W of the day'])}, ${pick(["let's go","that's what im talking about",'feeling good','took long enough lol','now we cookin'])}`
+    case 32: return `${pick(w.amounts)} pot, ${g()}, ${pick(['who wants it?','anyone?','open now','come play','last spot'])}`
+    case 33: return `${pick(['back','just back','im back','returned'])}, ${pick(w.backReact)}`
+    case 34: return `${pick(['just beat someone in','won a','finished a'])} ${g()} ${pick(['match','duel','game'])}, easy ${pick(w.amounts)}`
+    case 35: return `${pick(['started with','deposited'])} ${pick(w.smallAmt)}, now at ${pick(w.amounts)}, ${pick(['not bad','decent run','slow grind','slow and steady','up overall'])}`
+    case 36: return `${pick(['nothing better than','best feeling is','love when'])} ${pick(['winning and getting paid instantly','beating someone and claiming the pot','winning a tight match','the pot lands in your wallet'])}`
+    case 37: return `feeling ${pick(w.feelWord)} today, ${pick(['lets see how it goes','could go either way','in the zone','ready to run some games'])}`
+    case 38: return `${pick(w.oppDesc)} was ${pick(['good','actually tough','surprising','better than expected','readable','slow','fast','cracked'])}`
+    case 39: return `trying to ${pick(w.grindGoal)} today`
+    case 40: return `${pick(w.inviteW)}, ${g()}, ${pick(w.smallAmt)}`
+    case 41: return `${pick(w.missedW)} in ${g()} ${pick(w.moodEnd)}`
+    case 42: return `${pick(w.sickPlay)} in ${g()} just now`
+    case 43: return `${pick(w.stratWord)}`
+    case 44: return `${pick(w.rankTalk)} — ${pick(['grind never stops','putting in the work','slowly getting there','no days off'])}`
+    case 45: return `${pick(w.waitTalk)}`
+    case 46: return `${pick(w.opener)} i've played ${pick(['5','10','20','like 30','a bunch of'])} matches here already, ${pick(w.confirm)}`
+    case 47: return `${g()} matchup was ${pick(w.gameAdj)}, ${pick(['gg','wp','well played','respect','close one'])}`
+    case 48: return `${pick(['just got here','logging on for the first time today','been away for a bit'])}, ${pick(w.backReact)}`
+    case 49: return `${g()} strategy: ${pick(['go aggressive early','play safe first two rounds','adapt to the opponent','read patterns not picks','never predictable'])}`
+    case 50: return `the ${pick(['escrow','contract','on-chain setup'])} is ${pick(w.posAdj)}, ${pick(w.trustEnd)}`
+    case 51: return `${pick(w.opener)} you can literally ${pick(['verify everything on polygonscan','check every tx on chain','audit the contract yourself','read the contract code'])}`
+    case 52: return `${pick(w.cashVerb)} ${pick(w.amounts)} ${pick(w.timing)}, ${pick(w.speed)}`
+    case 53: return `won ${pick(['3','4','5','6'])} in a row in ${g()}, ${pick(['is this real life','im unstoppable rn','someone challenge me','running it up'])}`
+    case 54: return `${g()} or ${g()} ${pick(['which one is better','which do you grind','which has better players','vote now lol'])}`
+    case 55: return `${pick(['honestly','ngl','lowkey'])} ${pick(w.platformW)} is ${pick(['better than i thought','worth using','actually legit','not what i expected in a good way'])}`
+    case 56: return `${pick(['liar dice is','highest unique is','pattern memory is','reaction grid is','math arena is'])} ${pick(['underrated fr','super underrated','slept on','unironically fun','a vibe'])}`
+    case 57: return `${pick(['anyone notice','did you know','fun fact'])} ${pick(['liar dice gets crazy with more players','highest unique is basically psychology','reaction grid punishes hesitation','pattern memory is all focus no luck'])}`
+    case 58: return `${pick(['one more','one last game','final match','just one more'])}, then ${pick(["i'm done","i'll stop","calling it","logging off","heading out"])}`
+    case 59: return `${pick(['ok i need to stop playing','cant stop grinding','i have a problem lol','literally been here for hours'])} ${pick(w.moodEnd)}`
+    case 60: return `${pick(w.amounts)} in profit today, ${pick(['started from nothing','up from $0.50','started small'])}, ${pick(['slow build','patience pays','grind works'])}`
+    case 61: return `${pick(['the chat is quiet','nobody talking?','dead in here','its quiet today'])}, ${pick(['where is everyone','who else is grinding','lets liven it up','hop in a game'])}`
+    case 62: return `${pick(['polygon','arbitrum','base'])} is ${pick(['the move','where its at','cheapest option','best chain for this'])}, ${pick(w.gasNote)}`
+    case 63: return `${pick(['math arena speed','reaction grid reflex','pattern memory focus','liar dice reads','unique game psychology'])} is ${pick(['a whole skill','literally its own meta','different from other games','takes practice'])}`
+    case 64: return `${pick(['w game','W session','this a W'])}, ${pick(w.cashVerb)} ${pick(w.amounts)} and ${pick(['bounced','logged off happy','called it a day','ended on a high'])}`
+    case 65: return `${pick(['bruh','bro','man'])} ${pick(w.missedW)} by ${pick(['one number','one pick','one second','one point'])}`
+    case 66: return `${pick(['got outread','got outplayed','got outbid','got out-reacted'])} in ${g()}, ${pick(['gg to them','respect','they were just better','ill get them next time'])}`
+    case 67: return `${pick(['playing since','been here since','joined'])} ${pick(['last week','2 weeks ago','a month ago','yesterday','this morning'])}, ${pick(['worth it','no regrets','best decision','having fun'])}`
+    case 68: return `${pick(['how many','how often'])} do you ${pick(['grind daily','play per session','play in a row'])} ${pick(w.moodEnd)}`
+    case 69: return `${g()} ${pick(['hit different when the stakes are real','is way more fun with money on it','feels different when its your USDT','slaps harder when its real money'])}`
+    case 70: return `${pick(['cant believe i','almost','nearly'])} ${pick(w.missedW)} that one`
+    case 71: return `${pick(w.closeGame)}, ${pick(['best match ive had','most fun ive had here','loved that game','will remember that one'])}`
+    case 72: return `${pick(['this week','today','this session'])} im ${pick(['up','positive','in profit'])}, ${pick(['finally','finally lol','slowly getting there','consistency pays'])}`
+    case 73: return `${pick(w.inviteW)} — ${pick(w.smallAmt)}, ${g()}, ${pick(['i dont bite lol','easy money','come learn','lets go'])}`
+    case 74: return `${pick(['ok real talk','honest take','unpopular opinion'])} ${g()} is ${pick(['the hardest game here','the most skill-based','the most fun','the best value','the most underrated'])}`
+    case 75: return `${pick(['just checked','looked at','went to'])} the leaderboard, ${pick(['top players are insane','competition is real','i have work to do lol','slowly climbing','not bad for a week in'])}`
+    case 76: return `${pick(['polygon usdt is','USDT on polygon is','the token here is'])} ${pick(['easy to get','on every exchange','cheap to move','fast to transfer'])}`
+    case 77: return `${pick(['tip for new players','advice for anyone new','if youre new'])} — ${pick(w.tipContent)}`
+    case 78: return `${pick(w.opener)} ${pick(w.sickPlay)}`
+    default: return `${pick(['im telling you','lowkey','seriously'])} ${pick(w.platformW)} is ${pick(['worth your time','legit different','actually competitive','a whole thing'])} ${pick(w.moodEnd)}`
   }
 }
 
@@ -465,7 +525,7 @@ function _genUniqueChat() {
   let msg, tries = 0
   do { msg = _genChat(); tries++ } while (_recentChatSet.has(msg) && tries < 8)
   _recentChatSet.add(msg)
-  if (_recentChatSet.size > 15) _recentChatSet.delete(_recentChatSet.values().next().value)
+  if (_recentChatSet.size > 40) _recentChatSet.delete(_recentChatSet.values().next().value)
   return msg
 }
 
