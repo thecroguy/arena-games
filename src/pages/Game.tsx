@@ -618,6 +618,19 @@ export default function Game() {
           if (res.room.players.some((p: PlayerState & { deposited?: boolean }) => p.deposited)) {
             setDepositedAt(prev => prev || Date.now())
           }
+          // Recovery: if server shows me as not-deposited but I have a stored txHash, re-send room:deposit
+          // This handles: socket dropped between payAndJoin() success and server processing the event
+          if (!(myPlayer as PlayerState & { deposited?: boolean })?.deposited) {
+            try {
+              const pending = JSON.parse(localStorage.getItem('ag_pending_deposit') || 'null')
+              if (pending && pending.code === roomCode && pending.address?.toLowerCase() === addrRef.current.toLowerCase() && pending.txHash) {
+                console.log('[rejoin] Re-sending room:deposit after reconnect')
+                socket.emit('room:deposit', { code: roomCode, txHash: pending.txHash, address: addrRef.current }, () => {
+                  localStorage.removeItem('ag_pending_deposit')
+                })
+              }
+            } catch { /* ignore */ }
+          }
         }
       })
     }
@@ -838,12 +851,15 @@ export default function Game() {
       const roomId = getRoomId(roomCode!)
       localStorage.setItem('ag_pending_deposit', JSON.stringify({ code: roomCode, address, chainId: chain.id, fee: entryFee, ts: Date.now() }))
       txHash = await writeContractAsync({ address: escrowAddr, abi: ESCROW_ABI, functionName: 'deposit', args: [roomId, amount], chainId: chain.id, gas: 300000n })
-      localStorage.removeItem('ag_pending_deposit')
+      // Store txHash so rejoin() can re-send room:deposit if socket drops between here and server ack
+      localStorage.setItem('ag_pending_deposit', JSON.stringify({ code: roomCode, address, chainId: chain.id, fee: entryFee, txHash, ts: Date.now() }))
     } catch { localStorage.removeItem('ag_pending_deposit'); setError('Deposit failed — try again'); setJoinPayStep('idle'); return }
     // room:join was already called by rejoin() on mount — just confirm the deposit
     setJoinPayStep('joining')
     const socket = connectSocket()
-    socket.emit('room:deposit', { code: roomCode, txHash, address }, () => {})
+    socket.emit('room:deposit', { code: roomCode, txHash, address }, () => {
+      localStorage.removeItem('ag_pending_deposit') // server confirmed — no need to retry on rejoin
+    })
     fetch(`${SERVER_URL}/api/report-deposit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address, room_code: roomCode, tx_hash: txHash, chain_id: chain.id, amount_usdt: entryFee }) }).catch(() => {})
     setIsJoining(false) // deposit done — hide Pay button immediately
     setJoinPayStep('idle')
