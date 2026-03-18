@@ -317,6 +317,72 @@ function _fakePushActivity() {
   setTimeout(_fakePushActivity, _fakeRand(20000, 65000))
 }
 
+// Keywords that trigger a legitimacy response from a fake user
+const _LEGIT_TRIGGERS = [
+  'legit','real','scam','fake','trust','cash','withdraw','payout','money','safe','proof',
+  'how','work','start','begin','new','first','join','play','win','lose','fee','entry',
+  'usdt','polygon','wallet','metamask','escrow','contract','gas','chain','deposit','refund',
+  'rank','leaderboard','score','round','game','rules','duel','room','match','bot',
+]
+const _LEGIT_REPLIES  = [
+  // Legitimacy / trust
+  'yeah 100% legit bro, cashed out last week no issues',
+  'i withdrew $12 yesterday, came straight to my wallet',
+  'been playing for weeks, payouts are real',
+  'escrow is on-chain so you can verify everything yourself',
+  'smart contract handles it all, no middleman',
+  'i was skeptical too but the claim went through fine',
+  'check the contract on polygonscan, fully transparent',
+  'withdrew $8 two days ago, all good',
+  'yep won $5 yesterday, claimed it directly from escrow',
+  'legit af, the escrow is verifiable on chain',
+  'i was doubtful too but its real, cashed out $20 total',
+  'all payouts are on-chain, no one can touch your winnings',
+  // How to start / new players
+  'just connect metamask and pick a game, super simple',
+  'you need USDT on polygon, its cheap to bridge',
+  'pick a game, choose entry fee, click play now — thats it',
+  'start with $0.50 matches to get the feel of it',
+  'i started yesterday, already won twice',
+  'easy to start, just make sure you have polygon USDT',
+  // How games work
+  'math arena is fastest fingers first, answer before opponent',
+  'highest unique — pick a number nobody else picks',
+  'pattern memory shows digits for 3 seconds then you type it',
+  'liar dice is bluffing, gotta read people',
+  'reaction grid just tap the targets fast as you can',
+  'each game has 8-10 rounds, highest score wins the pot',
+  // Entry / fees
+  'platform takes 15%, rest goes to winner',
+  'entry fees go into escrow on-chain, cant be touched',
+  'you can start with $0.50, pot is $0.85 for winner',
+  'gas on polygon is basically nothing like cents',
+  // Duels / rooms
+  'create a duel, share the link, winner takes pot',
+  'room code lets friends join your private match',
+  'play now auto-joins fastest available match',
+  'duels have a 15 min window before they expire',
+  // Winning / claiming
+  'winner claims directly from the smart contract',
+  'claim button shows up after game ends if you won',
+  'i claimed $4.25 in like 10 seconds, instant',
+  'no manual process, all automated on chain',
+  // Refunds
+  'if no one joins your room it gets refunded automatically',
+  'stuck deposit? check profile page, there is a refund button',
+]
+
+function _fakeSendLegitReply() {
+  // slight delay so it looks like someone typed a response
+  setTimeout(() => {
+    const reply = _fakePick(_LEGIT_REPLIES)
+    const entry = { username: _fakePick(FAKE_USERS_SVR), message: reply, ts: Date.now() }
+    globalChat.push(entry)
+    if (globalChat.length > 50) globalChat.shift()
+    io.emit('chat:message', entry)
+  }, _fakeRand(8000, 25000))
+}
+
 function _fakePushChat() {
   let line = _fakePick(FAKE_CHAT_SVR)
   while (line === _fakeLastChat) line = _fakePick(FAKE_CHAT_SVR)  // no consecutive repeat
@@ -325,7 +391,7 @@ function _fakePushChat() {
   globalChat.push(entry)
   if (globalChat.length > 50) globalChat.shift()
   io.emit('chat:message', entry)
-  setTimeout(_fakePushChat, _fakeRand(25000, 90000))
+  setTimeout(_fakePushChat, _fakeRand(45000, 120000))  // slower: 45–120s between fake messages
 }
 
 // Seed initial fake activity (5 items at staggered past timestamps)
@@ -1373,6 +1439,10 @@ io.on('connection', (socket) => {
     globalChat.unshift(entry)
     if (globalChat.length > 50) globalChat.pop()
     io.emit('chat:message', entry)
+    // ── FAKE DATA: auto-reply if real user asks about legitimacy/payouts ──────
+    const lower = trimmed.toLowerCase()
+    if (_LEGIT_TRIGGERS.some(kw => lower.includes(kw))) _fakeSendLegitReply()
+    // ── END FAKE DATA ──────────────────────────────────────────────────────────
   })
 
   socket.on('chat:history', (cb) => {
