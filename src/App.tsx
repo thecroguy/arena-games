@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Routes, Route, useSearchParams } from 'react-router-dom'
-import { useAccount } from 'wagmi'
+import { useAccount, useSignMessage } from 'wagmi'
 import Home from './pages/Home'
 import Lobby from './pages/Lobby'
 import Game from './pages/Game'
@@ -16,7 +16,23 @@ const SERVER_URL = import.meta.env.VITE_SOCKET_URL || ''
 function AppInner() {
   useProfileSync()
   const { address } = useAccount()
+  const { signMessageAsync } = useSignMessage()
   const [searchParams] = useSearchParams()
+
+  // Pre-generate auth sig silently when wallet connects — cached in localStorage forever.
+  // This means the sign popup happens ONCE ever, not before every game action.
+  useEffect(() => {
+    if (!address) return
+    const cacheKey = `ag_authsig_${address.toLowerCase()}`
+    if (localStorage.getItem(cacheKey)) return // already cached
+    // Small delay so wallet connection UI settles first
+    const t = setTimeout(() => {
+      signMessageAsync({ message: `Arena Games: ${address.toLowerCase()}` })
+        .then(sig => localStorage.setItem(cacheKey, sig))
+        .catch(() => {}) // user dismissed — will be asked again next game action
+    }, 1500)
+    return () => clearTimeout(t)
+  }, [address])
 
   // Capture ?ref=CODE on first load and store in sessionStorage
   useEffect(() => {

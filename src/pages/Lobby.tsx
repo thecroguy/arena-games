@@ -176,17 +176,16 @@ export default function Lobby() {
     if (authSigRef.current) return authSigRef.current
     const addr = address?.toLowerCase()
     if (!addr) return null
-    // Re-use cached sig from this browser session (avoids re-prompting on navigation)
     const cacheKey = `ag_authsig_${addr}`
-    const cached = sessionStorage.getItem(cacheKey)
+    const cached = localStorage.getItem(cacheKey)
     if (cached) { authSigRef.current = cached; return cached }
     try {
       const sig = await signMessageAsync({ message: `Arena Games: ${addr}` })
       authSigRef.current = sig
-      sessionStorage.setItem(cacheKey, sig)
+      localStorage.setItem(cacheKey, sig)
       return sig
     } catch {
-      showError('Wallet signature required to join — this proves you own the address.')
+      showError('Tap "Sign" in MetaMask to verify your wallet, then try again.')
       return null
     }
   }
@@ -284,10 +283,10 @@ export default function Lobby() {
       setPayStep('paying')
       try {
         const roomId = getRoomId(roomCode)
-        // Save before tx fires — survives MetaMask mobile redirect
         localStorage.setItem('ag_pending_deposit', JSON.stringify({ code: roomCode, address, chainId: chain.id, fee, ts: Date.now() }))
         const txHash = await writeContractAsync({ address: escrowAddr, abi: ESCROW_ABI, functionName: 'deposit', args: [roomId, amount], chainId: chain.id, gas: 300000n })
-        localStorage.removeItem('ag_pending_deposit')
+        // Store txHash so Game.tsx rejoin can re-send room:deposit if socket dropped
+        localStorage.setItem('ag_pending_deposit', JSON.stringify({ code: roomCode, address, chainId: chain.id, fee, txHash, ts: Date.now() }))
         return txHash
       } catch { localStorage.removeItem('ag_pending_deposit'); showError('Deposit failed. Your USDT was not locked — please try again.'); return null }
     } else {
@@ -413,10 +412,10 @@ export default function Lobby() {
 
   const escrowAvailable = !!getEscrowAddress(selectedChain.id)
   const createBtnLabel = () => {
-    if (payStep === 'switching') return `Switching to ${selectedChain.name}…`
+    if (payStep === 'switching') return `Switching network…`
     if (payStep === 'creating')  return 'Creating room…'
-    if (payStep === 'approving') return 'Step 1/2 — Approve USDT…'
-    if (payStep === 'paying')    return escrowAvailable ? 'Step 2/2 — Locking…' : `Sending $${selectedFee} USDT…`
+    if (payStep === 'approving') return 'Confirm in MetaMask → Return here'
+    if (payStep === 'paying')    return 'Confirm in MetaMask → Return here'
     return escrowAvailable ? `🔒 Lock & Create` : `Pay & Create`
   }
 
@@ -657,7 +656,7 @@ export default function Lobby() {
               </span>
               <button disabled={room.status === 'full' || joining === room.code} onClick={() => handleJoinRoom(room.code)}
                 style={{ background: room.status === 'full' ? '#1e1e30' : 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '8px', padding: '8px 18px', color: room.status === 'full' ? '#64748b' : '#fff', fontWeight: 700, cursor: room.status === 'full' ? 'not-allowed' : 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
-                {joining === room.code ? (payStep === 'approving' ? 'Approving…' : payStep === 'paying' ? 'Locking…' : `${selectedChain.icon} Paying…`) : `Join ${selectedChain.icon}`}
+                {joining === room.code ? 'Confirm in MetaMask →' : `Join ${selectedChain.icon}`}
               </button>
             </div>
           </div>

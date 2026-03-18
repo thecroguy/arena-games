@@ -819,8 +819,7 @@ export default function Game() {
   async function payAndJoin() {
     if (!address) return
     setError(''); setJoinPayStep('approving')
-    const authSig = await getAuthSig()
-    if (!authSig) { setJoinPayStep('idle'); return }
+    // authSig already cached from rejoin() on page load — no MetaMask sign here
     const chain = getChain(roomChainId)
     if (!chain) { setError('Unsupported chain'); setJoinPayStep('idle'); return }
     if (currentChainId !== chain.id) {
@@ -1095,7 +1094,7 @@ export default function Game() {
               ✓ Funds locked — waiting for host to start
             </div>
           )
-          const labels = { idle: `Pay $${entryFee} USDT to Lock In`, approving: 'Setting up USDT…', paying: 'Locking funds…', joining: 'Confirming…' }
+          const labels = { idle: `Pay $${entryFee} USDT to Lock In`, approving: 'Confirm in MetaMask → Return here', paying: 'Confirm in MetaMask → Return here', joining: 'Locking in…' }
           return (
             <button onClick={payAndJoin} disabled={joinPayStep !== 'idle'}
               style={{ width: '100%', background: joinPayStep !== 'idle' ? '#1e1e30' : 'linear-gradient(135deg, #f97316, #ea580c)', border: 'none', borderRadius: '10px', padding: '14px', color: joinPayStep !== 'idle' ? '#64748b' : '#fff', fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1rem', cursor: joinPayStep !== 'idle' ? 'not-allowed' : 'pointer', letterSpacing: '0.05em', marginBottom: '8px' }}>
