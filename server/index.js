@@ -301,21 +301,47 @@ const FAKE_CHAT_SVR = (() => {
   }
   return out
 })()
-let _fakeLastChat = ''  // prevent consecutive repeat
+
 
 function _fakePick(arr) { return arr[Math.floor(Math.random() * arr.length)] }
 function _fakeRand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min }
 
+// Shuffle-deck: every item is used once before any repeats (guaranteed uniqueness per cycle)
+function _makeShuffleDeck(arr) {
+  let deck = []
+  function refill() {
+    deck = [...arr]
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]]
+    }
+  }
+  refill()
+  return { pick() { if (deck.length === 0) refill(); return deck.pop() } }
+}
+
+// Pick a unique username that isn't in the exclude list
+function _pickUser(pool, ...exclude) {
+  let u
+  let tries = 0
+  do { u = _fakePick(pool); tries++ } while (exclude.includes(u) && tries < 20)
+  return u
+}
+
+let _fakeLastActivityUser = ''
 function _fakePushActivity() {
-  const u = _fakePick(FAKE_PLAYERS_SVR), g = _fakePick(FAKE_GAMES_SVR), e = _fakePick(FAKE_ENTRIES_SVR)
+  let u
+  do { u = _fakePick(FAKE_PLAYERS_SVR) } while (u === _fakeLastActivityUser)
+  _fakeLastActivityUser = u
+  const g = _fakePick(FAKE_GAMES_SVR), e = _fakePick(FAKE_ENTRIES_SVR)
   const pot = FAKE_POTS_SVR[e]
-  const msgs = [
-    `${u} won $${pot} in ${g}`,
-    `${u} joined ${g} (${e} entry)`,
-    `${u} opened a ${e} room — ${g}`,
-    `${u} created a ${e} duel — ${g}`,
-  ]
-  pushActivity(_fakePick(msgs))
+  const tmpl = _deckActivity.pick()
+  const msg =
+    tmpl === 'won'     ? `${u} won $${pot} in ${g}` :
+    tmpl === 'joined'  ? `${u} joined ${g} (${e} entry)` :
+    tmpl === 'opened'  ? `${u} opened a ${e} room — ${g}` :
+                         `${u} created a ${e} duel — ${g}`
+  pushActivity(msg)
   setTimeout(_fakePushActivity, _fakeRand(20000, 65000))
 }
 
@@ -329,91 +355,125 @@ const _LEGIT_TRIGGERS = [
   'actually work','does it work','really work','actually pay','do they pay',
   'lose money','stolen','rug','does this work','is it real','are you sure',
 ]
-const _LEGIT_REPLIES  = [
-  // Personal win proof
-  'bro i just cashed out $14 yesterday, hit my wallet instantly',
-  'i was skeptical at first too, now i am up $23 total',
-  'dude i won $8 today, claimed it straight from escrow no issues',
-  'been playing 3 weeks, pocketed like $50 total, its real',
-  'just claimed $5 from a duel 10 mins ago, fully on-chain',
-  'i thought it was bs too but the money came through same day',
-  'withdrew $12 last week, no complaints',
-  'won my 4th match today, all earnings sitting in my wallet rn',
-  'i was doubtful too but its real, cashed out $20 total',
-  'just won $8.50 from a math arena match lol easy',
-  // Trust mechanism
-  'escrow is on-chain so you can verify everything yourself',
-  'smart contract handles it all, no middleman can touch funds',
-  'check the contract on polygonscan, fully transparent',
-  'all payouts are on-chain, nobody can freeze your winnings',
-  'legit af, the escrow is verifiable on chain',
-  'winner gets paid the moment game ends, automatic',
-  // How to start
-  'just connect metamask and pick a game, takes 2 mins',
-  'you need USDT on polygon, bridge is like $0.10 gas',
-  'start with $0.50 matches to get comfortable first',
-  'i started with $1 matches, doubled up same day',
-  'easy to start, just make sure you have polygon USDT',
-  // Entry / fees
-  'platform takes 15%, winner gets the rest straight to wallet',
-  'entry goes into escrow on-chain, nobody touches it till game ends',
-  '$0.50 entry pot is $0.85, easy money if you win',
-  'gas on polygon is basically nothing, like cents',
-  // Winning
-  'claim button shows right after game, instant payout',
-  'i claimed $4.25 in like 10 seconds after i won',
-  'no manual approval needed, all automated on chain',
-  // Refunds
-  'if nobody joins your room it refunds automatically no worries',
-  'stuck deposit? profile page has a refund button',
-]
+// ── Word banks — messages are assembled from these at runtime ─────────────
+// Every send combines different slots → near-infinite unique sentences
+const _WB = {
+  opener:   ['bro', 'man', 'dude', 'ngl', 'honestly', 'fr', 'real talk', 'lowkey', 'not gonna lie'],
+  cashVerb: ['cashed out', 'withdrew', 'claimed', 'got paid', 'pulled'],
+  amounts:  ['$4', '$5', '$6', '$7', '$8', '$10', '$12', '$14', '$17', '$20', '$23', '$25', '$4.25', '$8.50', '$3.40', '$1.70'],
+  timing:   ['yesterday', 'today', 'just now', 'an hour ago', 'this morning', '30 mins ago', 'earlier today', 'last night', 'like 10 mins ago', 'a few hours ago'],
+  speed:    ['hit my wallet instantly', 'straight to wallet no issues', 'instant no waiting', 'went straight to my wallet', 'landed in seconds', 'super fast', 'no delays at all', 'claimed in like 10 secs'],
+  games:    ['math arena', 'pattern memory', 'reaction grid', "liar's dice", 'highest unique'],
+  durations:['a week', '2 weeks', '3 weeks', 'a month', 'a few days', '10 days'],
+  totals:   ['$15', '$20', '$30', '$40', '$50', '$12', '$25', '$35', '$18', '$28'],
+  chainRef: ['escrow is on-chain', 'smart contract handles it', 'check polygonscan', 'contract is open source', 'all funds on-chain', 'everything is verifiable'],
+  trustEnd: ['nobody can touch your funds', 'fully transparent', 'verify it yourself', 'no middleman at all', 'immutable contract', 'you can audit it'],
+  startTip: ['just connect metamask and pick a game', 'grab polygon USDT and go', 'start with a $0.50 match', 'takes 2 mins to set up', 'super easy to start'],
+  gasNote:  ['gas on polygon is like cents', 'polygon fees are basically nothing', 'like $0.01 gas max', 'gas is negligible on polygon'],
+  doubt:    ['i was skeptical at first too', 'thought it was bs honestly', 'was doubtful before i tried', 'almost didnt try it', 'was worried at first'],
+  confirm:  ['its real', 'works perfectly', 'legit af', 'fully on-chain', 'cant lie its solid', '100% real'],
+  payNote:  ['platform takes 15% cut', 'winner gets 85% of the pot', '15% fee then rest to wallet', 'small 15% fee, winner takes rest'],
+  refNote:  ['if nobody joins it refunds automatically', 'stuck? profile page has refund button', 'escrow refunds if game doesnt start', 'full refund if no match found'],
+  doubtQ:   ['real money', 'legit', 'paying out', 'for real', 'not a scam'],
+  payVerb:  ['pay out', 'work', 'send money', 'actually pay', 'be legit'],
+  withdrawRef: ['withdrawn from here', 'cashed out', 'got paid', 'claimed winnings'],
+  fakeAlt:  ['points', 'fake credits', 'not real USDT', 'just fake'],
+  realAlt:  ['cash out your winnings', 'withdraw', 'get real USDT', 'actually claim'],
+  scamWord: ['scam', 'rug', 'fake site', 'honeypot'],
+  lookWord: ['too good to be real', 'sus', 'sketchy', 'suspicious'],
+  proofWord:['proof this is legit', 'withdrawal proof', 'receipts', 'evidence'],
+  paySpeed: ['withdraws instant', 'pays out right away', 'sends direct to wallet'],
+  startAmt: ['$0.50', '$1', 'a $0.50 match', '$1 match'],
+  waitless: ['no waiting period', 'straight to wallet', 'instant'],
+  solidWord:['sounds solid', 'makes sense', 'checks out', 'actually good'],
+  tryWord:  ['try it', 'play a match', 'give it a shot', 'jump in'],
+  noKyc:    ['kyc', 'waiting period', 'manual approval', 'identity check'],
+  needWord: ['polygon USDT', 'metamask', 'USDT on polygon', 'a polygon wallet'],
+}
 
-// Fake users spontaneously questioning legitimacy (organic Q&A between fake users)
-const _LEGIT_QUESTIONS = [
-  'wait is this actually real money?',
-  'does this platform actually pay out?',
-  'anyone actually withdrawn from here?',
-  'is the money real or just points?',
-  'can you actually cash out your winnings?',
-  'wait so winnings go straight to your wallet?',
-  'how do you know this isnt a scam lol',
-  'this looks too good to be real ngl',
-  'do they actually pay or is it fake?',
-  'anyone have proof this is legit?',
-]
-// Follow-up from the same lurker AFTER getting a reply (sounds like they believed it)
-const _LEGIT_FOLLOWUPS = [
-  'oh nice so it withdraws instant after the game ends?',
-  'damn okay gonna try $0.50 first',
-  'wait so no waiting period?? straight to wallet??',
-  'okay that actually sounds solid ngl',
-  'alright i trust it, gonna play',
-  'so it just claims automatically? no kyc or anything?',
-  'ok ok lets goo',
-  'bet gonna try a match rn',
-  'so i just need polygon USDT? thats it?',
-]
+// Generators — called each time so every message is uniquely assembled from the banks
+function _genReply() {
+  const w = _WB
+  const pick = _fakePick
+  const t = Math.floor(Math.random() * 14)
+  switch (t) {
+    case 0:  return `${pick(w.opener)} i just ${pick(w.cashVerb)} ${pick(w.amounts)} ${pick(w.timing)}, ${pick(w.speed)}`
+    case 1:  return `${pick(w.doubt)} too, won ${pick(w.amounts)} in ${pick(w.games)} ${pick(w.timing)}, ${pick(w.confirm)}`
+    case 2:  return `been playing ${pick(w.durations)}, ${pick(w.cashVerb)} ${pick(w.totals)} total, ${pick(w.confirm)}`
+    case 3:  return `just ${pick(w.cashVerb)} ${pick(w.amounts)} from a ${pick(w.games)} match, ${pick(w.speed)}`
+    case 4:  return `${pick(w.chainRef)} so ${pick(w.trustEnd)}`
+    case 5:  return `winner gets paid the moment game ends, ${pick(w.speed)}`
+    case 6:  return `${pick(w.startTip)}, no complicated setup`
+    case 7:  return `start with ${pick(w.startAmt)} to test it, once you see the payout you'll trust it`
+    case 8:  return `${pick(w.amounts)} in my wallet rn from ${pick(w.timing)}, fully working`
+    case 9:  return `${pick(w.doubt)}, now i'm up ${pick(w.totals)} total — ${pick(w.chainRef)}`
+    case 10: return `claim button shows after you win, ${pick(w.speed)}, no approval needed`
+    case 11: return `${pick(w.gasNote)}, ${pick(w.payNote)}`
+    case 12: return `${pick(w.refNote)}`
+    default: return `entry goes to escrow on-chain, ${pick(w.trustEnd)}`
+  }
+}
+
+function _genQuestion() {
+  const w = _WB
+  const pick = _fakePick
+  const t = Math.floor(Math.random() * 9)
+  switch (t) {
+    case 0: return `wait is this actually ${pick(w.doubtQ)}?`
+    case 1: return `does this platform actually ${pick(w.payVerb)}?`
+    case 2: return `anyone actually ${pick(w.withdrawRef)}?`
+    case 3: return `is the money real or just ${pick(w.fakeAlt)}?`
+    case 4: return `can you actually ${pick(w.realAlt)}?`
+    case 5: return `winnings go straight to your wallet? actually?`
+    case 6: return `how do you know this isn't a ${pick(w.scamWord)}`
+    case 7: return `this looks ${pick(w.lookWord)} ngl`
+    default: return `anyone have ${pick(w.proofWord)}?`
+  }
+}
+
+function _genFollowup() {
+  const w = _WB
+  const pick = _fakePick
+  const t = Math.floor(Math.random() * 9)
+  switch (t) {
+    case 0: return `oh so it ${pick(w.paySpeed)} after the game?`
+    case 1: return `damn okay gonna try ${pick(w.startAmt)} first`
+    case 2: return `wait ${pick(w.waitless)}?? okay that's actually sick`
+    case 3: return `okay that actually ${pick(w.solidWord)} ngl`
+    case 4: return `alright gonna ${pick(w.tryWord)}, appreciate the info`
+    case 5: return `so no ${pick(w.noKyc)}? just claims automatically?`
+    case 6: return `bet gonna ${pick(w.tryWord)} rn`
+    case 7: return `so i just need ${pick(w.needWord)}? that's it?`
+    default: return `ok ok letsss go, trying ${pick(w.startAmt)} now`
+  }
+}
+
+// Activity template rotation deck — cycles won→joined→opened→created, never same twice in a row
+const _deckActivity = _makeShuffleDeck(['won','joined','opened','created'])
+// Regular chat shuffle deck — 5000 items, each used once per cycle
+const _deckChat     = _makeShuffleDeck(FAKE_CHAT_SVR)
 
 function _fakeSendLegitReply(lurkerName = null, extraDelay = 0) {
-  // Player replies after a natural delay
   setTimeout(() => {
-    const entry = { username: _fakePick(FAKE_PLAYERS_SVR), message: _fakePick(_LEGIT_REPLIES), ts: Date.now() }
+    const player1 = _pickUser(FAKE_PLAYERS_SVR, lurkerName)
+    const entry = { username: player1, message: _genReply(), ts: Date.now() }
     globalChat.push(entry)
     if (globalChat.length > 50) globalChat.shift()
     io.emit('chat:message', entry)
-    // 40% chance a second player also chimes in
+    // 40% chance a second different player chimes in with a completely different message
     if (Math.random() < 0.4) {
       setTimeout(() => {
-        const entry2 = { username: _fakePick(FAKE_PLAYERS_SVR), message: _fakePick(_LEGIT_REPLIES), ts: Date.now() }
+        const player2 = _pickUser(FAKE_PLAYERS_SVR, lurkerName, player1)
+        const entry2 = { username: player2, message: _genReply(), ts: Date.now() }
         globalChat.push(entry2)
         if (globalChat.length > 50) globalChat.shift()
         io.emit('chat:message', entry2)
       }, _fakeRand(5000, 15000))
     }
-    // The original lurker follows up with a reaction (sounds like they got convinced)
+    // The lurker follows up after being convinced
     if (lurkerName && Math.random() < 0.6) {
       setTimeout(() => {
-        const fu = { username: lurkerName, message: _fakePick(_LEGIT_FOLLOWUPS), ts: Date.now() }
+        const fu = { username: lurkerName, message: _genFollowup(), ts: Date.now() }
         globalChat.push(fu)
         if (globalChat.length > 50) globalChat.shift()
         io.emit('chat:message', fu)
@@ -425,8 +485,8 @@ function _fakeSendLegitReply(lurkerName = null, extraDelay = 0) {
 function _fakePushChat() {
   // 15% chance: fake user spontaneously asks a legitimacy question → triggers organic Q&A
   if (Math.random() < 0.15 && globalChat.length > 2) {
-    // Lurker (not a player) asks a doubt question — a player then replies
-    const q = _fakePick(_LEGIT_QUESTIONS)
+    // Lurker asks a unique doubt question — a player replies
+    const q = _genQuestion()
     const lurker = _fakePick(FAKE_LURKERS_SVR)
     const qEntry = { username: lurker, message: q, ts: Date.now() }
     globalChat.push(qEntry)
@@ -436,9 +496,7 @@ function _fakePushChat() {
     setTimeout(_fakePushChat, _fakeRand(60000, 150000))
     return
   }
-  let line = _fakePick(FAKE_CHAT_SVR)
-  while (line === _fakeLastChat) line = _fakePick(FAKE_CHAT_SVR)  // no consecutive repeat
-  _fakeLastChat = line
+  const line = _deckChat.pick()  // cycles through all 5000 messages before any repeats
   const entry = { username: _fakePick(FAKE_PLAYERS_SVR), message: line, ts: Date.now() }
   globalChat.push(entry)
   if (globalChat.length > 50) globalChat.shift()
