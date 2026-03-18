@@ -748,7 +748,7 @@ export default function Profile() {
             const code = manualRoomCode.trim().toUpperCase()
             if (!code || code.length < 4) return
             setManualScanning(true)
-            const { deposit, reason } = await scanRoomCode(code)
+            const { reason } = await scanRoomCode(code)
             setManualScanning(false)
             if (reason === 'settled') setError(`Room ${code} is already settled — funds were distributed or previously claimed.`)
             else if (reason === 'not_found') setError(`No deposit found for room ${code} on this wallet.`)
