@@ -1940,12 +1940,16 @@ app.get('/api/active-room/:address', async (req, res) => {
   if (supabase && candidates.length > 0) {
     try {
       const codes = candidates.map(c => c.code)
-      const { data: refunds } = await supabase.from('escrow_events')
-        .select('room_code').eq('player_address', addr)
-        .eq('event_type', 'refund_claimed')
-        .in('room_code', codes)
-      const claimedCodes = new Set((refunds || []).map(r => r.room_code))
-      const active = candidates.find(c => !claimedCodes.has(c.code))
+      const [{ data: deposits }, { data: refunds }] = await Promise.all([
+        supabase.from('escrow_events').select('room_code').eq('player_address', addr)
+          .eq('event_type', 'deposit_confirmed').in('room_code', codes),
+        supabase.from('escrow_events').select('room_code').eq('player_address', addr)
+          .eq('event_type', 'refund_claimed').in('room_code', codes),
+      ])
+      const depositedCodes = new Set((deposits || []).map(d => d.room_code))
+      const claimedCodes   = new Set((refunds  || []).map(r => r.room_code))
+      // Only show rooms where deposit is confirmed AND refund not yet claimed
+      const active = candidates.find(c => depositedCodes.has(c.code) && !claimedCodes.has(c.code))
       return res.json(active || { code: null })
     } catch { /* fall through */ }
   }
