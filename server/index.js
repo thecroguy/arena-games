@@ -1767,6 +1767,22 @@ app.get('/api/active-deposit/:address', async (req, res) => {
   }
 })
 
+// ── Active room lookup ─────────────────────────────────────────────────────
+// Returns the room code the address is currently a player in (not finished),
+// or { code: null } if none. Used by Navbar and Lobby instead of localStorage.
+app.get('/api/active-room/:address', (req, res) => {
+  const { address } = req.params
+  if (!VALID_ADDR.test(address)) return res.status(400).json({ error: 'Invalid address' })
+  const addr = address.toLowerCase()
+  for (const [code, room] of rooms) {
+    if (room.status === 'finished' || room.status === 'abandoned') continue
+    if (room.players.some(p => p.address.toLowerCase() === addr)) {
+      return res.json({ code, gameMode: room.gameMode })
+    }
+  }
+  return res.json({ code: null })
+})
+
 // ── Stuck deposits: deposits with no payout or refund yet ─────────────────
 // Used by Profile page to show pending funds + "Claim Refund" button after 24h
 app.get('/api/stuck-deposits/:address', async (req, res) => {

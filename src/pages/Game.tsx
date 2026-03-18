@@ -547,7 +547,6 @@ export default function Game() {
         if (res.error === 'Room not found') {
           // Room was cleaned up (refund issued, game ended, or server restart with no DB record)
           // Don't strand user on a dead room page — send them back to lobby
-          localStorage.removeItem('ag_active_room')
           navigate(`/lobby/${gameModeLS}`)
           return
         }
@@ -614,7 +613,6 @@ export default function Game() {
     })
     socket.on('game:over', (data: { winner: string; pot: string; payoutMode?: string; claimSig?: string; scores: Array<{ address: string; score: number; rank: number }> }) => {
       if (timerRef.current) clearInterval(timerRef.current)
-      localStorage.removeItem('ag_active_room')
       setPhase('finished'); setGameOver(data)
     })
     socket.on('game:refund_sig', ({ refundSig: sig }: { refundSig: string }) => {
@@ -626,7 +624,6 @@ export default function Game() {
     })
     socket.on('room:timeout', (data: { message: string }) => {
       if (timerRef.current) clearInterval(timerRef.current)
-      localStorage.removeItem('ag_active_room')
       // If player deposited, show abandoned screen (refund button); otherwise go back to lobby
       const myPlayer = scoresRef.current.find(p => p.address === myAddr)
       if ((myPlayer as PlayerState & { deposited?: boolean })?.deposited) {
@@ -638,7 +635,6 @@ export default function Game() {
     })
     socket.on('game:abandoned', (data: { reason: string }) => {
       if (timerRef.current) clearInterval(timerRef.current)
-      localStorage.removeItem('ag_active_room')
       setAbandonReason(data.reason)
       setPhase('abandoned')
     })

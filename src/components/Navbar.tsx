@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { useAccount } from 'wagmi'
 
-const ACTIVE_ROOM_KEY = 'ag_active_room'
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
 
 function IconGames({ size = 16 }: { size?: number }) {
   return (
@@ -48,17 +49,24 @@ const NAV_LINKS = [
 export default function Navbar() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
+  const { address } = useAccount()
   const [open, setOpen] = useState(false)
-  const [activeRoom, setActiveRoom] = useState(() => localStorage.getItem(ACTIVE_ROOM_KEY) || '')
+  const [activeRoom, setActiveRoom] = useState('')
 
-  // Keep banner in sync when localStorage changes (e.g. after room clears)
+  // Fetch active room from server on mount and poll every 10s
   useEffect(() => {
-    const onStorage = () => setActiveRoom(localStorage.getItem(ACTIVE_ROOM_KEY) || '')
-    window.addEventListener('storage', onStorage)
-    // Also poll every 5s for same-tab changes
-    const t = setInterval(() => setActiveRoom(localStorage.getItem(ACTIVE_ROOM_KEY) || ''), 5000)
-    return () => { window.removeEventListener('storage', onStorage); clearInterval(t) }
-  }, [])
+    if (!address) { setActiveRoom(''); return }
+    let cancelled = false
+    function fetchRoom() {
+      fetch(`${SERVER_URL}/api/active-room/${address}`)
+        .then(r => r.json())
+        .then(data => { if (!cancelled) setActiveRoom(data.code || '') })
+        .catch(() => {})
+    }
+    fetchRoom()
+    const t = setInterval(fetchRoom, 10000)
+    return () => { cancelled = true; clearInterval(t) }
+  }, [address])
 
   const onGamePage = pathname.startsWith('/game/')
 
@@ -140,7 +148,7 @@ export default function Navbar() {
               style={{ background: '#22c55e', border: 'none', borderRadius: '6px', padding: '5px 12px', color: '#0a0a0f', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}>
               Return →
             </button>
-            <button onClick={() => { localStorage.removeItem(ACTIVE_ROOM_KEY); setActiveRoom('') }}
+            <button onClick={() => { setActiveRoom('') }}
               style={{ background: 'none', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '6px', padding: '5px 8px', color: '#64748b', fontSize: '0.78rem', cursor: 'pointer' }}>
               ✕
             </button>

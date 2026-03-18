@@ -8,17 +8,7 @@ import { SUPPORTED_CHAINS, USDT_ABI, getChain, type SupportedChain } from '../ut
 import { getEscrowAddress, getRoomId, ESCROW_ABI, USDT_APPROVE_ABI } from '../utils/escrow'
 
 const HOUSE_WALLET = import.meta.env.VITE_HOUSE_WALLET as `0x${string}` | undefined
-const ACTIVE_ROOM_KEY = 'ag_active_room'
-const ROOM_HISTORY_KEY = 'ag_room_history'
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
-
-function addToRoomHistory(code: string, chainId: number) {
-  try {
-    const prev = JSON.parse(localStorage.getItem(ROOM_HISTORY_KEY) || '[]') as { code: string; chainId: number }[]
-    const updated = [{ code, chainId }, ...prev.filter(r => r.code !== code)].slice(0, 20)
-    localStorage.setItem(ROOM_HISTORY_KEY, JSON.stringify(updated))
-  } catch { /* ignore */ }
-}
 
 const GAME_META: Record<string, { title: string; emoji: string; desc: string; minPlayers: number; maxPlayers: number }> = {
   'math-arena':     { title: 'Math Arena',      emoji: '✚',  desc: 'Speed math quiz — first correct answer scores. 100% skill, zero luck.',           minPlayers: 2, maxPlayers: 10 },
@@ -70,7 +60,7 @@ export default function Lobby() {
   const [joining, setJoining]               = useState<string | null>(null)
   const [error, setError]                   = useState('')
   const [payStep, setPayStep]               = useState<'idle' | 'switching' | 'approving' | 'paying' | 'creating'>('idle')
-  const [activeRoom, setActiveRoom]         = useState(() => localStorage.getItem(ACTIVE_ROOM_KEY) || '')
+  const [activeRoom, setActiveRoom]         = useState('')
   const [selectedChain, setSelectedChain]   = useState<SupportedChain>(SUPPORTED_CHAINS[0])
   const [lockedInRoom, setLockedInRoom]     = useState<string | null>(null)
   const [searching, setSearching]           = useState(false)
@@ -162,6 +152,14 @@ export default function Lobby() {
       .catch(() => {})
   }, [address])
 
+  useEffect(() => {
+    if (!address) { setActiveRoom(''); return }
+    fetch(`${SERVER_URL}/api/active-room/${address}`)
+      .then(r => r.json())
+      .then(data => { setActiveRoom(data.code || '') })
+      .catch(() => {})
+  }, [address])
+
   async function getAuthSig(): Promise<string | null> {
     if (authSigRef.current) return authSigRef.current
     try {
@@ -185,28 +183,18 @@ export default function Lobby() {
     function loadRooms() {
       socket.emit('rooms:list', gameMode, (list: Room[]) => { setRooms(list); setLoading(false) })
     }
-    function verifyActiveRoom(code: string) {
-      socket.emit('room:get', code, (room: unknown) => {
-        if (!room) { localStorage.removeItem(ACTIVE_ROOM_KEY); setActiveRoom('') }
-      })
-    }
     if (socket.connected) {
       loadRooms()
-      const cached = localStorage.getItem(ACTIVE_ROOM_KEY)
-      if (cached) verifyActiveRoom(cached)
     } else {
       socket.connect()
       socket.once('connect', () => {
         loadRooms()
-        const cached = localStorage.getItem(ACTIVE_ROOM_KEY)
-        if (cached) verifyActiveRoom(cached)
       })
     }
     socket.on('room:update', loadRooms)
     socket.on('matchmaking:queue_update', ({ size }: { size: number }) => setQueueSize(size))
     socket.on('matchmaking:matched', ({ code, entryFee, chainId }: { code: string; entryFee: number; gameMode: string; chainId: number }) => {
       setSearching(false); setQueueSize(0)
-      addToRoomHistory(code, chainId)
       navigate(`/lobby/${gameMode}`, { state: { autoJoin: code, autoFee: entryFee, autoChainId: chainId }, replace: true })
     })
     socket.on('matchmaking:timeout', ({ reason }: { reason: string }) => {
@@ -320,8 +308,7 @@ export default function Lobby() {
     socket.emit('room:deposit', { code, txHash, address }, () => {})
     fetch(`${SERVER_URL}/api/report-deposit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address, room_code: code, tx_hash: txHash, chain_id: selectedChain.id, amount_usdt: selectedFee }) }).catch(() => {})
     setCreating(false); setPayStep('idle')
-    localStorage.setItem(ACTIVE_ROOM_KEY, code); setActiveRoom(code)
-    addToRoomHistory(code, selectedChain.id)
+    setActiveRoom(code)
     navigate(`/game/${code}`, { state: { host: true, entry: selectedFee, maxPlayers, gameMode, chainId: selectedChain.id } })
   }
 
@@ -345,8 +332,7 @@ export default function Lobby() {
     socket.emit('room:deposit', { code, txHash, address }, () => {})
     fetch(`${SERVER_URL}/api/report-deposit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address, room_code: code, tx_hash: txHash, chain_id: selectedChain.id, amount_usdt: selectedFee }) }).catch(() => {})
     setCreating(false); setPayStep('idle')
-    localStorage.setItem(ACTIVE_ROOM_KEY, code); setActiveRoom(code)
-    addToRoomHistory(code, selectedChain.id)
+    setActiveRoom(code)
     localStorage.setItem('ag_duel_share', code)
     setDuelShareCode(code); setShowCreateDuel(false)
   }
@@ -368,8 +354,7 @@ export default function Lobby() {
         if (res.error) { showError(res.error); return }
         socket.emit('room:deposit', { code, txHash, address }, () => {})
         fetch(`${SERVER_URL}/api/report-deposit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address, room_code: code, tx_hash: txHash, chain_id: selectedChain.id, amount_usdt: fee }) }).catch(() => {})
-        localStorage.setItem(ACTIVE_ROOM_KEY, code); setActiveRoom(code)
-        addToRoomHistory(code, selectedChain.id)
+        setActiveRoom(code)
         navigate(`/game/${code}`, { state: { gameMode, chainId: selectedChain.id } })
       }
     )
@@ -381,7 +366,7 @@ export default function Lobby() {
     handleJoinRoom(code)
   }
 
-  function clearActiveRoom() { localStorage.removeItem(ACTIVE_ROOM_KEY); setActiveRoom('') }
+  function clearActiveRoom() { setActiveRoom('') }
 
   function sendChat() {
     const msg = chatInput.trim()
