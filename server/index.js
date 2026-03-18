@@ -1367,34 +1367,45 @@ io.on('connection', (socket) => {
     if (!player) return cb({ error: 'Not in room' })
     if (player.deposited) return cb({ ok: true }) // already confirmed
 
+    // Require a txHash — proves player at least broadcast the tx
     const escrowAddr = getChainEscrowAddress(room.chainId)
-    if (escrowAddr) {
-      // Verify on-chain that this player actually deposited
-      // The tx may still be pending when this fires — retry up to 3×10s before giving up
-      try {
-        let confirmed = await hasDepositedOnChain(room.chainId, getRoomId(code), address)
-        if (!confirmed && txHash && VALID_TX_HASH.test(txHash)) {
-          for (let attempt = 0; attempt < 3 && !confirmed; attempt++) {
-            await new Promise(r => setTimeout(r, 10000))
-            confirmed = await hasDepositedOnChain(room.chainId, getRoomId(code), address)
-            if (confirmed) console.log(`Deposit for ${code} confirmed after ${(attempt + 1) * 10}s`)
-          }
-        }
-        if (!confirmed) return cb({ error: 'Deposit not found on-chain. Please wait a moment and try again.' })
-      } catch (e) {
-        console.error('Escrow verification error:', e.message)
-        // RPC temporarily down — ask player to retry rather than blindly trusting any txHash
-        return cb({ error: 'Could not verify deposit on-chain — network temporarily unavailable. Please wait 30 seconds and try again.' })
-      }
-    } else {
-      // Escrow not configured for this chain — trust txHash (legacy fallback)
-      if (txHash && !VALID_TX_HASH.test(txHash)) return cb({ error: 'Invalid transaction hash' })
+    if (escrowAddr && (!txHash || !VALID_TX_HASH.test(txHash))) {
+      return cb({ error: 'Transaction hash required' })
     }
 
+    // Mark deposited optimistically so both players see it immediately
     player.deposited = true
     saveRoomToDb(room)
     io.to(code).emit('room:update', roomPublic(room))
     cb({ ok: true })
+
+    // Verify on-chain in background — revert if fraud detected
+    if (escrowAddr) {
+      ;(async () => {
+        try {
+          let confirmed = await hasDepositedOnChain(room.chainId, getRoomId(code), address)
+          if (!confirmed && txHash) {
+            for (let attempt = 0; attempt < 3 && !confirmed; attempt++) {
+              await new Promise(r => setTimeout(r, 10000))
+              confirmed = await hasDepositedOnChain(room.chainId, getRoomId(code), address)
+              if (confirmed) console.log(`Deposit for ${code} confirmed after ${(attempt + 1) * 10}s`)
+            }
+          }
+          if (!confirmed) {
+            // Revert — player lied about the txHash
+            const r = rooms.get(code)
+            if (r) {
+              const p = r.players.find(p => p.address === address)
+              if (p) { p.deposited = false; saveRoomToDb(r); io.to(code).emit('room:update', roomPublic(r)) }
+            }
+            console.warn(`[room:deposit] Revert — deposit not found on-chain for ${address.slice(0,8)} room ${code}`)
+          }
+        } catch (e) {
+          console.error('Background escrow verification error:', e.message)
+          // RPC down — leave optimistic mark, recoverStuckRooms will catch any issues
+        }
+      })()
+    }
     console.log(`${address.slice(0, 8)} deposited for room ${code} (chain ${room.chainId})`)
 
     // Auto-start when room is at capacity AND every player has deposited

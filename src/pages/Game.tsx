@@ -157,14 +157,14 @@ export default function Game() {
     if (authSigRef.current) return authSigRef.current
     const addr = addrRef.current
     if (!addr) return null
-    // Re-use cached sig from this browser session (avoids re-prompting on navigation)
+    // Cache in localStorage so it survives MetaMask deep-link redirects on mobile
     const cacheKey = `ag_authsig_${addr.toLowerCase()}`
-    const cached = sessionStorage.getItem(cacheKey)
+    const cached = localStorage.getItem(cacheKey)
     if (cached) { authSigRef.current = cached; return cached }
     try {
       const sig = await signMessageAsync({ message: `Arena Games: ${addr.toLowerCase()}` })
       authSigRef.current = sig
-      sessionStorage.setItem(cacheKey, sig)
+      localStorage.setItem(cacheKey, sig)
       return sig
     } catch {
       return null
@@ -974,7 +974,7 @@ export default function Game() {
     <Center>
       <div style={{ textAlign: 'center', maxWidth: '400px', width: '100%', padding: '0 16px' }}>
         <div style={{ color: isDuel ? '#f97316' : '#64748b', fontFamily: 'Orbitron, sans-serif', fontSize: '0.75rem', letterSpacing: '0.1em', marginBottom: '6px' }}>{isDuel ? 'DUEL' : 'ROOM'}</div>
-        <div style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(2rem,8vw,3rem)', fontWeight: 900, letterSpacing: '0.2em', background: isDuel ? 'linear-gradient(135deg, #f97316, #ea580c)' : 'linear-gradient(135deg, #7c3aed, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+        <div style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(2rem,8vw,3rem)', fontWeight: 900, letterSpacing: '0.2em', color: isDuel ? '#f97316' : '#a78bfa' }}>
           {roomCode}
         </div>
         <p style={{ color: '#94a3b8', margin: '12px 0 24px', fontSize: '0.95rem' }}>
