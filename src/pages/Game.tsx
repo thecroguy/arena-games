@@ -89,6 +89,18 @@ const SEALED_GAMES = ['highest-unique', 'lowest-unique']
 
 const REACTION_EMOJIS = ['😭','💀','🔥','😂','🤯','👀','🫡','😤']
 
+function DuelCountdownTimer({ expiryMs }: { expiryMs: number }) {
+  const [remaining, setRemaining] = useState(Math.max(0, expiryMs - Date.now()))
+  useEffect(() => {
+    const t = setInterval(() => setRemaining(Math.max(0, expiryMs - Date.now())), 1000)
+    return () => clearInterval(t)
+  }, [expiryMs])
+  if (remaining === 0) return <span style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 700 }}>Expired</span>
+  const mins = Math.floor(remaining / 60000)
+  const secs = Math.floor((remaining % 60000) / 1000)
+  return <span style={{ color: '#f97316', fontSize: '0.75rem', fontWeight: 700 }}>⏱ {mins}:{String(secs).padStart(2, '0')} left</span>
+}
+
 // ── Game help text ─────────────────────────────────────────────────────────
 const GAME_HELP: Record<string, { title: string; rules: string[] }> = {
   'math-arena':     { title: 'Math Arena',      rules: ['A math equation appears each round.', 'Type the correct answer and press Enter or GO.', 'First player to answer correctly scores a point.', '10 rounds — most points wins the pot.'] },
@@ -106,12 +118,14 @@ export default function Game() {
   const navigate      = useNavigate()
   const { address }   = useAccount()
 
-  const isBotMode    = location.state?.bot === true
-  const isHost       = location.state?.host    ?? false
-  const entryFee     = location.state?.entry   ?? 1
-  const gameModeLS   = location.state?.gameMode ?? 'math-arena'
-  const roomChainId  = location.state?.chainId  ?? 137
-  const myAddr       = isBotMode ? (address || 'YOU') : (address ?? '')
+  const isBotMode      = location.state?.bot === true
+  const isHost         = location.state?.host    ?? false
+  const entryFee       = location.state?.entry   ?? 1
+  const gameModeLS     = location.state?.gameMode ?? 'math-arena'
+  const roomChainId    = location.state?.chainId  ?? 137
+  const isDuel         = location.state?.roomType === 'duel'
+  const duelCreatedAt  = location.state?.duelCreatedAt as number | undefined
+  const myAddr         = isBotMode ? (address || 'YOU') : (address ?? '')
 
   const currentChainId    = useChainId()
   const { switchChainAsync } = useSwitchChain()
@@ -893,9 +907,42 @@ export default function Game() {
             </div>
           ))}
         </div>
-        <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '10px', padding: '12px 18px', marginBottom: '12px', fontSize: '0.85rem', color: '#64748b' }}>
-          Share code <strong style={{ color: '#a78bfa', fontFamily: 'Orbitron, sans-serif' }}>{roomCode}</strong> with friends
-        </div>
+        {isDuel && isHost ? (() => {
+          const pot = (entryFee * 2).toFixed(2)
+          const win = (entryFee * 2 * 0.85).toFixed(2)
+          const gameTitle = GAME_HELP[gameMode]?.title || gameMode
+          const duelUrl = `https://joinarena.space/r/${roomCode}`
+          const tweetText = `⚔️ $${pot} POT DUEL — ${gameTitle}\n\nWinner takes $${win} USDT\nExpires in 15 min ⏱\n\nThink you can beat me?\n${duelUrl}`
+          const expiryMs = (duelCreatedAt || Date.now()) + 15 * 60 * 1000
+          return (
+            <div style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.4)', borderRadius: '14px', padding: '18px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <p style={{ color: '#f97316', fontWeight: 800, fontFamily: 'Orbitron, sans-serif', fontSize: '0.88rem', margin: 0 }}>⚔️ ${pot} DUEL CREATED!</p>
+                <DuelCountdownTimer expiryMs={expiryMs} />
+              </div>
+              <p style={{ color: '#64748b', fontSize: '0.75rem', marginBottom: '10px' }}>Winner takes <strong style={{ color: '#e2e8f0' }}>${win} USDT</strong> · Share this link to challenge someone</p>
+              <div onClick={() => navigator.clipboard.writeText(duelUrl).catch(() => {})}
+                style={{ background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: '8px', padding: '10px 12px', marginBottom: '10px', fontSize: '0.82rem', color: '#a78bfa', fontFamily: 'monospace', cursor: 'pointer', wordBreak: 'break-all' }}
+                title="Click to copy link">
+                {duelUrl}
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => navigator.clipboard.writeText(tweetText).catch(() => {})}
+                  style={{ flex: 1, background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.4)', borderRadius: '8px', padding: '10px', color: '#f97316', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}>
+                  📋 Copy Post
+                </button>
+                <button onClick={() => window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(tweetText)}`, '_blank')}
+                  style={{ flex: 1, background: '#000', border: '1px solid #333', borderRadius: '8px', padding: '10px', color: '#fff', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}>
+                  𝕏 Post on X
+                </button>
+              </div>
+            </div>
+          )
+        })() : (
+          <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '10px', padding: '12px 18px', marginBottom: '12px', fontSize: '0.85rem', color: '#64748b' }}>
+            Share code <strong style={{ color: '#a78bfa', fontFamily: 'Orbitron, sans-serif' }}>{roomCode}</strong> with friends
+          </div>
+        )}
         {depositedAt > 0 && (() => {
           const secsLeft = Math.max(0, Math.round((depositedAt + 10 * 60 * 1000 - waitNow) / 1000))
           const mm = String(Math.floor(secsLeft / 60)).padStart(2, '0')

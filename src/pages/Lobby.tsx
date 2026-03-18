@@ -70,7 +70,6 @@ export default function Lobby() {
   const [chatInput, setChatInput]           = useState('')
   const [panelTab, setPanelTab]             = useState<'activity' | 'chat'>('activity')
   const [showCreateDuel, setShowCreateDuel] = useState(false)
-  const [duelShareCode, setDuelShareCode]   = useState(() => localStorage.getItem('ag_duel_share') || '')
   // Layout state
   const [isDesktop, setIsDesktop]           = useState(() => window.innerWidth >= 1100)
   const [panelOpen, setPanelOpen]           = useState(() => window.innerWidth >= 1100)
@@ -343,21 +342,23 @@ export default function Lobby() {
     if (!authSig) { setCreating(false); return }
     setPayStep('creating')
     const socket = connectSocket()
+    const feeSnapshot = selectedFee
+    const chainSnapshot = selectedChain
     const code = await new Promise<string | null>(resolve => {
       socket.emit('room:create',
-        { gameMode, entryFee: selectedFee, maxPlayers: 2, address, chainId: selectedChain.id, authSig, roomType: 'duel' },
+        { gameMode, entryFee: feeSnapshot, maxPlayers: 2, address, chainId: chainSnapshot.id, authSig, roomType: 'duel' },
         (res: { code?: string; error?: string }) => { if (res.error) { showError(res.error); resolve(null) } else resolve(res.code!) }
       )
     })
     if (!code) { setCreating(false); setPayStep('idle'); return }
-    const txHash = await payEntryFee(selectedFee, selectedChain, code)
+    const txHash = await payEntryFee(feeSnapshot, chainSnapshot, code)
     if (!txHash) { setCreating(false); setPayStep('idle'); return }
     socket.emit('room:deposit', { code, txHash, address }, () => {})
-    fetch(`${SERVER_URL}/api/report-deposit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address, room_code: code, tx_hash: txHash, chain_id: selectedChain.id, amount_usdt: selectedFee }) }).catch(() => {})
+    fetch(`${SERVER_URL}/api/report-deposit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address, room_code: code, tx_hash: txHash, chain_id: chainSnapshot.id, amount_usdt: feeSnapshot }) }).catch(() => {})
     setCreating(false); setPayStep('idle')
     setActiveRoom(code)
-    localStorage.setItem('ag_duel_share', code)
-    setDuelShareCode(code); setShowCreateDuel(false)
+    // Navigate directly into the waiting room — no share card in lobby
+    navigate(`/game/${code}`, { state: { host: true, entry: feeSnapshot, maxPlayers: 2, gameMode, chainId: chainSnapshot.id, roomType: 'duel', duelCreatedAt: Date.now() } })
   }
 
   async function handleJoinRoom(code: string, feeOverride?: number) {
@@ -398,7 +399,7 @@ export default function Lobby() {
     setChatInput('')
   }
 
-  function copyToClipboard(text: string) { navigator.clipboard.writeText(text).catch(() => {}) }
+
 
   const escrowAvailable = !!getEscrowAddress(selectedChain.id)
   const createBtnLabel = () => {
@@ -602,38 +603,6 @@ export default function Lobby() {
         </div>
       )}
 
-      {/* Duel share card */}
-      {duelShareCode && (() => {
-        const pot = (selectedFee * 2).toFixed(2)
-        const win = (selectedFee * 2 * 0.85).toFixed(2)
-        const duelUrl = `https://joinarena.space/r/${duelShareCode}`
-        const tweetText = `⚔️ $${pot} POT DUEL — ${meta.title}\n\nWinner takes $${win} USDT\nExpires in 15 min ⏱\n\nThink you can beat me?\n${duelUrl}`
-        return (
-          <div style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.4)', borderRadius: '14px', padding: '18px', marginBottom: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <p style={{ color: '#f97316', fontWeight: 800, fontFamily: 'Orbitron, sans-serif', fontSize: '0.88rem' }}>⚔️ ${pot} DUEL CREATED!</p>
-              <button onClick={() => { localStorage.removeItem('ag_duel_share'); setDuelShareCode('') }}
-                style={{ background: 'none', border: 'none', color: '#475569', fontSize: '1rem', cursor: 'pointer', padding: '0 4px' }}>✕</button>
-            </div>
-            <p style={{ color: '#64748b', fontSize: '0.75rem', marginBottom: '10px' }}>Expires in 15 min ⏱ · Winner takes ${win}</p>
-            <div style={{ background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: '8px', padding: '10px 12px', marginBottom: '10px', fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.6, whiteSpace: 'pre-line', fontFamily: 'monospace' }}>{tweetText}</div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => copyToClipboard(tweetText)}
-                style={{ flex: 1, background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.4)', borderRadius: '8px', padding: '10px', color: '#f97316', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
-                📋 Copy Post
-              </button>
-              <button onClick={() => window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(tweetText)}`, '_blank')}
-                style={{ flex: 1, background: '#000', border: '1px solid #333', borderRadius: '8px', padding: '10px', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
-                𝕏 Post on X
-              </button>
-              <button onClick={() => navigate(`/game/${duelShareCode}`, { state: { host: true, entry: selectedFee, maxPlayers: 2, gameMode, chainId: selectedChain.id } })}
-                style={{ flex: 1, background: 'linear-gradient(135deg,#f97316,#ea580c)', border: 'none', borderRadius: '8px', padding: '10px', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
-                Enter Room →
-              </button>
-            </div>
-          </div>
-        )
-      })()}
 
       {/* Room code join */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
