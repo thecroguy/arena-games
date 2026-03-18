@@ -576,6 +576,8 @@ setInterval(() => {
   for (const [code, room] of rooms) {
     if (room.roomType === 'duel' && room.duelExpiry && room.duelExpiry < now && room.status === 'waiting') {
       io.to(code).emit('room:timeout')
+      // Issue refund sig before deleting so deposited host can claim from Profile
+      if (room.players.some(p => p.deposited)) escrowRefund(room)
       rooms.delete(code)
       deleteRoomFromDb(code)
       console.log(`[duel-expiry] Room ${code} expired`)
