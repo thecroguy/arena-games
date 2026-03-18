@@ -200,8 +200,9 @@ export default function Profile() {
 
   useEffect(() => { fetchStuck() }, [fetchStuck])
 
-  // Scan room history against the contract on-chain
-  async function scanRoomCode(code: string, existingDeposits: OnChainDeposit[] = onChainDeposits): Promise<{ deposit: OnChainDeposit | null; reason: 'found' | 'settled' | 'not_found' }> {
+  type ScannedDeposit = { code: string; chainId: number; escrow: `0x${string}`; roomId: `0x${string}`; createdAt: number; settled: boolean }
+  // Scan a single room code against the contract on-chain (manual lookup only)
+  async function scanRoomCode(code: string): Promise<{ deposit: ScannedDeposit | null; reason: 'found' | 'settled' | 'not_found' }> {
     if (!address || !publicClient || !code) return { deposit: null, reason: 'not_found' }
     for (const chainId137 of [137, 80002]) {
       const escrow = getEscrowAddress(chainId137)
@@ -216,9 +217,6 @@ export default function Profile() {
           const [, , settled] = info as [bigint, bigint, boolean, string[]]
           if (settled) return { deposit: null, reason: 'settled' }
           const deposit = { code, chainId: chainId137, escrow, roomId, createdAt: 0, settled }
-          if (!existingDeposits.some(d => d.code === code)) {
-            setOnChainDeposits(prev => [...prev.filter(d => d.code !== code), deposit])
-          }
           return { deposit, reason: 'found' }
         }
       } catch { /* wrong chain — try next */ }
@@ -382,7 +380,6 @@ export default function Profile() {
         })
       }
       setStuckDeposits(prev => prev.filter(d => d.room_code !== deposit.room_code))
-      setOnChainDeposits(prev => prev.filter(d => d.code !== deposit.room_code))
       try { const d = JSON.parse(localStorage.getItem('ag_deposits') || '{}'); delete d[deposit.room_code]; localStorage.setItem('ag_deposits', JSON.stringify(d)) } catch {}
       // Tell server the refund was claimed so it doesn't reappear on refresh
       fetch(`${SERVER_URL}/api/mark-refund-claimed`, {
