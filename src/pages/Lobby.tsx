@@ -136,9 +136,9 @@ export default function Lobby() {
     const state = location.state as { autoJoin?: string; autoFee?: number; autoChainId?: number } | null
     if (!state?.autoJoin || !address || joining || creating) return
     const chain = getChain(state.autoChainId ?? 137) ?? selectedChain
-    setSelectedChain(chain)
+    setSelectedChain(chain)  // for UI only — handleJoinRoom gets chainOverride directly
     window.history.replaceState({}, '')
-    handleJoinRoom(state.autoJoin, state.autoFee)
+    handleJoinRoom(state.autoJoin, state.autoFee, chain)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state, address])
 
@@ -361,25 +361,26 @@ export default function Lobby() {
     navigate(`/game/${code}`, { state: { host: true, entry: feeSnapshot, maxPlayers: 2, gameMode, chainId: chainSnapshot.id, roomType: 'duel', duelCreatedAt: Date.now() } })
   }
 
-  async function handleJoinRoom(code: string, feeOverride?: number) {
+  async function handleJoinRoom(code: string, feeOverride?: number, chainOverride?: SupportedChain) {
     if (!isConnected || !address) { showError('Connect your wallet first'); return }
     if (lockedInRoom && lockedInRoom !== code) { showError(`You have funds locked in room ${lockedInRoom}. Finish that game or claim a refund from your Profile first.`); return }
     const room = rooms.find(r => r.code === code)
     const fee = feeOverride ?? room?.entry ?? selectedFee
+    const chain = chainOverride ?? selectedChain
     setJoining(code); setError('')
     const authSig = await getAuthSig()
     if (!authSig) { setJoining(null); return }
-    const txHash = await payEntryFee(fee, selectedChain, code)
+    const txHash = await payEntryFee(fee, chain, code)
     if (!txHash) { setJoining(null); setPayStep('idle'); return }
     const socket = connectSocket()
-    socket.emit('room:join', { code, address, chainId: selectedChain.id, txHash, authSig },
+    socket.emit('room:join', { code, address, chainId: chain.id, txHash, authSig },
       (res: { ok?: boolean; error?: string; reconnected?: boolean }) => {
         setJoining(null); setPayStep('idle')
         if (res.error) { showError(res.error); return }
         socket.emit('room:deposit', { code, txHash, address }, () => {})
-        fetch(`${SERVER_URL}/api/report-deposit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address, room_code: code, tx_hash: txHash, chain_id: selectedChain.id, amount_usdt: fee }) }).catch(() => {})
+        fetch(`${SERVER_URL}/api/report-deposit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address, room_code: code, tx_hash: txHash, chain_id: chain.id, amount_usdt: fee }) }).catch(() => {})
         setActiveRoom(code)
-        navigate(`/game/${code}`, { state: { gameMode, chainId: selectedChain.id, entry: fee } })
+        navigate(`/game/${code}`, { state: { gameMode, chainId: chain.id, entry: fee } })
       }
     )
   }
