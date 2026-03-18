@@ -1969,17 +1969,16 @@ app.get('/api/stuck-deposits/:address', async (req, res) => {
       return true
     })
 
-    // Auto-generate refund sigs for any stuck deposit that doesn't have one yet
-    // This ensures instant refunds — no 24h emergencyRefund fallback needed
+    // Auto-generate refund sigs in background — don't block the HTTP response
     if (SERVER_SIGNING_KEY) {
-      for (const d of pendingDeposits) {
-        if (!refundSigMap[d.room_code]) {
+      const unsigned = pendingDeposits.filter(d => !refundSigMap[d.room_code]);
+      (async () => {
+        for (const d of unsigned) {
           try {
             const roomId    = (d.room_id_hash && d.room_id_hash.length === 66) ? d.room_id_hash : getRoomId(d.room_code)
             const msgHash   = solidityPackedKeccak256(['bytes32', 'string'], [roomId, 'REFUND'])
             const refundSig = await signMessage(SERVER_SIGNING_KEY, msgHash)
             refundSigMap[d.room_code] = refundSig
-            // Persist so future calls don't regenerate
             await supabase.from('escrow_events').insert({
               event_type:     'refund_signed',
               room_code:      d.room_code,
@@ -1996,7 +1995,7 @@ app.get('/api/stuck-deposits/:address', async (req, res) => {
             console.error(`[stuck-deposits] Failed to sign refund for ${d.room_code}:`, e.message)
           }
         }
-      }
+      })()
     }
 
     const stuck = pendingDeposits.map(d => ({
