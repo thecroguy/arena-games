@@ -74,7 +74,7 @@ create policy "Public read game_history"
   using (true);
 
 -- ── Leaderboard view (all-time) ───────────────────────────────────────────
-create or replace view leaderboard_alltime as
+create or replace view leaderboard_alltime with (security_invoker = true) as
 select
   player_address,
   count(*)                              as games_played,
@@ -88,7 +88,7 @@ from game_history
 group by player_address;
 
 -- ── Leaderboard view (weekly) ─────────────────────────────────────────────
-create or replace view leaderboard_weekly as
+create or replace view leaderboard_weekly with (security_invoker = true) as
 select
   player_address,
   count(*)                              as games_played,
@@ -103,7 +103,7 @@ where played_at >= now() - interval '7 days'
 group by player_address;
 
 -- ── Leaderboard view (daily) ──────────────────────────────────────────────
-create or replace view leaderboard_daily as
+create or replace view leaderboard_daily with (security_invoker = true) as
 select
   player_address,
   count(*)                              as games_played,
