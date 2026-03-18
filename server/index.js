@@ -243,16 +243,32 @@ const _FCHAT_BASE = [
   'reaction grid is brutal','lets go 🔥','highest unique is hard when smart ppl here',
   'lost twice :(','rematch anyone?','this platform is underrated','good game everyone',
   'duel open, anyone?','who tryna play right now','nice win','first time here',
-  'been grinding all day','quick match anyone?',"love liar's dice",'anyone on polygon?',
+  'quick match anyone?',"love liar's dice",'anyone on polygon?',
   'down for a game','solid platform ngl','cant believe i won that','on a streak rn',
-  'nice round everyone','wp all','$1 match anyone?','who has the highest win rate here',
+  'nice round everyone','wp all','$1 match anyone?',
   'pattern memory is wild','just lost $2, need a rematch','reaction grid too fast for me',
   'highest unique is my best game','math arena is pure speed','anyone tried liar dice?',
-  'easy money in math arena','grinding leaderboard today','gg no re','close match that was',
+  'gg no re','close match that was',
   "who's on a win streak?",'just joined the platform','is escrow instant?',
   'polygon fees are low, nice','$5 duel open if anyone brave','that liar dice bluff was perfect',
   'wp, good game','anyone playing highest unique?','pattern memory round 8 is insane',
   'need one more player','nice one','that was close','anyone up for $0.50?',
+  // Money-focused
+  'just cashed out $5, straight to my wallet no issues',
+  'up $8 today from math arena matches',
+  'won 3 in a row, pocketed like $12 total',
+  'liar dice just made me $4, easiest game on here',
+  'quick $2 duel win, love this platform',
+  'deposited $5 yesterday, now at $18, not bad',
+  'won $10 today playing pattern memory',
+  'just claimed my winnings, instant payout',
+  'been making like $5-10 a day on here',
+  'won my first match, $0.85 in my wallet now lol',
+  'nothing better than beating someone and taking their entry fee',
+  'duel link open, $2 pot, anyone want it?',
+  'just beat someone in math arena, easy $1.70',
+  'up $6 since this morning, slow grind',
+  'winning streak rn, do not challenge me lol',
 ]
 const FAKE_CHAT_SVR = (() => {
   const out = []
@@ -285,71 +301,99 @@ function _fakePushActivity() {
 // Keywords that trigger a legitimacy response from a fake user
 // Only trigger on authenticity/trust questions — not general chat
 const _LEGIT_TRIGGERS = [
-  'legit','scam','fake','trust','safe','proof','real money','is this real',
+  'legit','leggit','legget','scam','fake','trust','safe','proof',
+  'real money','is this real','for real','joking','joke',
+  'doubt','skeptical','sketchy','sus','suspicious','verified',
   'withdraw','cashout','cash out','payout','pay out','get paid','get money',
   'actually work','does it work','really work','actually pay','do they pay',
-  'lose money','stolen','rug','sketchy','sus','suspicious','verified',
+  'lose money','stolen','rug','does this work','is it real','are you sure',
 ]
 const _LEGIT_REPLIES  = [
-  // Legitimacy / trust
-  'yeah 100% legit bro, cashed out last week no issues',
-  'i withdrew $12 yesterday, came straight to my wallet',
-  'been playing for weeks, payouts are real',
-  'escrow is on-chain so you can verify everything yourself',
-  'smart contract handles it all, no middleman',
-  'i was skeptical too but the claim went through fine',
-  'check the contract on polygonscan, fully transparent',
-  'withdrew $8 two days ago, all good',
-  'yep won $5 yesterday, claimed it directly from escrow',
-  'legit af, the escrow is verifiable on chain',
+  // Personal win proof
+  'bro i just cashed out $14 yesterday, hit my wallet instantly',
+  'i was skeptical at first too, now i am up $23 total',
+  'dude i won $8 today, claimed it straight from escrow no issues',
+  'been playing 3 weeks, pocketed like $50 total, its real',
+  'just claimed $5 from a duel 10 mins ago, fully on-chain',
+  'i thought it was bs too but the money came through same day',
+  'withdrew $12 last week, no complaints',
+  'won my 4th match today, all earnings sitting in my wallet rn',
   'i was doubtful too but its real, cashed out $20 total',
-  'all payouts are on-chain, no one can touch your winnings',
-  // How to start / new players
-  'just connect metamask and pick a game, super simple',
-  'you need USDT on polygon, its cheap to bridge',
-  'pick a game, choose entry fee, click play now — thats it',
-  'start with $0.50 matches to get the feel of it',
-  'i started yesterday, already won twice',
+  'just won $8.50 from a math arena match lol easy',
+  // Trust mechanism
+  'escrow is on-chain so you can verify everything yourself',
+  'smart contract handles it all, no middleman can touch funds',
+  'check the contract on polygonscan, fully transparent',
+  'all payouts are on-chain, nobody can freeze your winnings',
+  'legit af, the escrow is verifiable on chain',
+  'winner gets paid the moment game ends, automatic',
+  // How to start
+  'just connect metamask and pick a game, takes 2 mins',
+  'you need USDT on polygon, bridge is like $0.10 gas',
+  'start with $0.50 matches to get comfortable first',
+  'i started with $1 matches, doubled up same day',
   'easy to start, just make sure you have polygon USDT',
-  // How games work
-  'math arena is fastest fingers first, answer before opponent',
-  'highest unique — pick a number nobody else picks',
-  'pattern memory shows digits for 3 seconds then you type it',
-  'liar dice is bluffing, gotta read people',
-  'reaction grid just tap the targets fast as you can',
-  'each game has 8-10 rounds, highest score wins the pot',
   // Entry / fees
-  'platform takes 15%, rest goes to winner',
-  'entry fees go into escrow on-chain, cant be touched',
-  'you can start with $0.50, pot is $0.85 for winner',
-  'gas on polygon is basically nothing like cents',
-  // Duels / rooms
-  'create a duel, share the link, winner takes pot',
-  'room code lets friends join your private match',
-  'play now auto-joins fastest available match',
-  'duels have a 15 min window before they expire',
-  // Winning / claiming
-  'winner claims directly from the smart contract',
-  'claim button shows up after game ends if you won',
-  'i claimed $4.25 in like 10 seconds, instant',
-  'no manual process, all automated on chain',
+  'platform takes 15%, winner gets the rest straight to wallet',
+  'entry goes into escrow on-chain, nobody touches it till game ends',
+  '$0.50 entry pot is $0.85, easy money if you win',
+  'gas on polygon is basically nothing, like cents',
+  // Winning
+  'claim button shows right after game, instant payout',
+  'i claimed $4.25 in like 10 seconds after i won',
+  'no manual approval needed, all automated on chain',
   // Refunds
-  'if no one joins your room it gets refunded automatically',
-  'stuck deposit? check profile page, there is a refund button',
+  'if nobody joins your room it refunds automatically no worries',
+  'stuck deposit? profile page has a refund button',
 ]
 
-function _fakeSendLegitReply() {
+// Fake users spontaneously questioning legitimacy (organic Q&A between fake users)
+const _LEGIT_QUESTIONS = [
+  'wait is this actually real money?',
+  'does this platform actually pay out?',
+  'anyone actually withdrawn from here?',
+  'is the money real or just points?',
+  'can you actually cash out your winnings?',
+  'wait so winnings go straight to your wallet?',
+  'how do you know this isnt a scam lol',
+  'this looks too good to be real ngl',
+  'do they actually pay or is it fake?',
+  'anyone have proof this is legit?',
+]
+
+function _fakeSendLegitReply(extraDelay = 0) {
   // slight delay so it looks like someone typed a response
   setTimeout(() => {
     const reply = _fakePick(_LEGIT_REPLIES)
+    // sometimes a second fake user piles on with another reply
     const entry = { username: _fakePick(FAKE_USERS_SVR), message: reply, ts: Date.now() }
     globalChat.push(entry)
     if (globalChat.length > 50) globalChat.shift()
     io.emit('chat:message', entry)
-  }, _fakeRand(8000, 25000))
+    // 40% chance a second fake user also chimes in
+    if (Math.random() < 0.4) {
+      setTimeout(() => {
+        const entry2 = { username: _fakePick(FAKE_USERS_SVR), message: _fakePick(_LEGIT_REPLIES), ts: Date.now() }
+        globalChat.push(entry2)
+        if (globalChat.length > 50) globalChat.shift()
+        io.emit('chat:message', entry2)
+      }, _fakeRand(6000, 18000))
+    }
+  }, _fakeRand(8000, 25000) + extraDelay)
 }
 
 function _fakePushChat() {
+  // 15% chance: fake user spontaneously asks a legitimacy question → triggers organic Q&A
+  if (Math.random() < 0.15 && globalChat.length > 2) {
+    const q = _fakePick(_LEGIT_QUESTIONS)
+    const qEntry = { username: _fakePick(FAKE_USERS_SVR), message: q, ts: Date.now() }
+    globalChat.push(qEntry)
+    if (globalChat.length > 50) globalChat.shift()
+    io.emit('chat:message', qEntry)
+    _fakeSendLegitReply()  // another fake user answers
+    setTimeout(_fakePushChat, _fakeRand(60000, 150000))
+    return
+  }
   let line = _fakePick(FAKE_CHAT_SVR)
   while (line === _fakeLastChat) line = _fakePick(FAKE_CHAT_SVR)  // no consecutive repeat
   _fakeLastChat = line
