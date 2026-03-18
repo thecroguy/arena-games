@@ -69,7 +69,7 @@ export default function Lobby() {
   const [globalChat, setGlobalChat]         = useState<{ username: string; message: string; ts: number }[]>([])
   const [chatInput, setChatInput]           = useState('')
   const [panelTab, setPanelTab]             = useState<'activity' | 'chat'>('activity')
-  const [showCreateDuel, setShowCreateDuel] = useState(false)
+  const [activeCreateMode, setActiveCreateMode] = useState<'room' | 'duel' | null>(null)
   // Layout state
   const [isDesktop, setIsDesktop]           = useState(() => window.innerWidth >= 1100)
   const [panelOpen, setPanelOpen]           = useState(() => window.innerWidth >= 1100)
@@ -534,10 +534,13 @@ export default function Lobby() {
         </div>
       )}
 
-      {/* Chain selector */}
-      <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', padding: '14px 18px', marginBottom: '16px' }}>
-        <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '8px' }}>PAY WITH USDT ON</p>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+      {/* ── INSTANT MATCH section ─────────────────────────────────────────── */}
+      <div style={{ background: '#12121a', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '16px', padding: '18px 20px', marginBottom: '16px' }}>
+        <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#22c55e', letterSpacing: '0.1em', marginBottom: '14px' }}>⚡ INSTANT MATCH</p>
+
+        {/* Chain */}
+        <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '8px' }}>PAY WITH USDT ON</p>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
           {SUPPORTED_CHAINS.map(chain => (
             <button key={chain.id} onClick={() => setSelectedChain(chain)}
               style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s', background: selectedChain.id === chain.id ? `${chain.color}22` : 'transparent', border: `1px solid ${selectedChain.id === chain.id ? chain.color : '#1e1e30'}`, color: selectedChain.id === chain.id ? chain.color : '#64748b' }}>
@@ -545,13 +548,11 @@ export default function Lobby() {
             </button>
           ))}
         </div>
-        {selectedChain.id === 1 && <p style={{ color: '#f59e0b', fontSize: '0.75rem', marginTop: '8px' }}>⚠️ Ethereum has high gas fees. Consider Polygon, Arbitrum, or Base for cheap transfers.</p>}
-      </div>
+        {selectedChain.id === 1 && <p style={{ color: '#f59e0b', fontSize: '0.75rem', marginBottom: '12px' }}>⚠️ Ethereum has high gas fees. Consider Polygon, Arbitrum, or Base.</p>}
 
-      {/* Entry fee */}
-      <div style={{ marginBottom: '16px' }}>
-        <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '8px' }}>ENTRY FEE</p>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        {/* Entry fee */}
+        <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '8px' }}>ENTRY FEE</p>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
           {ENTRY_FEES.map(fee => (
             <button key={fee} onClick={() => setSelectedFee(fee)}
               style={{ padding: '8px 14px', borderRadius: '8px', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', border: `1px solid ${selectedFee === fee ? '#7c3aed' : '#1e1e30'}`, background: selectedFee === fee ? 'rgba(124,58,237,0.18)' : 'transparent', color: selectedFee === fee ? '#a78bfa' : '#64748b' }}>
@@ -559,58 +560,100 @@ export default function Lobby() {
             </button>
           ))}
         </div>
-      </div>
 
-      {/* Max players */}
-      <div style={{ marginBottom: '20px' }}>
-        <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '8px' }}>MAX PLAYERS ({maxPlayers})</p>
+        {/* Max players */}
+        <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '8px' }}>MAX PLAYERS ({maxPlayers})</p>
         <input type="range" min={meta.minPlayers} max={meta.maxPlayers} value={maxPlayers}
           onChange={e => setMaxPlayers(Number(e.target.value))}
-          style={{ width: '100%', accentColor: '#7c3aed' }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '0.75rem', marginTop: '4px' }}>
+          style={{ width: '100%', accentColor: '#22c55e', marginBottom: '4px' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '0.75rem', marginBottom: '16px' }}>
           <span>{meta.minPlayers}</span><span>{meta.maxPlayers}</span>
         </div>
+
+        {/* Instant match button */}
+        {searching ? (
+          <div style={{ background: '#0a0a0f', border: '1px solid rgba(124,58,237,0.4)', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+            <div>
+              <p style={{ color: '#a78bfa', fontWeight: 700, fontFamily: 'Orbitron, sans-serif', fontSize: '0.88rem', marginBottom: '3px' }}>Finding opponents… {queueSize > 0 && `(${queueSize} in queue)`}</p>
+              <p style={{ color: '#64748b', fontSize: '0.78rem' }}>Entry ${selectedFee} · {selectedChain.name}</p>
+            </div>
+            <button onClick={cancelMatch} style={{ background: 'none', border: '1px solid #475569', borderRadius: '8px', padding: '8px 16px', color: '#94a3b8', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>Cancel</button>
+          </div>
+        ) : (
+          <>
+            <button onClick={findMatch} disabled={!isConnected}
+              style={{ width: '100%', background: isConnected ? 'linear-gradient(135deg, #22c55e, #06b6d4)' : '#1e1e30', border: 'none', borderRadius: '12px', padding: '14px', color: isConnected ? '#0a0a0f' : '#475569', fontWeight: 800, fontSize: '1rem', fontFamily: 'Orbitron, sans-serif', cursor: isConnected ? 'pointer' : 'not-allowed', letterSpacing: '0.04em', marginBottom: '6px' }}>
+              ⚡ INSTANT MATCH — ${selectedFee}
+            </button>
+            {isConnected && <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.75rem' }}>Get paired in 10–30 seconds</p>}
+          </>
+        )}
       </div>
 
-      {/* PLAY NOW */}
-      {searching ? (
-        <div style={{ background: '#12121a', border: '1px solid rgba(124,58,237,0.4)', borderRadius: '14px', padding: '16px 20px', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-          <div>
-            <p style={{ color: '#a78bfa', fontWeight: 700, fontFamily: 'Orbitron, sans-serif', fontSize: '0.88rem', marginBottom: '3px' }}>Finding opponents… {queueSize > 0 && `(${queueSize} in queue)`}</p>
-            <p style={{ color: '#64748b', fontSize: '0.78rem' }}>Entry ${selectedFee} · {selectedChain.name}</p>
-          </div>
-          <button onClick={cancelMatch} style={{ background: 'none', border: '1px solid #475569', borderRadius: '8px', padding: '8px 16px', color: '#94a3b8', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>Cancel</button>
-        </div>
-      ) : (
-        <>
-          <button onClick={findMatch} disabled={!isConnected}
-            style={{ width: '100%', background: isConnected ? 'linear-gradient(135deg, #22c55e, #06b6d4)' : '#1e1e30', border: 'none', borderRadius: '12px', padding: '14px', color: isConnected ? '#0a0a0f' : '#475569', fontWeight: 800, fontSize: '1rem', fontFamily: 'Orbitron, sans-serif', cursor: isConnected ? 'pointer' : 'not-allowed', letterSpacing: '0.04em', marginBottom: '6px' }}>
-            ⚡ INSTANT MATCH — ${selectedFee}
-          </button>
-          {isConnected && <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.75rem', marginTop: '0', marginBottom: '6px' }}>Get paired in 10–30 seconds</p>}
-        </>
-      )}
-
-      {/* CREATE ROOM + CREATE DUEL */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-        <button onClick={payAndCreate} disabled={creating || !isConnected}
-          style={{ flex: 1, background: creating ? '#1e1e30' : 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.4)', borderRadius: '10px', padding: '11px', color: creating ? '#475569' : '#a78bfa', fontWeight: 700, fontSize: '0.88rem', cursor: creating ? 'not-allowed' : 'pointer' }}>
-          {creating ? createBtnLabel() : '➕ CREATE ROOM'}
+      {/* ── CREATE ROOM / CREATE DUEL toggle buttons ──────────────────────── */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: activeCreateMode ? '0' : '16px' }}>
+        <button onClick={() => setActiveCreateMode(activeCreateMode === 'room' ? null : 'room')} disabled={!isConnected}
+          style={{ flex: 1, background: activeCreateMode === 'room' ? 'rgba(124,58,237,0.2)' : 'rgba(124,58,237,0.08)', border: `1px solid ${activeCreateMode === 'room' ? 'rgba(124,58,237,0.6)' : 'rgba(124,58,237,0.3)'}`, borderRadius: '10px', padding: '11px', color: isConnected ? '#a78bfa' : '#475569', fontWeight: 700, fontSize: '0.88rem', cursor: isConnected ? 'pointer' : 'not-allowed' }}>
+          ➕ CREATE ROOM
         </button>
-        <button onClick={() => setShowCreateDuel(!showCreateDuel)} disabled={!isConnected}
-          style={{ flex: 1, background: showCreateDuel ? 'rgba(249,115,22,0.18)' : 'rgba(249,115,22,0.08)', border: `1px solid ${showCreateDuel ? 'rgba(249,115,22,0.6)' : 'rgba(249,115,22,0.3)'}`, borderRadius: '10px', padding: '11px', color: '#f97316', fontWeight: 700, fontSize: '0.88rem', cursor: isConnected ? 'pointer' : 'not-allowed' }}>
+        <button onClick={() => setActiveCreateMode(activeCreateMode === 'duel' ? null : 'duel')} disabled={!isConnected}
+          style={{ flex: 1, background: activeCreateMode === 'duel' ? 'rgba(249,115,22,0.2)' : 'rgba(249,115,22,0.08)', border: `1px solid ${activeCreateMode === 'duel' ? 'rgba(249,115,22,0.6)' : 'rgba(249,115,22,0.3)'}`, borderRadius: '10px', padding: '11px', color: '#f97316', fontWeight: 700, fontSize: '0.88rem', cursor: isConnected ? 'pointer' : 'not-allowed' }}>
           ⚔️ CREATE DUEL
         </button>
       </div>
 
-      {/* Create duel panel */}
-      {showCreateDuel && (
-        <div style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.25)', borderRadius: '12px', padding: '16px 20px', marginBottom: '16px' }}>
-          <p style={{ color: '#f97316', fontWeight: 700, fontSize: '0.88rem', marginBottom: '6px' }}>⚔️ 1v1 Duel Challenge</p>
-          <p style={{ color: '#64748b', fontSize: '0.8rem', marginBottom: '12px' }}>Creates a 1v1 room with a shareable link. Challenger pays ${selectedFee} to enter. Winner takes ${(selectedFee * 2 * 0.85).toFixed(2)}.</p>
-          <button onClick={payAndCreateDuel} disabled={creating}
-            style={{ width: '100%', background: creating ? '#1e1e30' : 'linear-gradient(135deg,#f97316,#ea580c)', border: 'none', borderRadius: '10px', padding: '13px', color: creating ? '#64748b' : '#fff', fontWeight: 800, fontSize: '0.92rem', fontFamily: 'Orbitron, sans-serif', cursor: creating ? 'not-allowed' : 'pointer', letterSpacing: '0.04em' }}>
-            {creating ? createBtnLabel() : `Pay $${selectedFee} & Generate Duel Link`}
+      {/* ── Expanded create panel ──────────────────────────────────────────── */}
+      {activeCreateMode && (
+        <div style={{ background: activeCreateMode === 'duel' ? 'rgba(249,115,22,0.06)' : 'rgba(124,58,237,0.06)', border: `1px solid ${activeCreateMode === 'duel' ? 'rgba(249,115,22,0.25)' : 'rgba(124,58,237,0.25)'}`, borderRadius: '0 0 14px 14px', padding: '18px 20px', marginBottom: '16px' }}>
+
+          {/* Chain */}
+          <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '8px' }}>PAY WITH USDT ON</p>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
+            {SUPPORTED_CHAINS.map(chain => (
+              <button key={chain.id} onClick={() => setSelectedChain(chain)}
+                style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s', background: selectedChain.id === chain.id ? `${chain.color}22` : 'transparent', border: `1px solid ${selectedChain.id === chain.id ? chain.color : '#1e1e30'}`, color: selectedChain.id === chain.id ? chain.color : '#64748b' }}>
+                {chain.icon} {chain.shortName}
+              </button>
+            ))}
+          </div>
+
+          {/* Entry fee */}
+          <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '8px' }}>ENTRY FEE</p>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
+            {ENTRY_FEES.map(fee => (
+              <button key={fee} onClick={() => setSelectedFee(fee)}
+                style={{ padding: '8px 14px', borderRadius: '8px', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', border: `1px solid ${selectedFee === fee ? '#7c3aed' : '#1e1e30'}`, background: selectedFee === fee ? 'rgba(124,58,237,0.18)' : 'transparent', color: selectedFee === fee ? '#a78bfa' : '#64748b' }}>
+                ${fee}
+              </button>
+            ))}
+          </div>
+
+          {/* Max players — rooms only */}
+          {activeCreateMode === 'room' && (
+            <>
+              <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '8px' }}>MAX PLAYERS ({maxPlayers})</p>
+              <input type="range" min={meta.minPlayers} max={meta.maxPlayers} value={maxPlayers}
+                onChange={e => setMaxPlayers(Number(e.target.value))}
+                style={{ width: '100%', accentColor: '#7c3aed', marginBottom: '4px' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '0.75rem', marginBottom: '16px' }}>
+                <span>{meta.minPlayers}</span><span>{meta.maxPlayers}</span>
+              </div>
+            </>
+          )}
+
+          {/* Duel info */}
+          {activeCreateMode === 'duel' && (
+            <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '16px' }}>
+              1v1 match · Share the link to challenge anyone · Winner takes <strong style={{ color: '#f97316' }}>${(selectedFee * 2 * 0.85).toFixed(2)}</strong>
+            </p>
+          )}
+
+          {/* Action button */}
+          <button
+            onClick={activeCreateMode === 'room' ? payAndCreate : payAndCreateDuel}
+            disabled={creating || !isConnected}
+            style={{ width: '100%', background: creating ? '#1e1e30' : activeCreateMode === 'duel' ? 'linear-gradient(135deg,#f97316,#ea580c)' : 'linear-gradient(135deg,#7c3aed,#6d28d9)', border: 'none', borderRadius: '10px', padding: '13px', color: creating ? '#64748b' : '#fff', fontWeight: 800, fontSize: '0.92rem', fontFamily: 'Orbitron, sans-serif', cursor: creating ? 'not-allowed' : 'pointer', letterSpacing: '0.04em' }}>
+            {creating ? createBtnLabel() : activeCreateMode === 'duel' ? `Pay $${selectedFee} & Generate Duel Link` : `Pay $${selectedFee} & Create Room`}
           </button>
         </div>
       )}
