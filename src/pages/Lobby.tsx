@@ -442,16 +442,16 @@ export default function Lobby() {
       <div style={{ display: 'flex', gap: '6px', padding: '10px 10px 0', flexShrink: 0 }}>
         <button className="panel-tab-btn" onClick={() => setPanelTab('activity')}
           style={{ flex: 1, padding: '7px 6px', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '0.73rem', cursor: 'pointer', transition: 'all 0.18s',
-            background: panelTab === 'activity' ? 'linear-gradient(135deg,rgba(124,58,237,0.3),rgba(124,58,237,0.12))' : 'transparent',
-            color: panelTab === 'activity' ? '#a78bfa' : '#4a5568',
+            background: panelTab === 'activity' ? 'linear-gradient(135deg,rgba(124,58,237,0.3),rgba(124,58,237,0.12))' : 'rgba(255,255,255,0.04)',
+            color: panelTab === 'activity' ? '#a78bfa' : '#64748b',
             boxShadow: panelTab === 'activity' ? 'inset 0 0 0 1px rgba(124,58,237,0.35)' : 'none',
           }}>
           📡 Activity
         </button>
         <button className="panel-tab-btn" onClick={() => { setPanelTab('chat'); setUnreadChat(0) }}
           style={{ flex: 1, padding: '7px 6px', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '0.73rem', cursor: 'pointer', transition: 'all 0.18s', position: 'relative',
-            background: panelTab === 'chat' ? 'linear-gradient(135deg,rgba(6,182,212,0.28),rgba(6,182,212,0.08))' : 'transparent',
-            color: panelTab === 'chat' ? '#06b6d4' : '#4a5568',
+            background: panelTab === 'chat' ? 'linear-gradient(135deg,rgba(6,182,212,0.28),rgba(6,182,212,0.08))' : 'rgba(255,255,255,0.04)',
+            color: panelTab === 'chat' ? '#06b6d4' : '#64748b',
             boxShadow: panelTab === 'chat' ? 'inset 0 0 0 1px rgba(6,182,212,0.3)' : 'none',
           }}>
           💬 Chat
@@ -492,7 +492,7 @@ export default function Lobby() {
               : globalChat.map((m, i) => {
                   const isMe = !!myName && m.username === myName
                   return (
-                    <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', padding: '3px 10px' }}>
+                    <div key={i} className="chat-row" style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', padding: '3px 10px' }}>
                       {!isMe && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
                           <div style={{ width: '16px', height: '16px', borderRadius: '50%', flexShrink: 0,
