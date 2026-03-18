@@ -3,7 +3,7 @@
 // ── Integration points marked with "// ── FAKE DATA" in Lobby + Leaderboard ──
 // ══════════════════════════════════════════════════════════════════════════════
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { LeaderboardEntry } from './supabase'
 
 // ── Fake users — same Adj+Noun+number style as the real addrName() function ──
@@ -41,30 +41,11 @@ export const FAKE_USER_NAMES: Record<string, string> = Object.fromEntries(
   FAKE_USERS.map(u => [u.addr, u.name])
 )
 
-const GAMES    = ['Math Arena', 'Pattern Memory', 'Reaction Grid', 'Highest Unique', "Liar's Dice"]
-const ENTRIES  = ['$0.50', '$1', '$2', '$5']
-const POTS     = { '$0.50': '0.85', '$1': '1.70', '$2': '3.40', '$5': '8.50' }
-
-function pickUser() { return FAKE_USERS[Math.floor(Math.random() * FAKE_USERS.length)] }
 function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)] }
+function pickUser() { return pick(FAKE_USERS) }
 function rand(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min }
 
-// ── Fake activity — using same names that appear in leaderboard & chat ─────
-function makeFakeActivity(): string {
-  const u     = pickUser()
-  const game  = pick(GAMES)
-  const entry = pick(ENTRIES)
-  const pot   = POTS[entry as keyof typeof POTS]
-  const type  = rand(0, 3)
-  switch (type) {
-    case 0:  return `🏆 ${u.name} won $${pot} — ${game}`
-    case 1:  return `👤 ${u.name} joined ${game} (${entry})`
-    case 2:  return `🎮 ${u.name} opened a ${entry} room — ${game}`
-    default: return `⚔️ ${u.name} created a ${entry} duel — ${game}`
-  }
-}
-
-// ── Fake chat — same users as activity & leaderboard ──────────────────────
+// ── Fake chat — same users as activity & leaderboard (activity now server-side) ─
 const CHAT_LINES = [
   'anyone for $1 match?', 'gg wp', 'who wants to duel?', 'just won nice',
   'math arena is my game', 'reaction grid is brutal', 'easy tonight',
@@ -93,55 +74,7 @@ export function useFakeOnlineCount(): number {
   return count
 }
 
-// ── Hook: inject fake activity periodically into real feed ────────────────
-export function useFakeActivity(
-  setActivityFeed: React.Dispatch<React.SetStateAction<{ msg: string; ts: number }[]>>
-) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => {
-    // Pre-seed 5 varied fake items (random each page load)
-    setActivityFeed(prev => {
-      if (prev.length > 0) return prev
-      return Array.from({ length: 5 }, (_, i) => ({
-        msg: makeFakeActivity(),
-        ts: Date.now() - (5 - i) * rand(20000, 120000),
-      })).sort((a, b) => b.ts - a.ts)
-    })
-    function schedule() {
-      timerRef.current = setTimeout(() => {
-        setActivityFeed(prev => [{ msg: makeFakeActivity(), ts: Date.now() }, ...prev].slice(0, 100))
-        schedule()
-      }, rand(15000, 60000))
-    }
-    schedule()
-    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [setActivityFeed])
-}
-
-// ── Hook: inject fake chat messages periodically ──────────────────────────
-export function useFakeChat(
-  setGlobalChat: React.Dispatch<React.SetStateAction<{ username: string; message: string; ts: number }[]>>
-) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => {
-    // Pre-seed 6 varied fake chat messages (random each page load)
-    setGlobalChat(prev => {
-      if (prev.length > 0) return prev
-      return Array.from({ length: 6 }, (_, i) => ({
-        ...makeFakeChat(),
-        ts: Date.now() - (6 - i) * rand(40000, 200000),
-      }))
-    })
-    function schedule() {
-      timerRef.current = setTimeout(() => {
-        setGlobalChat(prev => [...prev, makeFakeChat()].slice(-50))
-        schedule()
-      }, rand(20000, 80000))
-    }
-    schedule()
-    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [setGlobalChat])
-}
+// (useFakeActivity and useFakeChat removed — now handled server-side so all users see same feed)
 
 // ── Fake leaderboard — SAME users as activity & chat, realistic stats ─────
 // Addresses are obviously fake (0x000...001) so easy to filter/remove later

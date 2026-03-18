@@ -207,6 +207,91 @@ function pushActivity(msg) {
 // ── Global chat (last 50 messages) ───────────────────────────────────────
 const globalChat = []
 
+// ════════════════════════════════════════════════════════════════════════════
+// ── FAKE DATA — server-side generators (remove this entire block when real
+//    users grow — search "FAKE DATA" to find all integration points) ────────
+// ════════════════════════════════════════════════════════════════════════════
+const FAKE_USERS_SVR = [
+  'SwiftWolf23','DarkFox07','BoldHawk44','IronPhoenix15','NeonDragon33',
+  'FrostShark62','BlazeTiger08','ShadowLion55','StormNinja77','LunarViper21',
+  'TurboEagle48','GhostPanda09','SteelKnight36','NovaRider63','CrimsonNomad17',
+  'SavageTitan52','RogueWizard28','SigmaSniper71','HyperCoder39','PixelPirate56',
+  'WildRanger82','SlyHunter13','BraveBlade94','CyberBear91','SolarBandit84',
+]
+const FAKE_GAMES_SVR   = ['Math Arena','Pattern Memory','Reaction Grid','Highest Unique',"Liar's Dice"]
+const FAKE_ENTRIES_SVR = ['$0.50','$1','$2','$5']
+const FAKE_POTS_SVR    = { '$0.50':'0.85','$1':'1.70','$2':'3.40','$5':'8.50' }
+const FAKE_CHAT_SVR    = [
+  'anyone for $1 match?','gg wp','who wants to duel?','just won nice',
+  'math arena is my game','reaction grid is brutal','easy tonight',
+  'lets go 🔥','highest unique is hard when smart ppl here',
+  'pattern memory is actually tough','lost twice :(','rematch?',
+  'this platform is underrated','good game everyone','duel open',
+  'who tryna play','gg','nice win','first time here',
+  'been grinding all day','quick match anyone','love liar dice',
+  'anyone on polygon?','down for a game','solid platform ngl',
+  'cant believe i won that','on a streak rn','nice round','wp all',
+]
+let _fakeLastChat = ''  // prevent consecutive repeat
+
+function _fakePick(arr) { return arr[Math.floor(Math.random() * arr.length)] }
+function _fakeRand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min }
+
+function _fakePushActivity() {
+  const u = _fakePick(FAKE_USERS_SVR), g = _fakePick(FAKE_GAMES_SVR), e = _fakePick(FAKE_ENTRIES_SVR)
+  const pot = FAKE_POTS_SVR[e]
+  const msgs = [
+    `🏆 ${u} won $${pot} — ${g}`,
+    `👤 ${u} joined ${g} (${e})`,
+    `🎮 ${u} opened a ${e} room — ${g}`,
+    `⚔️ ${u} created a ${e} duel — ${g}`,
+  ]
+  pushActivity(_fakePick(msgs))
+  setTimeout(_fakePushActivity, _fakeRand(20000, 65000))
+}
+
+function _fakePushChat() {
+  let line = _fakePick(FAKE_CHAT_SVR)
+  while (line === _fakeLastChat) line = _fakePick(FAKE_CHAT_SVR)  // no consecutive repeat
+  _fakeLastChat = line
+  const entry = { username: _fakePick(FAKE_USERS_SVR), message: line, ts: Date.now() }
+  globalChat.push(entry)
+  if (globalChat.length > 50) globalChat.shift()
+  io.emit('chat:message', entry)
+  setTimeout(_fakePushChat, _fakeRand(25000, 90000))
+}
+
+// Seed initial fake activity (5 items at staggered past timestamps)
+;(function seedFakeActivity() {
+  for (let i = 4; i >= 0; i--) {
+    const u = _fakePick(FAKE_USERS_SVR), g = _fakePick(FAKE_GAMES_SVR), e = _fakePick(FAKE_ENTRIES_SVR)
+    const pot = FAKE_POTS_SVR[e]
+    const msgs = [
+      `🏆 ${u} won $${pot} — ${g}`,
+      `👤 ${u} joined ${g} (${e})`,
+      `🎮 ${u} opened a ${e} room — ${g}`,
+    ]
+    activityFeed.push({ msg: _fakePick(msgs), ts: Date.now() - i * _fakeRand(30000, 120000) })
+  }
+  activityFeed.sort((a, b) => b.ts - a.ts)
+})()
+
+// Seed initial fake chat (6 messages at staggered past timestamps)
+;(function seedFakeChat() {
+  let lastMsg = ''
+  for (let i = 5; i >= 0; i--) {
+    let line = _fakePick(FAKE_CHAT_SVR)
+    while (line === lastMsg) line = _fakePick(FAKE_CHAT_SVR)
+    lastMsg = line
+    globalChat.push({ username: _fakePick(FAKE_USERS_SVR), message: line, ts: Date.now() - i * _fakeRand(40000, 180000) })
+  }
+})()
+
+// Start periodic fake generators (fire after short random delay so server start isn't obvious)
+setTimeout(_fakePushActivity, _fakeRand(20000, 60000))
+setTimeout(_fakePushChat,     _fakeRand(30000, 80000))
+// ── END FAKE DATA ─────────────────────────────────────────────────────────────
+
 function doMatch(key, gameMode, entryFee, chainId) {
   const queue = matchmakingQueues.get(key) || []
   if (queue.length < 2) return
