@@ -213,9 +213,7 @@ export default function Profile() {
           ])
           if (deposited) {
             const [, , settled, ] = info as [bigint, bigint, boolean, string[]]
-            if (!settled) {
-              found.push({ code, chainId: rChainId, escrow, roomId, createdAt: 0, settled })
-            }
+            found.push({ code, chainId: rChainId, escrow, roomId, createdAt: 0, settled })
           }
         } catch { /* room not on this chain or RPC error — skip */ }
       }
