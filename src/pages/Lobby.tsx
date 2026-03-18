@@ -491,28 +491,51 @@ export default function Lobby() {
   // ── Main lobby content ────────────────────────────────────────────────────
   const LobbyContent = () => (
     <div style={{ padding: isDesktop ? '32px 28px 40px' : 'clamp(20px,4vw,32px) clamp(14px,3vw,20px)', paddingBottom: !isDesktop ? '72px' : undefined }}>
+      <style>{`
+        @keyframes lobby-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } 50% { box-shadow: 0 0 24px 4px rgba(34,197,94,0.18); } }
+        @keyframes btn-glow    { 0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } 50% { box-shadow: 0 4px 32px 0 rgba(34,197,94,0.35); } }
+        @keyframes live-dot    { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.4; transform:scale(0.7); } }
+        @keyframes searching   { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+        @keyframes fade-in     { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+        .lobby-fee-btn:hover   { border-color:#7c3aed !important; color:#a78bfa !important; }
+        .lobby-chain-btn:hover { opacity:0.85; }
+        .lobby-room-card:hover { border-color:#2d2d45 !important; background:#14141e !important; }
+        .lobby-create-btn:hover { filter: brightness(1.12); }
+      `}</style>
 
       {/* Header */}
-      <div style={{ marginBottom: '20px' }}>
-        <button style={{ color: '#64748b', fontSize: '0.85rem', background: 'none', border: 'none', cursor: 'pointer', marginBottom: '10px' }} onClick={() => navigate('/')}>
+      <div style={{ marginBottom: '24px', position: 'relative' }}>
+        <button style={{ color: '#475569', fontSize: '0.82rem', background: 'none', border: 'none', cursor: 'pointer', marginBottom: '14px', letterSpacing: '0.02em' }} onClick={() => navigate('/')}>
           ← Back
         </button>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-          <div>
-            <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(1.3rem,4vw,1.8rem)', fontWeight: 900, background: 'linear-gradient(135deg, #7c3aed, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginBottom: '4px' }}>
-              {meta.emoji} {meta.title}
-            </h1>
-            <p style={{ color: '#64748b', fontSize: '0.85rem' }}>{meta.desc}</p>
-            {myName && <p style={{ color: '#a78bfa', fontSize: '0.78rem', marginTop: '3px' }}>Playing as <strong>{myName}</strong></p>}
-          </div>
-          {address && (
-            <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <p style={{ fontSize: '0.68rem', color: '#64748b', marginBottom: '2px' }}>Your balance</p>
-              <p style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: Number(balanceFormatted) >= selectedFee ? '#22c55e' : '#f59e0b' }}>
-                ${balanceFormatted} <span style={{ fontSize: '0.62rem', color: '#64748b' }}>USDT</span>
-              </p>
+        {/* Hero strip */}
+        <div style={{ position: 'relative', background: 'linear-gradient(135deg, rgba(124,58,237,0.12) 0%, rgba(6,182,212,0.06) 100%)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: '16px', padding: '18px 20px', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: 0, right: 0, width: '180px', height: '100%', background: 'radial-gradient(ellipse at top right, rgba(124,58,237,0.15) 0%, transparent 70%)', pointerEvents: 'none' }} />
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(1.4rem,4vw,2rem)', fontWeight: 900, background: 'linear-gradient(135deg, #a78bfa, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginBottom: '6px', lineHeight: 1.1 }}>
+                {meta.emoji} {meta.title}
+              </h1>
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '8px', maxWidth: '380px' }}>{meta.desc}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                {myName && <span style={{ color: '#a78bfa', fontSize: '0.75rem', background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.25)', borderRadius: '20px', padding: '2px 10px' }}>⚡ {myName}</span>}
+                {displayOnlineCount > 0 && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.73rem', color: '#64748b' }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'live-dot 1.8s ease-in-out infinite' }} />
+                    {displayOnlineCount} online
+                  </span>
+                )}
+              </div>
             </div>
-          )}
+            {address && (
+              <div style={{ textAlign: 'right', flexShrink: 0, background: 'rgba(0,0,0,0.25)', borderRadius: '10px', padding: '10px 14px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <p style={{ fontSize: '0.65rem', color: '#475569', marginBottom: '3px', letterSpacing: '0.06em' }}>BALANCE</p>
+                <p style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1rem', color: Number(balanceFormatted) >= selectedFee ? '#22c55e' : '#f59e0b' }}>
+                  ${balanceFormatted} <span style={{ fontSize: '0.6rem', color: '#64748b' }}>USDT</span>
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -535,72 +558,79 @@ export default function Lobby() {
       )}
 
       {/* ── INSTANT MATCH section ─────────────────────────────────────────── */}
-      <div style={{ background: '#12121a', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '16px', padding: '18px 20px', marginBottom: '16px' }}>
-        <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#22c55e', letterSpacing: '0.1em', marginBottom: '14px' }}>⚡ INSTANT MATCH</p>
+      <div style={{ background: 'linear-gradient(160deg, #0f1a14 0%, #12121a 60%)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: '18px', padding: '20px 22px', marginBottom: '16px', animation: 'lobby-pulse 4s ease-in-out infinite' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+          <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'live-dot 1.5s ease-in-out infinite' }} />
+          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#22c55e', letterSpacing: '0.12em', fontFamily: 'Orbitron, sans-serif' }}>INSTANT MATCH</span>
+        </div>
 
         {/* Chain */}
-        <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '8px' }}>PAY WITH USDT ON</p>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
+        <p style={{ fontSize: '0.65rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', marginBottom: '8px' }}>PAY WITH USDT ON</p>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
           {SUPPORTED_CHAINS.map(chain => (
-            <button key={chain.id} onClick={() => setSelectedChain(chain)}
-              style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s', background: selectedChain.id === chain.id ? `${chain.color}22` : 'transparent', border: `1px solid ${selectedChain.id === chain.id ? chain.color : '#1e1e30'}`, color: selectedChain.id === chain.id ? chain.color : '#64748b' }}>
+            <button key={chain.id} onClick={() => setSelectedChain(chain)} className="lobby-chain-btn"
+              style={{ padding: '6px 13px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s', background: selectedChain.id === chain.id ? `${chain.color}28` : 'rgba(255,255,255,0.03)', border: `1px solid ${selectedChain.id === chain.id ? chain.color : '#252535'}`, color: selectedChain.id === chain.id ? chain.color : '#4a5568' }}>
               {chain.icon} {chain.shortName}
             </button>
           ))}
         </div>
-        {selectedChain.id === 1 && <p style={{ color: '#f59e0b', fontSize: '0.75rem', marginBottom: '12px' }}>⚠️ Ethereum has high gas fees. Consider Polygon, Arbitrum, or Base.</p>}
+        {selectedChain.id === 1 && <p style={{ color: '#f59e0b', fontSize: '0.75rem', marginBottom: '12px', background: 'rgba(245,158,11,0.08)', borderRadius: '8px', padding: '6px 10px' }}>⚠️ Ethereum gas is high. Consider Polygon, Arbitrum, or Base.</p>}
 
         {/* Entry fee */}
-        <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '8px' }}>ENTRY FEE</p>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
+        <p style={{ fontSize: '0.65rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', marginBottom: '8px' }}>ENTRY FEE</p>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
           {ENTRY_FEES.map(fee => (
-            <button key={fee} onClick={() => setSelectedFee(fee)}
-              style={{ padding: '8px 14px', borderRadius: '8px', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', border: `1px solid ${selectedFee === fee ? '#7c3aed' : '#1e1e30'}`, background: selectedFee === fee ? 'rgba(124,58,237,0.18)' : 'transparent', color: selectedFee === fee ? '#a78bfa' : '#64748b' }}>
+            <button key={fee} onClick={() => setSelectedFee(fee)} className="lobby-fee-btn"
+              style={{ padding: '9px 16px', borderRadius: '20px', fontWeight: 800, fontSize: '0.88rem', cursor: 'pointer', transition: 'all 0.15s', border: `1px solid ${selectedFee === fee ? '#7c3aed' : '#252535'}`, background: selectedFee === fee ? 'linear-gradient(135deg,rgba(124,58,237,0.3),rgba(99,102,241,0.2))' : 'rgba(255,255,255,0.03)', color: selectedFee === fee ? '#c4b5fd' : '#4a5568', boxShadow: selectedFee === fee ? '0 0 12px rgba(124,58,237,0.25)' : 'none' }}>
               ${fee}
             </button>
           ))}
         </div>
 
         {/* Max players */}
-        <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '8px' }}>MAX PLAYERS ({maxPlayers})</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+          <p style={{ fontSize: '0.65rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em' }}>MAX PLAYERS</p>
+          <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#22c55e', fontFamily: 'Orbitron, sans-serif' }}>{maxPlayers}</span>
+        </div>
         <input type="range" min={meta.minPlayers} max={meta.maxPlayers} value={maxPlayers}
           onChange={e => setMaxPlayers(Number(e.target.value))}
           style={{ width: '100%', accentColor: '#22c55e', marginBottom: '4px' }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '0.75rem', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#334155', fontSize: '0.72rem', marginBottom: '18px' }}>
           <span>{meta.minPlayers}</span><span>{meta.maxPlayers}</span>
         </div>
 
         {/* Instant match button */}
         {searching ? (
-          <div style={{ background: '#0a0a0f', border: '1px solid rgba(124,58,237,0.4)', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+          <div style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: '14px', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', animation: 'searching 1.6s ease-in-out infinite' }}>
             <div>
-              <p style={{ color: '#a78bfa', fontWeight: 700, fontFamily: 'Orbitron, sans-serif', fontSize: '0.88rem', marginBottom: '3px' }}>Finding opponents… {queueSize > 0 && `(${queueSize} in queue)`}</p>
-              <p style={{ color: '#64748b', fontSize: '0.78rem' }}>Entry ${selectedFee} · {selectedChain.name}</p>
+              <p style={{ color: '#a78bfa', fontWeight: 700, fontFamily: 'Orbitron, sans-serif', fontSize: '0.85rem', marginBottom: '3px' }}>Finding opponents… {queueSize > 0 && `(${queueSize} in queue)`}</p>
+              <p style={{ color: '#64748b', fontSize: '0.76rem' }}>Entry ${selectedFee} · {selectedChain.name}</p>
             </div>
-            <button onClick={cancelMatch} style={{ background: 'none', border: '1px solid #475569', borderRadius: '8px', padding: '8px 16px', color: '#94a3b8', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>Cancel</button>
+            <button onClick={cancelMatch} style={{ background: 'none', border: '1px solid #334155', borderRadius: '8px', padding: '8px 16px', color: '#94a3b8', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>Cancel</button>
           </div>
         ) : (
           <>
             <button onClick={findMatch} disabled={!isConnected}
-              style={{ width: '100%', background: isConnected ? 'linear-gradient(135deg, #22c55e, #06b6d4)' : '#1e1e30', border: 'none', borderRadius: '12px', padding: '14px', color: isConnected ? '#0a0a0f' : '#475569', fontWeight: 800, fontSize: '1rem', fontFamily: 'Orbitron, sans-serif', cursor: isConnected ? 'pointer' : 'not-allowed', letterSpacing: '0.04em', marginBottom: '6px' }}>
+              style={{ width: '100%', background: isConnected ? 'linear-gradient(135deg, #22c55e 0%, #06b6d4 100%)' : '#1a1a2e', border: 'none', borderRadius: '14px', padding: '16px', color: isConnected ? '#041a0f' : '#334155', fontWeight: 900, fontSize: '1.05rem', fontFamily: 'Orbitron, sans-serif', cursor: isConnected ? 'pointer' : 'not-allowed', letterSpacing: '0.05em', marginBottom: '8px', animation: isConnected ? 'btn-glow 2.5s ease-in-out infinite' : 'none', transition: 'transform 0.1s', boxShadow: isConnected ? '0 4px 20px rgba(34,197,94,0.2)' : 'none' }}>
               ⚡ INSTANT MATCH — ${selectedFee}
             </button>
-            {isConnected && <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.75rem' }}>Get paired in 10–30 seconds</p>}
+            {isConnected && <p style={{ textAlign: 'center', color: '#4a5568', fontSize: '0.73rem' }}>Get paired in 10–30 seconds</p>}
           </>
         )}
       </div>
 
       {/* ── CREATE ROOM / CREATE DUEL toggle buttons ──────────────────────── */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: activeCreateMode ? '0' : '16px' }}>
-        <button onClick={() => setActiveCreateMode(activeCreateMode === 'room' ? null : 'room')} disabled={!isConnected}
-          style={{ flex: 1, background: activeCreateMode === 'room' ? 'rgba(124,58,237,0.2)' : 'rgba(124,58,237,0.08)', border: `1px solid ${activeCreateMode === 'room' ? 'rgba(124,58,237,0.6)' : 'rgba(124,58,237,0.3)'}`, borderRadius: '10px', padding: '11px', color: isConnected ? '#a78bfa' : '#475569', fontWeight: 700, fontSize: '0.88rem', cursor: isConnected ? 'pointer' : 'not-allowed' }}>
+        <button onClick={() => setActiveCreateMode(activeCreateMode === 'room' ? null : 'room')} disabled={!isConnected} className="lobby-create-btn"
+          style={{ flex: 1, background: activeCreateMode === 'room' ? 'rgba(124,58,237,0.22)' : 'rgba(124,58,237,0.07)', border: `1px solid ${activeCreateMode === 'room' ? 'rgba(124,58,237,0.65)' : 'rgba(124,58,237,0.22)'}`, borderRadius: '12px', padding: '13px', color: isConnected ? (activeCreateMode === 'room' ? '#c4b5fd' : '#7c6aaa') : '#334155', fontWeight: 700, fontSize: '0.88rem', cursor: isConnected ? 'pointer' : 'not-allowed', transition: 'all 0.2s', letterSpacing: '0.03em' }}>
           ➕ CREATE ROOM
         </button>
         <button
           onClick={() => setActiveCreateMode(activeCreateMode === 'duel' ? null : 'duel')}
           disabled={!isConnected || gameMode === 'highest-unique' || gameMode === 'lowest-unique'}
           title={gameMode === 'highest-unique' || gameMode === 'lowest-unique' ? 'Duels unavailable — needs 3+ players' : undefined}
-          style={{ flex: 1, background: activeCreateMode === 'duel' ? 'rgba(249,115,22,0.2)' : 'rgba(249,115,22,0.08)', border: `1px solid ${activeCreateMode === 'duel' ? 'rgba(249,115,22,0.6)' : 'rgba(249,115,22,0.3)'}`, borderRadius: '10px', padding: '11px', color: (gameMode === 'highest-unique' || gameMode === 'lowest-unique') ? '#475569' : '#f97316', fontWeight: 700, fontSize: '0.88rem', cursor: (!isConnected || gameMode === 'highest-unique' || gameMode === 'lowest-unique') ? 'not-allowed' : 'pointer', opacity: (gameMode === 'highest-unique' || gameMode === 'lowest-unique') ? 0.45 : 1 }}>
+          className="lobby-create-btn"
+          style={{ flex: 1, background: activeCreateMode === 'duel' ? 'rgba(249,115,22,0.22)' : 'rgba(249,115,22,0.07)', border: `1px solid ${activeCreateMode === 'duel' ? 'rgba(249,115,22,0.65)' : 'rgba(249,115,22,0.22)'}`, borderRadius: '12px', padding: '13px', color: (gameMode === 'highest-unique' || gameMode === 'lowest-unique') ? '#334155' : (activeCreateMode === 'duel' ? '#fdba74' : '#c2763e'), fontWeight: 700, fontSize: '0.88rem', cursor: (!isConnected || gameMode === 'highest-unique' || gameMode === 'lowest-unique') ? 'not-allowed' : 'pointer', opacity: (gameMode === 'highest-unique' || gameMode === 'lowest-unique') ? 0.35 : 1, transition: 'all 0.2s', letterSpacing: '0.03em' }}>
           ⚔️ CREATE DUEL
         </button>
       </div>
@@ -677,33 +707,39 @@ export default function Lobby() {
 
       {/* Open Matches */}
       <section style={{ marginBottom: '20px' }}>
-        <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.82rem', fontWeight: 700, color: '#e2e8f0', letterSpacing: '0.06em', marginBottom: '10px' }}>🔥 OPEN MATCHES</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+          <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.8rem', fontWeight: 800, color: '#e2e8f0', letterSpacing: '0.08em' }}>🔥 OPEN MATCHES</h3>
+          {openRooms.length > 0 && <span style={{ fontSize: '0.68rem', fontWeight: 700, background: 'rgba(34,197,94,0.12)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.25)', borderRadius: '20px', padding: '2px 8px' }}>{openRooms.filter(r => r.status === 'waiting').length} open</span>}
+        </div>
         {loading ? (
-          <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '12px', textAlign: 'center', color: '#64748b', padding: '36px', fontSize: '0.85rem' }}>Loading rooms…</div>
+          <div style={{ background: '#0e0e18', border: '1px solid #1a1a2e', borderRadius: '14px', textAlign: 'center', color: '#334155', padding: '36px', fontSize: '0.85rem' }}>Loading rooms…</div>
         ) : openRooms.length === 0 ? (
-          <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '12px', textAlign: 'center', padding: '28px' }}>
-            <div style={{ color: '#e2e8f0', fontWeight: 700, fontSize: '0.9rem', marginBottom: '4px' }}>No matches yet — be the first ⚔️</div>
-            <div style={{ color: '#475569', fontSize: '0.8rem' }}>Winner takes full pot</div>
+          <div style={{ background: 'linear-gradient(135deg,rgba(124,58,237,0.05),rgba(6,182,212,0.03))', border: '1px solid rgba(124,58,237,0.15)', borderRadius: '14px', textAlign: 'center', padding: '32px' }}>
+            <div style={{ fontSize: '1.6rem', marginBottom: '8px' }}>⚔️</div>
+            <div style={{ color: '#94a3b8', fontWeight: 700, fontSize: '0.9rem', marginBottom: '4px' }}>No matches yet — be the first</div>
+            <div style={{ color: '#334155', fontSize: '0.78rem' }}>Create a room and take the full pot</div>
           </div>
         ) : openRooms.map(room => (
-          <div key={room.code} style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '8px', opacity: room.status === 'full' ? 0.5 : 1 }}>
-            <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div key={room.code} className="lobby-room-card" style={{ background: '#0e0e18', border: '1px solid #1a1a2e', borderRadius: '14px', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '8px', opacity: room.status === 'full' ? 0.45 : 1, transition: 'all 0.15s', cursor: room.status === 'waiting' ? 'default' : undefined }}>
+            <div style={{ display: 'flex', gap: '18px', alignItems: 'center', flexWrap: 'wrap' }}>
               <div>
-                <p style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.95rem', letterSpacing: '0.1em' }}>{room.code}</p>
-                <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '2px' }}>Host: {room.hostName || getUsername(room.host)}</p>
+                <p style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 800, fontSize: '0.92rem', letterSpacing: '0.12em', color: '#e2e8f0' }}>{room.code}</p>
+                <p style={{ color: '#334155', fontSize: '0.72rem', marginTop: '2px' }}>by {room.hostName || getUsername(room.host)}</p>
               </div>
-              <p style={{ color: '#94a3b8', fontSize: '0.83rem' }}>👥 {room.players}/{room.max}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#475569', fontSize: '0.8rem' }}>
+                <span>👥</span><span style={{ fontWeight: 700, color: '#64748b' }}>{room.players}/{room.max}</span>
+              </div>
               <div>
-                <p style={{ color: '#22c55e', fontWeight: 700, fontSize: '0.88rem' }}>${room.entry} USDT</p>
-                <p style={{ color: '#64748b', fontSize: '0.72rem' }}>Pot ~${(room.entry * room.players * 0.85).toFixed(2)}</p>
+                <p style={{ color: '#22c55e', fontWeight: 800, fontSize: '0.9rem' }}>${room.entry} <span style={{ fontWeight: 400, fontSize: '0.72rem', color: '#334155' }}>USDT</span></p>
+                <p style={{ color: '#334155', fontSize: '0.7rem' }}>pot ~${(room.entry * room.players * 0.85).toFixed(2)}</p>
               </div>
             </div>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', background: room.status === 'waiting' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: room.status === 'waiting' ? '#22c55e' : '#ef4444', border: `1px solid ${room.status === 'waiting' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
+              <span style={{ fontSize: '0.67rem', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', background: room.status === 'waiting' ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.1)', color: room.status === 'waiting' ? '#22c55e' : '#ef4444', border: `1px solid ${room.status === 'waiting' ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.2)'}` }}>
                 {room.status === 'waiting' ? '● OPEN' : '■ FULL'}
               </span>
               <button disabled={room.status === 'full' || joining === room.code} onClick={() => handleJoinRoom(room.code)}
-                style={{ background: room.status === 'full' ? '#1e1e30' : 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '8px', padding: '8px 18px', color: room.status === 'full' ? '#64748b' : '#fff', fontWeight: 700, cursor: room.status === 'full' ? 'not-allowed' : 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                style={{ background: room.status === 'full' ? '#1a1a2e' : 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '10px', padding: '9px 20px', color: room.status === 'full' ? '#334155' : '#fff', fontWeight: 700, cursor: room.status === 'full' ? 'not-allowed' : 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap', boxShadow: room.status === 'waiting' ? '0 2px 12px rgba(124,58,237,0.25)' : 'none' }}>
                 {joining === room.code ? 'Confirm in MetaMask →' : `Join ${selectedChain.icon}`}
               </button>
             </div>
