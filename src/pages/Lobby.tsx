@@ -82,8 +82,8 @@ export default function Lobby() {
   const [showCreateDuel, setShowCreateDuel] = useState(false)
   const [duelShareCode, setDuelShareCode]   = useState('')
   // Layout state
-  const [isDesktop, setIsDesktop]           = useState(false)
-  const [panelOpen, setPanelOpen]           = useState(true)
+  const [isDesktop, setIsDesktop]           = useState(() => window.innerWidth >= 1100)
+  const [panelOpen, setPanelOpen]           = useState(() => window.innerWidth >= 1100)
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
   const [onlineCount, setOnlineCount]       = useState(0)
   const [unreadChat, setUnreadChat]         = useState(0)
@@ -97,11 +97,9 @@ export default function Lobby() {
   // Responsive: track desktop breakpoint
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1100px)')
-    setIsDesktop(mq.matches)
-    setPanelOpen(mq.matches) // open by default only on desktop
     const handler = (e: MediaQueryListEvent) => {
       setIsDesktop(e.matches)
-      if (e.matches) setPanelOpen(true)
+      setPanelOpen(e.matches)
     }
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
