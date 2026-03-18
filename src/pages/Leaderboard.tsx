@@ -4,7 +4,7 @@ import { fetchLeaderboard, fetchUsernames, type LeaderboardEntry } from '../util
 import { getAvatarUrl, getAvatarColor } from '../utils/avatar'
 import { getUsername } from '../utils/profile'
 // ── FAKE DATA (remove next line when real users grow) ─────────────────────────
-import { getFakeLeaderboard, FAKE_LEADERBOARD_NAMES } from '../utils/fakeData'
+import { getFakeLeaderboard, FAKE_USER_NAMES } from '../utils/fakeData'
 
 type Period = 'alltime' | 'weekly' | 'daily'
 
@@ -19,8 +19,8 @@ export default function Leaderboard() {
   const { address } = useAccount()
 
   function displayName(addr: string) {
-    // ── FAKE DATA: check fake names first (remove FAKE_LEADERBOARD_NAMES lookup when real users grow) ──
-    return FAKE_LEADERBOARD_NAMES[addr] ?? usernames[addr.toLowerCase()] ?? getUsername(addr)
+    // ── FAKE DATA: check fake names first (remove FAKE_USER_NAMES lookup when real users grow) ──
+    return FAKE_USER_NAMES[addr] ?? usernames[addr.toLowerCase()] ?? getUsername(addr)
   }
 
   useEffect(() => {
@@ -47,9 +47,10 @@ export default function Leaderboard() {
       .finally(() => setLoading(false))
   }, [period])
 
-  const myRank = address
-    ? data.find(p => p.player_address === address.toLowerCase())?.rank ?? null
-    : null
+  const myEntry = address ? data.find(p => p.player_address === address.toLowerCase()) ?? null : null
+  const myRank  = myEntry?.rank ?? null
+  const top100  = data.slice(0, 100)
+  const myInTop = myEntry ? myEntry.rank <= 100 : false
 
   const tabs: { key: Period; label: string }[] = [
     { key: 'daily',   label: 'Today' },
@@ -145,12 +146,12 @@ export default function Leaderboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.map((p, idx) => {
+                  {top100.map((p, idx) => {
                     const isMe = address && p.player_address === address.toLowerCase()
                     const wr   = Number(p.win_rate)
                     const net  = Number(p.net_earned)
                     return (
-                      <tr key={p.player_address} style={{ borderBottom: idx < data.length - 1 ? '1px solid #0d0d14' : 'none', background: isMe ? 'rgba(124,58,237,0.07)' : 'transparent' }}>
+                      <tr key={p.player_address} style={{ borderBottom: idx < top100.length - 1 || !myInTop ? '1px solid #0d0d14' : 'none', background: isMe ? 'rgba(124,58,237,0.07)' : 'transparent' }}>
                         <td style={{ padding: '14px 20px' }}>
                           <span style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 900, fontSize: p.rank <= 3 ? '1.1rem' : '0.9rem', color: p.rank === 1 ? '#f59e0b' : p.rank === 2 ? '#9ca3af' : p.rank === 3 ? '#cd7c3e' : '#64748b' }}>
                             {MEDAL[p.rank] ?? `#${p.rank}`}
@@ -181,6 +182,44 @@ export default function Leaderboard() {
                       </tr>
                     )
                   })}
+                  {/* Always show current user's row if outside top 100 */}
+                  {!myInTop && myEntry && (() => {
+                    const p   = myEntry
+                    const wr  = Number(p.win_rate)
+                    const net = Number(p.net_earned)
+                    return (
+                      <>
+                        <tr><td colSpan={period === 'alltime' ? 5 : 6} style={{ padding: '6px 20px', textAlign: 'center', color: '#334155', fontSize: '0.75rem', letterSpacing: '0.1em' }}>· · ·</td></tr>
+                        <tr style={{ background: 'rgba(124,58,237,0.07)', borderTop: '1px solid rgba(124,58,237,0.2)' }}>
+                          <td style={{ padding: '14px 20px' }}>
+                            <span style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 900, fontSize: '0.9rem', color: '#64748b' }}>#{p.rank}</span>
+                          </td>
+                          <td style={{ padding: '14px 20px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <img src={getAvatarUrl(p.player_address)} alt="avatar" width={28} height={28} style={{ borderRadius: '50%', border: `2px solid ${getAvatarColor(p.player_address)}`, background: '#1e1e30', flexShrink: 0 }} />
+                              <span style={{ fontWeight: 600, color: '#a78bfa', fontSize: '0.9rem' }}>{displayName(p.player_address)}</span>
+                              <span style={{ fontSize: '0.65rem', background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa', borderRadius: '4px', padding: '1px 6px', fontWeight: 700 }}>YOU</span>
+                            </div>
+                          </td>
+                          {period !== 'alltime' && (
+                            <td style={{ padding: '14px 20px', fontWeight: 700, color: net >= 0 ? '#22c55e' : '#ef4444', fontSize: '0.9rem', fontFamily: 'Orbitron, sans-serif' }}>
+                              {net >= 0 ? '+' : ''}${net.toFixed(2)}
+                            </td>
+                          )}
+                          <td style={{ padding: '14px 20px', fontFamily: 'Orbitron, sans-serif', fontWeight: 700, color: '#22c55e', fontSize: '0.9rem' }}>{p.wins}</td>
+                          <td style={{ padding: '14px 20px', color: '#94a3b8', fontSize: '0.9rem' }}>{p.games_played}</td>
+                          <td style={{ padding: '14px 20px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{ width: '48px', height: '4px', background: '#1e1e30', borderRadius: '2px', overflow: 'hidden' }}>
+                                <div style={{ height: '100%', width: `${wr}%`, background: wr >= 70 ? '#22c55e' : wr >= 50 ? '#f59e0b' : '#ef4444', borderRadius: '2px' }} />
+                              </div>
+                              <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>{wr}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      </>
+                    )
+                  })()}
                 </tbody>
               </table>
             </div>
