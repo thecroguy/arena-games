@@ -516,8 +516,10 @@ const RECENT_WINS = [
   { user:'SolKing',   gid:'math-arena',     amount:'+$25.50', t:'5m ago'  },
 ]
 
-type ChatMsg      = { username: string; message: string; ts: number }
-type Room         = { code: string; players: { address: string }[]; maxPlayers: number; entry: number; gameMode: string }
+type ChatMsg = { username: string; message: string; ts: number }
+type Room    = { code: string; host: string; hostName: string; players: number; max: number; entry: number; status: 'waiting'|'full'; roomType: 'public'|'duel'|'private'; duelExpiry: number|null }
+
+const ENTRY_FEES = [0.5, 1, 2, 5, 10, 25, 50]
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
 void SERVER_URL // used by connectSocket internally
@@ -535,6 +537,8 @@ export default function Home() {
   const [onlineCount, setOnlineCount] = useState(0)
   const [chatInput, setChatInput] = useState('')
   const [rooms, setRooms]       = useState<Room[]>([])
+  const [lobbyFee, setLobbyFee] = useState(1)
+  const [lobbyMax, setLobbyMax] = useState(5)
   const [openSections, setOpenSections] = useState<Record<string,boolean>>({ info:true })
   const [winIdx, setWinIdx]     = useState(0)
   const [showWin, setShowWin]   = useState(false)
@@ -816,44 +820,90 @@ export default function Home() {
               </div>
             </div>
 
-            {/* LOBBY — active game rooms */}
-            <div>
-              <div style={{ display:'flex', alignItems:'center', gap:'7px', marginBottom:'10px' }}>
-                <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.4s infinite' }} />
-                <span style={{ fontSize:'0.52rem', fontFamily:'Orbitron,sans-serif', color:'#374151', letterSpacing:'0.12em', fontWeight:700, flex:1 }}>{g.title.toUpperCase()} LOBBY</span>
-                <button className="play-btn" onClick={() => navigate(`/lobby/${g.id}`)}
-                  style={{ fontSize:'0.5rem', fontFamily:'Orbitron,sans-serif', fontWeight:700, color:g.glow, background:'transparent', border:`1px solid rgba(${g.glowRgb},0.25)`, borderRadius:'6px', padding:'3px 10px', letterSpacing:'0.06em' }}>
-                  + CREATE
-                </button>
-              </div>
-              {(() => {
-                const gameRooms = rooms.filter(r => r.gameMode === g.id)
-                return gameRooms.length > 0 ? (
-                  <div style={{ display:'flex', flexDirection:'column', gap:'5px' }}>
-                    {gameRooms.map(r => (
-                      <div key={r.code} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'9px 14px', background:'rgba(255,255,255,0.018)', border:`1px solid rgba(${g.glowRgb},0.14)`, borderRadius:'10px' }}>
-                        <div style={{ flex:1 }}>
-                          <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700, color:'#94a3b8', letterSpacing:'0.04em' }}>{r.code}</div>
-                          <div style={{ fontSize:'0.52rem', color:'#374151', marginTop:'2px' }}>{r.players.length} / {r.maxPlayers} players</div>
-                        </div>
-                        <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.66rem', fontWeight:900, color:g.glow }}>${r.entry}</span>
-                        <button className="play-btn" onClick={() => navigate(`/game/${r.code}`)}
-                          style={{ background:`linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'7px', padding:'5px 14px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.58rem', letterSpacing:'0.06em', boxShadow:`0 0 12px rgba(${g.glowRgb},0.3)` }}>
-                          JOIN
-                        </button>
-                      </div>
+            {/* INLINE LOBBY */}
+            <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+
+              {/* Create room panel */}
+              <div style={{ background:'rgba(255,255,255,0.018)', border:`1px solid rgba(${g.glowRgb},0.18)`, borderRadius:'14px', padding:'14px 16px' }}>
+                <div style={{ fontSize:'0.46rem', fontFamily:'Orbitron,sans-serif', color:'#374151', letterSpacing:'0.14em', marginBottom:'10px' }}>CREATE ROOM</div>
+
+                {/* Entry fee */}
+                <div style={{ marginBottom:'10px' }}>
+                  <div style={{ fontSize:'0.52rem', color:'#374151', marginBottom:'6px' }}>Entry fee</div>
+                  <div style={{ display:'flex', gap:'4px', flexWrap:'wrap' }}>
+                    {ENTRY_FEES.map(f => (
+                      <button key={f} className="play-btn"
+                        onClick={() => setLobbyFee(f)}
+                        style={{ padding:'4px 10px', borderRadius:'7px', fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700,
+                          background: lobbyFee===f ? `linear-gradient(135deg,${g.bgFrom},${g.bgTo})` : 'rgba(255,255,255,0.035)',
+                          color: lobbyFee===f ? '#fff' : '#374151',
+                          border: lobbyFee===f ? 'none' : '1px solid rgba(255,255,255,0.06)',
+                          boxShadow: lobbyFee===f ? `0 0 12px rgba(${g.glowRgb},0.35)` : 'none',
+                        }}>
+                        ${f}
+                      </button>
                     ))}
                   </div>
-                ) : (
-                  <div style={{ padding:'18px 14px', background:'rgba(255,255,255,0.012)', border:`1px solid rgba(${g.glowRgb},0.1)`, borderRadius:'12px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px' }}>
-                    <span style={{ fontSize:'0.62rem', color:'#1e2030' }}>No open rooms right now</span>
-                    <button className="play-btn" onClick={() => navigate(`/lobby/${g.id}`)}
-                      style={{ background:`linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'8px', padding:'7px 18px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.62rem', letterSpacing:'0.06em', flexShrink:0, boxShadow:`0 0 16px rgba(${g.glowRgb},0.35)` }}>
-                      CREATE ROOM
-                    </button>
+                </div>
+
+                {/* Max players */}
+                <div style={{ marginBottom:'12px' }}>
+                  <div style={{ fontSize:'0.52rem', color:'#374151', marginBottom:'6px' }}>Max players</div>
+                  <div style={{ display:'flex', gap:'4px' }}>
+                    {[2,3,4,5,6,8,10].filter(n => n <= (g.players === '2' ? 2 : 10)).concat(g.players === '2' ? [] : []).map(n => {
+                      const maxAllowed = g.players === '2' ? 2 : g.players.includes('-') ? parseInt(g.players.split('-')[1]) : 10
+                      if (n > maxAllowed) return null
+                      return (
+                        <button key={n} className="play-btn"
+                          onClick={() => setLobbyMax(n)}
+                          style={{ width:'30px', height:'28px', borderRadius:'7px', fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:700,
+                            background: lobbyMax===n ? `rgba(${g.glowRgb},0.25)` : 'rgba(255,255,255,0.035)',
+                            color: lobbyMax===n ? g.glow : '#374151',
+                            border: lobbyMax===n ? `1px solid rgba(${g.glowRgb},0.4)` : '1px solid rgba(255,255,255,0.06)',
+                          }}>
+                          {n}
+                        </button>
+                      )
+                    })}
                   </div>
-                )
-              })()}
+                </div>
+
+                <button className="play-btn"
+                  onClick={() => navigate(`/lobby/${g.id}`, { state:{ fee: lobbyFee, max: lobbyMax } })}
+                  style={{ width:'100%', background:`linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'10px', padding:'10px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.72rem', letterSpacing:'0.08em', boxShadow:`0 0 20px rgba(${g.glowRgb},0.38)` }}>
+                  CREATE ROOM — ${lobbyFee} ENTRY
+                </button>
+              </div>
+
+              {/* Open rooms list */}
+              <div>
+                <div style={{ display:'flex', alignItems:'center', gap:'7px', marginBottom:'8px' }}>
+                  <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.4s infinite' }} />
+                  <span style={{ fontSize:'0.5rem', fontFamily:'Orbitron,sans-serif', color:'#374151', letterSpacing:'0.12em', fontWeight:700, flex:1 }}>OPEN ROOMS</span>
+                  <span style={{ fontSize:'0.5rem', color:'#374151', fontFamily:'Orbitron,sans-serif' }}>{rooms.filter(r=>r.status==='waiting').length} waiting</span>
+                </div>
+                {rooms.length === 0
+                  ? <div style={{ padding:'14px', textAlign:'center', fontSize:'0.62rem', color:'#1e2030', background:'rgba(255,255,255,0.01)', borderRadius:'10px', border:'1px solid rgba(255,255,255,0.04)' }}>No open rooms yet</div>
+                  : <div style={{ display:'flex', flexDirection:'column', gap:'5px' }}>
+                      {rooms.filter(r => r.status === 'waiting').map(r => (
+                        <div key={r.code} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'9px 14px', background:'rgba(255,255,255,0.02)', border:`1px solid rgba(${g.glowRgb},0.12)`, borderRadius:'10px' }}>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'2px' }}>
+                              <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700, color:'#94a3b8' }}>{r.code}</span>
+                              {r.roomType === 'duel' && <span style={{ fontSize:'0.44rem', padding:'1px 5px', borderRadius:'4px', background:'rgba(249,115,22,0.14)', color:'#f97316', border:'1px solid rgba(249,115,22,0.25)' }}>DUEL</span>}
+                            </div>
+                            <div style={{ fontSize:'0.52rem', color:'#374151' }}>by {r.hostName} · {r.players}/{r.max} players</div>
+                          </div>
+                          <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.68rem', fontWeight:900, color:g.glow, flexShrink:0 }}>${r.entry}</span>
+                          <button className="play-btn" onClick={() => navigate(`/lobby/${g.id}`, { state:{ joinCode: r.code } })}
+                            style={{ flexShrink:0, background:`linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'8px', padding:'6px 14px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.6rem', letterSpacing:'0.06em', boxShadow:`0 0 12px rgba(${g.glowRgb},0.3)` }}>
+                            JOIN
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                }
+              </div>
             </div>
 
           </div>
