@@ -118,6 +118,7 @@ const GAME_MODES = {
   'highest-unique': { type: 'sealed', rounds: 8,  roundMs: 20000, minP: 3, maxP: 20, min: 1, max: 100 },
   'lowest-unique':  { type: 'sealed', rounds: 8,  roundMs: 20000, minP: 3, maxP: 20, min: 1, max: 50  },
   'liars-dice':     { type: 'bluff',  rounds: 8,  roundMs: 60000, minP: 2, maxP: 6,  dicePerPlayer: 3 },
+  'coin-flip':      { type: 'coinflip', rounds: 5, roundMs: 10000, minP: 2, maxP: 2 },
 }
 
 const VALID_FEES     = new Set([0.5, 1, 2, 5, 10, 25, 50])
@@ -318,7 +319,7 @@ const _WB = {
   amounts:  ['$4', '$5', '$6', '$7', '$8', '$10', '$12', '$14', '$17', '$20', '$23', '$25', '$4.25', '$8.50', '$3.40', '$1.70', '$30', '$35', '$42', '$50', '$0.85', '$2.55', '$6.80'],
   timing:   ['yesterday', 'today', 'just now', 'an hour ago', 'this morning', '30 mins ago', 'earlier today', 'last night', 'like 10 mins ago', 'a few hours ago', '5 mins ago', 'literally just now', 'like 2 hrs ago', 'earlier this week', 'this afternoon', 'like an hour back'],
   speed:    ['hit my wallet instantly', 'straight to wallet no issues', 'instant no waiting', 'went straight to my wallet', 'landed in seconds', 'super fast', 'no delays at all', 'claimed in like 10 secs', 'boom straight in', 'no confirmation wait', 'practically instant', 'was in my wallet before i even closed the tab'],
-  games:    ['math arena', 'pattern memory', 'reaction grid', "liar's dice", 'highest unique', 'lowest unique'],
+  games:    ['math arena', 'pattern memory', 'reaction grid', "liar's dice", 'highest unique', 'lowest unique', 'coin flip'],
   durations:['a week', '2 weeks', '3 weeks', 'a month', 'a few days', '10 days', '2 days', 'about a week', 'nearly a month', 'like 5 days'],
   totals:   ['$15', '$20', '$30', '$40', '$50', '$12', '$25', '$35', '$18', '$28', '$45', '$60', '$22', '$16', '$38', '$55'],
   chainRef: ['escrow is on-chain', 'smart contract handles it', 'check polygonscan', 'contract is open source', 'all funds on-chain', 'everything is verifiable', 'its all in the contract', 'funds locked in escrow', 'you can verify every tx', 'its trustless by design'],
@@ -835,6 +836,8 @@ function makeQuestion(gameMode, round = 1) {
       const cfg = GAME_MODES[gameMode]
       return { type: 'sealed', min: cfg.min, max: cfg.max, answer: null }
     }
+    case 'coin-flip':
+      return { type: 'coinflip', answer: null }
     default:
       return makeQuestion('math-arena')
   }
@@ -1024,6 +1027,22 @@ function endRound(room) {
   room.roundEnding = true
   clearTimeout(room.roundTimer)
   const cfg = GAME_MODES[room.gameMode] || GAME_MODES['math-arena']
+
+  // ── Coin Flip ─────────────────────────────────────────────────────────────
+  if (room.question.type === 'coinflip') {
+    const flip = Math.floor(Math.random() * 2) // 0=tails 1=heads
+    const picks = room.players.map(p => ({ address: p.address, pick: p.sealedPick ?? -1 }))
+    room.players.forEach(p => { if (p.sealedPick === flip) p.score++ })
+    io.to(room.code).emit('game:round_end', {
+      answer: String(flip),
+      scores: room.players.map(p => ({ address: p.address, username: p.username || addrName(p.address), score: p.score })),
+      coinflipResult: { flip, picks },
+    })
+    if (room.round >= cfg.rounds) setTimeout(() => endGame(room), 2500)
+    else setTimeout(() => startRound(room), 3500)
+    return
+  }
+
   const isSealed = room.question.type === 'sealed'
 
   let sealedResult = null
@@ -1088,7 +1107,7 @@ async function endGame(room) {
     scores: sorted.map((p, i) => ({ address: p.address, score: p.score, rank: i + 1 })),
   })
   const winnerName = winner.username || addrName(winner.address)
-  const gNameEnd = { 'math-arena': 'Math Arena', 'pattern-memory': 'Pattern Memory', 'reaction-grid': 'Reaction Grid', 'highest-unique': 'Highest Unique', 'lowest-unique': 'Lowest Unique', 'liars-dice': "Liar's Dice" }[room.gameMode] || room.gameMode
+  const gNameEnd = { 'math-arena': 'Math Arena', 'pattern-memory': 'Pattern Memory', 'reaction-grid': 'Reaction Grid', 'highest-unique': 'Highest Unique', 'lowest-unique': 'Lowest Unique', 'liars-dice': "Liar's Dice", 'coin-flip': 'Coin Flip' }[room.gameMode] || room.gameMode
   pushActivity(`${winnerName} won $${pot} in ${gNameEnd}`)
   io.emit('leaderboard:delta', { username: winnerName, net: parseFloat(pot) })
 
@@ -1305,7 +1324,7 @@ io.on('connection', (socket) => {
     saveRoomToDb(room)
     cb({ code, chainId: resolvedChainId })
     console.log(`Room ${code} [${gameMode}] created by ${address.slice(0, 8)} on chain ${resolvedChainId}`)
-    const gameName = { 'math-arena': 'Math Arena', 'pattern-memory': 'Pattern Memory', 'reaction-grid': 'Reaction Grid', 'highest-unique': 'Highest Unique', 'lowest-unique': 'Lowest Unique', 'liars-dice': "Liar's Dice" }[gameMode] || gameMode
+    const gameName = { 'math-arena': 'Math Arena', 'pattern-memory': 'Pattern Memory', 'reaction-grid': 'Reaction Grid', 'highest-unique': 'Highest Unique', 'lowest-unique': 'Lowest Unique', 'liars-dice': "Liar's Dice", 'coin-flip': 'Coin Flip' }[gameMode] || gameMode
     if (resolvedRoomType === 'duel') pushActivity(`${hostUsername} created a $${entryFee} duel — ${gameName}`)
     else pushActivity(`${hostUsername} opened a $${entryFee} room — ${gameName}`)
   })
@@ -1401,7 +1420,7 @@ io.on('connection', (socket) => {
     socket.data.roomCode = code
     socket.data.address  = address
 
-    const gName = { 'math-arena': 'Math Arena', 'pattern-memory': 'Pattern Memory', 'reaction-grid': 'Reaction Grid', 'highest-unique': 'Highest Unique', 'lowest-unique': 'Lowest Unique', 'liars-dice': "Liar's Dice" }[room.gameMode] || room.gameMode
+    const gName = { 'math-arena': 'Math Arena', 'pattern-memory': 'Pattern Memory', 'reaction-grid': 'Reaction Grid', 'highest-unique': 'Highest Unique', 'lowest-unique': 'Lowest Unique', 'liars-dice': "Liar's Dice", 'coin-flip': 'Coin Flip' }[room.gameMode] || room.gameMode
     pushActivity(`${joinerUsername} joined ${gName} ($${room.entryFee} entry)`)
 
     io.to(code).emit('room:update', roomPublic(room))
@@ -1573,6 +1592,16 @@ io.on('connection', (socket) => {
 
     // Sanitize answer
     const raw = String(answer || '').slice(0, 64).trim()
+
+    if (room.question.type === 'coinflip') {
+      const pick = parseInt(raw, 10)
+      if (pick !== 0 && pick !== 1) return
+      player.answered = true; player.sealedPick = pick
+      const submitted = room.players.filter(p => p.answered).length
+      io.to(code).emit('game:sealed_submitted', { address: player.address, submitted, total: room.players.length })
+      if (room.players.every(p => p.answered || p.disconnected)) { clearTimeout(room.roundTimer); endRound(room) }
+      return
+    }
 
     if (room.question.type === 'sealed') {
       // Sealed bid: just store the pick, don't reveal

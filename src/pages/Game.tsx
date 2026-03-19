@@ -16,7 +16,7 @@ interface PlayerState { address: string; username?: string; score: number; answe
 
 interface Question {
   round: number; total: number; timeMs: number
-  type?: 'math' | 'pattern' | 'grid' | 'sealed' | 'bluff'
+  type?: 'math' | 'pattern' | 'grid' | 'sealed' | 'bluff' | 'coinflip'
   // math
   a?: number; b?: number; op?: string
   // pattern-memory
@@ -28,6 +28,11 @@ interface Question {
   // bluff
   totalDice?: number; turnOrder?: string[]; currentTurnIdx?: number
   currentBid?: { count: number; face: number; bidder: string } | null
+}
+
+interface CoinflipResult {
+  flip: number  // 0=tails 1=heads
+  picks: { address: string; pick: number }[]
 }
 
 interface BluffResult {
@@ -96,6 +101,7 @@ function makeSealedQ(round: number, gm: string): Question {
 }
 
 const SEALED_GAMES = ['highest-unique', 'lowest-unique']
+const COINFLIP_GAMES = ['coin-flip']
 
 const REACTION_EMOJIS = ['😭','💀','🔥','😂','🤯','👀','🫡','😤']
 
@@ -119,6 +125,7 @@ const GAME_HELP: Record<string, { title: string; rules: string[] }> = {
   'highest-unique': { title: 'Highest Unique',  rules: ['Pick any number 1–100 each round.', 'The player with the highest UNIQUE number scores.', 'If two players pick the same number, both lose.', '8 rounds — most round wins takes the pot.'] },
   'lowest-unique':  { title: 'Lowest Unique',   rules: ['Pick any number 1–50 each round.', 'The player with the lowest UNIQUE number scores.', 'If two players pick the same number, both lose.', '8 rounds — most round wins takes the pot.'] },
   'liars-dice':     { title: "Liar's Dice",      rules: ['Each player gets 3 dice — you can only see yours.', 'Take turns bidding: "At least X dice show face Y across all dice."', 'Each bid must be higher (more dice, or same count + higher face).', 'Call LIAR! to challenge — if the bid was valid, YOU lose. If it was a bluff, THEY lose.'] },
+  'coin-flip':      { title: 'Coin Flip',        rules: ['Pick HEADS or TAILS each round before time runs out.', 'The coin lands randomly — both players who guess right score a point.', '5 rounds — most points wins the pot.', 'If tied after 5 rounds, a random winner is chosen.'] },
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -189,6 +196,10 @@ export default function Game() {
   const [roundAnswer, setRoundAnswer] = useState<string | null>(null)
   const [sealedResult, setSealedResult] = useState<SealedResult | null>(null)
   const [sealedCount, setSealedCount]   = useState(0)
+  const [coinflipResult, setCoinflipResult] = useState<CoinflipResult | null>(null)
+  const [coinflipPick, setCoinflipPick]     = useState<0 | 1 | null>(null)
+  const [coinflipAnimating, setCoinflipAnimating] = useState(false)
+  const botCoinflipPickRef = useRef<0 | 1 | null>(null)
   const [selectedCell, setSelectedCell] = useState<number | null>(null)
   const [gameOver, setGameOver]   = useState<{
     winner: string; pot: string; payoutMode?: string; claimSig?: string;
@@ -376,6 +387,24 @@ export default function Game() {
 
     if (gm === 'liars-dice') { startBotBluffRound(round); return }
 
+    // ── Coin Flip bot ──
+    if (COINFLIP_GAMES.includes(gm)) {
+      const q: Question = { round, total: 5, timeMs: 10000, type: 'coinflip' }
+      setQuestion(q); setPhase('playing'); setCoinflipPick(null); setCoinflipResult(null); setCoinflipAnimating(false); setSealedCount(0)
+      setTimeLeft(10); setPlayers(prev => prev.map(p => ({ ...p, answered: false, correct: null })))
+      botCoinflipPickRef.current = null
+      if (timerRef.current) clearInterval(timerRef.current)
+      timerRef.current = setInterval(() => {
+        setTimeLeft(t => { if (t <= 1) { clearInterval(timerRef.current!); endBotCoinflipRound(q); return 0 } return t - 1 })
+      }, 1000)
+      // Bot picks randomly after 2-6s
+      botRef.current = setTimeout(() => {
+        botCoinflipPickRef.current = (Math.random() < 0.5 ? 0 : 1)
+        setSealedCount(c => c + 1)
+      }, 2000 + Math.random() * 4000)
+      return
+    }
+
     // ── Sealed game handling ──
     if (SEALED_GAMES.includes(gm)) {
       const q = makeSealedQ(round, gm)
@@ -525,6 +554,36 @@ export default function Game() {
     }, 2500)
   }
 
+  function endBotCoinflipRound(q: Question) {
+    clearBotTimer()
+    const playerPick = coinflipPick
+    const botPick    = botCoinflipPickRef.current
+    const flip: 0 | 1 = (Math.random() < 0.5 ? 0 : 1)
+    setCoinflipAnimating(true)
+    setTimeout(() => {
+      setCoinflipAnimating(false)
+      const picks: CoinflipResult['picks'] = []
+      if (playerPick !== null) picks.push({ address: myAddr, pick: playerPick })
+      if (botPick !== null)    picks.push({ address: BOT_ADDR, pick: botPick })
+      setCoinflipResult({ flip, picks })
+      setRoundAnswer(String(flip))
+      setPhase('round_end')
+      setPlayers(prev => {
+        const updated = prev.map(p => {
+          const pick = p.address === myAddr ? playerPick : botPick
+          return pick === flip ? { ...p, score: p.score + 1 } : p
+        })
+        scoresRef.current = updated; return updated
+      })
+      botCoinflipPickRef.current = null
+      setTimeout(() => {
+        const cur = scoresRef.current
+        if (q.round >= q.total) finishBotGame(cur)
+        else startBotRound(q.round + 1)
+      }, 2500)
+    }, 1000)
+  }
+
   function finishBotGame(finalPlayers: PlayerState[]) {
     const sorted = [...finalPlayers].sort((a, b) => b.score - a.score)
     setPhase('finished')
@@ -666,6 +725,7 @@ export default function Game() {
     socket.on('game:question', (q: Question) => {
       setPhase('playing'); setQuestion(q); setInput(''); setRoundAnswer(null)
       setSealedResult(null); setSealedCount(0); setSelectedCell(null); setSelectedTiles([])
+      setCoinflipResult(null); setCoinflipPick(null); setCoinflipAnimating(false)
       setPlayers(prev => prev.map(p => ({ ...p, answered: false, correct: null })))
       if (q.type === 'pattern') { setPatternVisible(true); setTimeout(() => setPatternVisible(false), 3000) }
       if (q.type === 'bluff') {
@@ -691,12 +751,13 @@ export default function Game() {
       setSealedCount(data.submitted)
       setPlayers(prev => prev.map(p => p.address === data.address ? { ...p, answered: true } : p))
     })
-    socket.on('game:round_end', (data: { answer: string | null; scores: PlayerState[]; sealedResult?: SealedResult; bluffResult?: BluffResult }) => {
+    socket.on('game:round_end', (data: { answer: string | null; scores: PlayerState[]; sealedResult?: SealedResult; bluffResult?: BluffResult; coinflipResult?: CoinflipResult }) => {
       if (timerRef.current) clearInterval(timerRef.current)
       data.scores.forEach((p: PlayerState) => { if (p.username) usernameCache.set(p.address.toLowerCase(), p.username) })
       setPhase('round_end'); setRoundAnswer(data.answer); setPlayers(data.scores)
       if (data.sealedResult) setSealedResult(data.sealedResult)
       if (data.bluffResult) { setBluffResult(data.bluffResult); bluffBidRef.current = data.bluffResult.bid }
+      if (data.coinflipResult) { setCoinflipAnimating(true); setTimeout(() => { setCoinflipAnimating(false); setCoinflipResult(data.coinflipResult!) }, 800) }
     })
     socket.on('game:over', (data: { winner: string; pot: string; payoutMode?: string; claimSig?: string; scores: Array<{ address: string; score: number; rank: number }> }) => {
       if (timerRef.current) clearInterval(timerRef.current)
@@ -925,6 +986,18 @@ export default function Game() {
     } else {
       submitAnswer(String(cell))
     }
+  }
+
+  function handleCoinflipPick(pick: 0 | 1) {
+    if (coinflipPick !== null) return // already picked
+    setCoinflipPick(pick)
+    setSealedCount(c => c + 1)
+    if (isBotMode) {
+      if (botCoinflipPickRef.current !== null && question) endBotCoinflipRound(question)
+      // else bot picks after its delay and will call endBotCoinflipRound
+      return
+    }
+    submitAnswer(String(pick))
   }
 
   function handleSealedSubmit() {
@@ -1284,11 +1357,12 @@ export default function Game() {
   )
 
   // ── Playing / Round end ───────────────────────────────────────────────
-  const isSealedGame  = question?.type === 'sealed'
-  const isGridGame    = question?.type === 'grid'
-  const isPatternGame = question?.type === 'pattern'
-  const isBluffGame   = question?.type === 'bluff'
-  const isMathGame    = !question || (question.type === 'math')
+  const isSealedGame   = question?.type === 'sealed'
+  const isGridGame     = question?.type === 'grid'
+  const isPatternGame  = question?.type === 'pattern'
+  const isBluffGame    = question?.type === 'bluff'
+  const isCoinflipGame = question?.type === 'coinflip'
+  const isMathGame     = !question || (question.type === 'math')
 
   return (
     <div style={{ maxWidth: '720px', margin: '0 auto', padding: '20px 16px' }}>
@@ -1321,7 +1395,7 @@ export default function Game() {
           {question && <p style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, marginTop: '2px', fontSize: '0.9rem' }}>Round {question.round}/{question.total}</p>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {phase === 'playing' && !isSealedGame && !isBluffGame && (
+          {phase === 'playing' && !isSealedGame && !isBluffGame && !isCoinflipGame && (
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(1.8rem,6vw,2.8rem)', fontWeight: 900, color: timerColor, lineHeight: 1 }}>{timeLeft}</div>
               <div style={{ fontSize: '0.6rem', color: '#64748b', letterSpacing: '0.1em' }}>SEC</div>
@@ -1352,7 +1426,7 @@ export default function Game() {
       )}
 
       {/* Timer bar */}
-      {phase === 'playing' && !isSealedGame && (
+      {phase === 'playing' && !isSealedGame && !isCoinflipGame && (
         <div style={{ height: '4px', background: '#1e1e30', borderRadius: '2px', marginBottom: '20px', overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${(timeLeft / roundTimeS) * 100}%`, background: timerColor, borderRadius: '2px', transition: 'width 1s linear, background 0.5s' }} />
         </div>
@@ -1578,6 +1652,115 @@ export default function Game() {
                 <div style={{ textAlign: 'center', color: '#64748b', padding: '16px', fontSize: '0.88rem' }}>
                   {isBotMode ? '🤔 Bot is thinking…' : `Waiting for ${displayName(bluffTurnOrder[bluffTurnIdx] ?? '')}…`}
                 </div>
+              )}
+            </>
+          )}
+
+          {/* ── COIN FLIP ── */}
+          {isCoinflipGame && (
+            <>
+              <style>{`
+                @keyframes coin-spin { 0%{transform:rotateY(0deg)} 100%{transform:rotateY(1440deg)} }
+                @keyframes coin-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+                @keyframes cf-btn-glow { 0%,100%{box-shadow:0 0 12px rgba(124,58,237,0.3)} 50%{box-shadow:0 0 28px rgba(124,58,237,0.7)} }
+                .cf-heads-btn:active,.cf-tails-btn:active { transform:scale(0.94)!important; }
+              `}</style>
+
+              {/* Coin */}
+              <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'20px', marginBottom:'24px' }}>
+                <div style={{
+                  width:'96px', height:'96px', borderRadius:'50%',
+                  background: coinflipAnimating
+                    ? 'linear-gradient(135deg,#f59e0b,#d97706)'
+                    : coinflipResult
+                      ? (coinflipResult.flip === 1 ? 'linear-gradient(135deg,#f59e0b,#fcd34d)' : 'linear-gradient(135deg,#94a3b8,#cbd5e1)')
+                      : 'linear-gradient(135deg,#7c3aed,#06b6d4)',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  fontSize: coinflipAnimating ? '2.5rem' : '3rem',
+                  animation: coinflipAnimating ? 'coin-spin 0.8s ease-in-out' : 'coin-float 2.5s ease-in-out infinite',
+                  boxShadow: coinflipAnimating
+                    ? '0 0 40px rgba(245,158,11,0.6)'
+                    : coinflipResult
+                      ? (coinflipResult.flip === 1 ? '0 0 32px rgba(245,158,11,0.4)' : '0 0 32px rgba(148,163,184,0.3)')
+                      : '0 0 32px rgba(124,58,237,0.4)',
+                  transition: 'background 0.4s, box-shadow 0.4s',
+                  cursor:'default', userSelect:'none',
+                }}>
+                  {coinflipAnimating ? '🌀' : coinflipResult ? (coinflipResult.flip === 1 ? '👑' : '🛡') : '🪙'}
+                </div>
+
+                {/* Result label */}
+                {coinflipResult && (
+                  <div style={{ textAlign:'center' }}>
+                    <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'1.5rem', fontWeight:900, color: coinflipResult.flip === 1 ? '#f59e0b' : '#94a3b8', letterSpacing:'0.08em' }}>
+                      {coinflipResult.flip === 1 ? 'HEADS' : 'TAILS'}
+                    </div>
+                    <div style={{ marginTop:'8px', display:'flex', gap:'8px', justifyContent:'center', flexWrap:'wrap' }}>
+                      {coinflipResult.picks.map(p => {
+                        const correct = p.pick === coinflipResult.flip
+                        return (
+                          <span key={p.address} style={{ padding:'4px 14px', borderRadius:'20px', fontSize:'0.82rem', fontWeight:700,
+                            background: correct ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.1)',
+                            color: correct ? '#22c55e' : '#ef4444',
+                            border:`1px solid ${correct ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.25)'}` }}>
+                            {displayName(p.address)}: {p.pick === 1 ? 'HEADS' : p.pick === 0 ? 'TAILS' : '—'} {correct ? '✓' : '✗'}
+                          </span>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {!coinflipResult && !coinflipAnimating && (
+                  <p style={{ color:'#64748b', fontSize:'0.8rem', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.1em' }}>
+                    {sealedCount}/{players.length} LOCKED IN
+                  </p>
+                )}
+                {coinflipAnimating && (
+                  <p style={{ color:'#f59e0b', fontSize:'0.85rem', fontWeight:700, fontFamily:'Orbitron,sans-serif' }}>FLIPPING…</p>
+                )}
+              </div>
+
+              {/* Timer */}
+              {phase === 'playing' && !coinflipResult && (
+                <div style={{ marginBottom:'20px' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.78rem', color:'#64748b', marginBottom:'4px' }}>
+                    <span>Time to pick</span><span style={{ color:timerColor }}>{timeLeft}s</span>
+                  </div>
+                  <div style={{ height:'4px', background:'#1e1e30', borderRadius:'2px', overflow:'hidden' }}>
+                    <div style={{ height:'100%', width:`${(timeLeft/10)*100}%`, background:timerColor, borderRadius:'2px', transition:'width 1s linear' }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Pick buttons */}
+              {phase === 'playing' && !coinflipResult && (
+                coinflipPick !== null ? (
+                  <div style={{ textAlign:'center', padding:'16px 32px', background:'rgba(124,58,237,0.12)', border:'1px solid rgba(124,58,237,0.3)', borderRadius:'14px', fontFamily:'Orbitron,sans-serif', fontWeight:700, fontSize:'1rem', color:'#a78bfa' }}>
+                    Locked: {coinflipPick === 1 ? '👑 HEADS' : '🛡 TAILS'} — waiting…
+                  </div>
+                ) : (
+                  <div style={{ display:'flex', gap:'16px', justifyContent:'center' }}>
+                    <button className="cf-heads-btn" onClick={() => handleCoinflipPick(1)} style={{
+                      flex:1, maxWidth:'180px', padding:'20px 16px', borderRadius:'16px', cursor:'pointer',
+                      background:'linear-gradient(135deg,rgba(245,158,11,0.18),rgba(245,158,11,0.08))',
+                      border:'2px solid rgba(245,158,11,0.4)', color:'#f59e0b',
+                      fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'1.1rem', letterSpacing:'0.06em',
+                      transition:'all 0.18s', animation:'cf-btn-glow 2s ease-in-out infinite',
+                    }}>
+                      👑<br/>HEADS
+                    </button>
+                    <button className="cf-tails-btn" onClick={() => handleCoinflipPick(0)} style={{
+                      flex:1, maxWidth:'180px', padding:'20px 16px', borderRadius:'16px', cursor:'pointer',
+                      background:'linear-gradient(135deg,rgba(148,163,184,0.18),rgba(148,163,184,0.06))',
+                      border:'2px solid rgba(148,163,184,0.3)', color:'#94a3b8',
+                      fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'1.1rem', letterSpacing:'0.06em',
+                      transition:'all 0.18s',
+                    }}>
+                      🛡<br/>TAILS
+                    </button>
+                  </div>
+                )
               )}
             </>
           )}

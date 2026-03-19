@@ -17,6 +17,7 @@ const GAME_META: Record<string, { title: string; emoji: string; desc: string; mi
   'highest-unique': { title: 'Highest Unique',  emoji: '↑',  desc: 'Pick the highest number nobody else picks. Read the crowd and outsmart them.',      minPlayers: 3, maxPlayers: 20 },
   'lowest-unique':  { title: 'Lowest Unique',   emoji: '↓',  desc: 'Pick the lowest number nobody else picks. Contrarian thinking wins.',               minPlayers: 3, maxPlayers: 20 },
   'liars-dice':     { title: "Liar's Dice",      emoji: '🎲',  desc: 'Each player gets 3 dice. Bid on the total — bluff or call LIAR! to win.',          minPlayers: 2, maxPlayers: 6  },
+  'coin-flip':      { title: 'Coin Flip',        emoji: '🪙',  desc: 'Pure 50/50 — pick Heads or Tails, best of 5 rounds. Luck meets nerve.',             minPlayers: 2, maxPlayers: 2  },
 }
 
 const ENTRY_FEES = [0.5, 1, 2, 5, 10, 25, 50]

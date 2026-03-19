@@ -56,6 +56,14 @@ function GameIcon({ id, color }: { id: string; color: string }) {
       <circle cx="16" cy="16" r="1.5" fill={color}/>
     </svg>
   )
+  if (id === 'coin-flip') return (
+    <svg {...s} viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9"/>
+      <circle cx="12" cy="12" r="5.5" fill={color} fillOpacity="0.2"/>
+      <path d="M12 7v2M12 15v2M7 12h2M15 12h2" strokeWidth="2"/>
+      <circle cx="12" cy="12" r="2" fill={color}/>
+    </svg>
+  )
   return <svg {...s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>
 }
 
@@ -126,6 +134,18 @@ const GAMES = [
     glow: '#f97316', glowRgb: '249,115,22',
     botMode: true,
   },
+  {
+    id: 'coin-flip',
+    title: 'Coin Flip',
+    desc: '1v1 pure tension — pick Heads or Tails, best of 5 rounds. No skill, just nerve.',
+    tags: ['1v1', 'Luck', 'Fast'],
+    entry: '$0.50 – $50',
+    players: '2',
+    status: 'live' as const,
+    glow: '#f59e0b', glowRgb: '245,158,11',
+    botMode: true,
+    hot: true,
+  },
 ]
 
 const STEPS = [
@@ -161,15 +181,47 @@ const STEPS = [
   },
 ]
 
+const TICKER_WINS = [
+  { user:'Kira_X', game:'Coin Flip', amount:'$18.70', side:'👑' },
+  { user:'NovaBet', game:'Math Arena', amount:'$42.50', side:'✚' },
+  { user:'0xShadow', game:"Liar's Dice", amount:'$85.00', side:'🎲' },
+  { user:'CryptoAce', game:'Reaction Grid', amount:'$21.25', side:'⊞' },
+  { user:'ZeroG', game:'Coin Flip', amount:'$4.25', side:'🛡' },
+  { user:'Riven88', game:'Highest Unique', amount:'$63.75', side:'↑' },
+  { user:'Mxlk', game:'Pattern Memory', amount:'$17.00', side:'🧠' },
+  { user:'BlockBet', game:'Coin Flip', amount:'$42.50', side:'👑' },
+  { user:'Apex_V', game:"Liar's Dice", amount:'$127.50', side:'🎲' },
+  { user:'Pulse', game:'Lowest Unique', amount:'$8.50', side:'↓' },
+]
+
 export default function Home() {
   return (
     <div style={{ background: '#0a0a0f', minHeight: '100vh' }}>
       <style>{`
         @keyframes pulse-glow { 0%,100%{opacity:.4;transform:scale(1)} 50%{opacity:.7;transform:scale(1.05)} }
         @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+        @keyframes ticker-scroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+        @keyframes card-shimmer { 0%{background-position:200% center} 100%{background-position:-200% center} }
+        @keyframes hot-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.7;transform:scale(1.08)} }
         .game-card { transition: transform .22s, box-shadow .22s; }
-        .game-card:hover { transform: translateY(-6px) !important; }
+        @media (hover: hover) {
+          .game-card:hover { transform: translateY(-6px) !important; }
+        }
       `}</style>
+
+      {/* Live wins ticker */}
+      <div style={{ background:'rgba(34,197,94,0.05)', borderBottom:'1px solid rgba(34,197,94,0.1)', overflow:'hidden', height:'36px', display:'flex', alignItems:'center' }}>
+        <div style={{ display:'inline-flex', gap:'0', animation:'ticker-scroll 28s linear infinite', whiteSpace:'nowrap' }}>
+          {[...TICKER_WINS, ...TICKER_WINS].map((w, i) => (
+            <span key={i} style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'0 28px', fontSize:'0.75rem', color:'#94a3b8', borderRight:'1px solid #1e1e30' }}>
+              <span style={{ color:'#22c55e', fontWeight:700 }}>🏆 {w.user}</span>
+              <span>won</span>
+              <span style={{ color:'#f59e0b', fontWeight:700 }}>{w.amount}</span>
+              <span>in {w.side} {w.game}</span>
+            </span>
+          ))}
+        </div>
+      </div>
 
       {/* Hero */}
       <div style={{ position: 'relative', textAlign: 'center', padding: 'clamp(56px,10vw,96px) clamp(16px,5vw,40px) clamp(40px,6vw,72px)', overflow: 'hidden' }}>
@@ -291,9 +343,16 @@ function GameCard({ game }: { game: typeof GAMES[0] }) {
       <div style={{ padding: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '14px' }}>
           <GameIcon id={game.id} color={game.glow} />
-          <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', padding: '4px 10px', borderRadius: '20px', background: 'rgba(34,197,94,0.12)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)' }}>
-            ● LIVE
-          </span>
+          <div style={{ display:'flex', gap:'6px', alignItems:'center' }}>
+            {(game as typeof game & { hot?: boolean }).hot && (
+              <span style={{ fontSize:'0.65rem', fontWeight:700, letterSpacing:'0.1em', padding:'3px 9px', borderRadius:'20px', background:'rgba(239,68,68,0.15)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.35)', animation:'hot-pulse 1.6s ease-in-out infinite' }}>
+                🔥 HOT
+              </span>
+            )}
+            <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', padding: '4px 10px', borderRadius: '20px', background: 'rgba(34,197,94,0.12)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)' }}>
+              ● LIVE
+            </span>
+          </div>
         </div>
 
         <h2 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '1.05rem', fontWeight: 700, marginBottom: '8px', color: '#e2e8f0' }}>
