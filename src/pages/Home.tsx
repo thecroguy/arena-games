@@ -4,33 +4,34 @@ import { useAccount } from 'wagmi'
 import { connectSocket } from '../utils/socket'
 import { getUsername } from '../utils/profile'
 
-// ─── Animated game icons (no emoji) ─────────────────────────────────────────
+// ── Animated game icons ──────────────────────────────────────────────────────
+// animate=false used in small contexts (tabs, wins list) to stop distraction
 
-function IconCoin({ size = 44, spin = false }: { size?: number; spin?: boolean }) {
+function IconCoin({ size = 44, animate = true }: { size?: number; animate?: boolean }) {
   return (
     <div style={{
       width: size, height: size, borderRadius: '50%',
-      background: 'radial-gradient(circle at 35% 30%, #fde68a 0%, #f59e0b 50%, #92400e 100%)',
-      boxShadow: `0 0 ${size * 0.4}px rgba(245,158,11,0.55), inset 0 2px 4px rgba(255,255,255,0.3), inset 0 -2px 4px rgba(0,0,0,0.3)`,
-      border: '2px solid rgba(251,191,36,0.5)',
+      background: 'radial-gradient(circle at 35% 30%, #fde68a 0%, #f59e0b 52%, #92400e 100%)',
+      boxShadow: animate ? `0 0 ${size * 0.45}px rgba(245,158,11,0.6), inset 0 2px 4px rgba(255,255,255,0.3), inset 0 -2px 4px rgba(0,0,0,0.3)` : `0 0 ${size * 0.18}px rgba(245,158,11,0.3)`,
+      border: '2px solid rgba(251,191,36,0.55)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       flexShrink: 0, position: 'relative', overflow: 'hidden',
-      animation: spin ? 'coin-spin 2s linear infinite' : 'none',
+      animation: animate ? 'coin-spin 2.2s linear infinite' : 'none',
     }}>
       <div style={{ position: 'absolute', inset: '18%', borderRadius: '50%', border: '1px solid rgba(120,53,15,0.45)' }} />
-      <span style={{ fontFamily: 'Orbitron,sans-serif', fontWeight: 900, fontSize: size * 0.26, color: '#78350f', letterSpacing: '0.02em', position: 'relative', zIndex: 1 }}>H|T</span>
+      <span style={{ fontFamily: 'Orbitron,sans-serif', fontWeight: 900, fontSize: size * 0.26, color: '#78350f', position: 'relative', zIndex: 1 }}>H|T</span>
     </div>
   )
 }
 
-function IconMath({ size = 44 }: { size?: number }) {
+function IconMath({ size = 44, animate = true }: { size?: number; animate?: boolean }) {
   return (
     <div style={{
       width: size, height: size, borderRadius: size * 0.22,
       background: 'linear-gradient(145deg, #8b5cf6 0%, #4c1d95 100%)',
-      boxShadow: `0 0 ${size * 0.38}px rgba(124,58,237,0.5), inset 0 1px 3px rgba(255,255,255,0.15)`,
+      boxShadow: `0 0 ${animate ? size * 0.38 : size * 0.15}px rgba(124,58,237,${animate ? 0.5 : 0.25})`,
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-      animation: 'math-pulse 2s ease-in-out infinite',
+      animation: animate ? 'math-pulse 2s ease-in-out infinite' : 'none',
     }}>
       <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 24 24" fill="white">
         <rect x="11" y="3" width="2" height="18" rx="1" />
@@ -40,51 +41,50 @@ function IconMath({ size = 44 }: { size?: number }) {
   )
 }
 
-function IconGrid({ size = 44 }: { size?: number }) {
+function IconGrid({ size = 44, animate = true }: { size?: number; animate?: boolean }) {
   return (
     <div style={{
       width: size, height: size, borderRadius: size * 0.22,
       background: 'linear-gradient(145deg, #0891b2 0%, #164e63 100%)',
-      boxShadow: `0 0 ${size * 0.38}px rgba(6,182,212,0.45), inset 0 1px 3px rgba(255,255,255,0.12)`,
-      display: 'grid', gridTemplateColumns: '1fr 1fr',
-      gap: size * 0.1, padding: size * 0.13, flexShrink: 0,
+      boxShadow: `0 0 ${animate ? size * 0.38 : size * 0.15}px rgba(6,182,212,${animate ? 0.45 : 0.2})`,
+      display: 'grid', gridTemplateColumns: '1fr 1fr', gap: size * 0.1, padding: size * 0.13, flexShrink: 0,
     }}>
       {[0, 1, 2, 3].map(i => (
         <div key={i} style={{
           borderRadius: size * 0.07,
-          background: 'rgba(103,232,249,0.35)',
-          animation: `cell-flash 2.4s ${i * 0.6}s ease-in-out infinite`,
+          background: 'rgba(103,232,249,0.3)',
+          animation: animate ? `cell-flash 2.4s ${i * 0.6}s ease-in-out infinite` : 'none',
         }} />
       ))}
     </div>
   )
 }
 
-function IconDice({ size = 44 }: { size?: number }) {
-  const d = size * 0.12
+function IconDice({ size = 44, animate = true }: { size?: number; animate?: boolean }) {
+  const d = size * 0.11
   return (
     <div style={{
       width: size, height: size, borderRadius: size * 0.22,
       background: 'linear-gradient(145deg, #fb923c 0%, #9a3412 100%)',
-      boxShadow: `0 0 ${size * 0.38}px rgba(249,115,22,0.45), inset 0 1px 3px rgba(255,255,255,0.15)`,
+      boxShadow: `0 0 ${animate ? size * 0.38 : size * 0.15}px rgba(249,115,22,${animate ? 0.45 : 0.2})`,
       display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gridTemplateRows: '1fr 1fr 1fr',
       padding: size * 0.13, gap: d, flexShrink: 0,
-      animation: 'dice-tilt 3s ease-in-out infinite',
+      animation: animate ? 'dice-dots 2s steps(1) infinite' : 'none',
     }}>
       {[1,0,1,0,1,0,1,0,1].map((on, i) => (
-        <div key={i} style={{ borderRadius: '50%', background: on ? 'rgba(255,255,255,0.9)' : 'transparent' }} />
+        <div key={i} style={{ borderRadius: '50%', background: on ? 'rgba(255,255,255,0.92)' : 'transparent' }} />
       ))}
     </div>
   )
 }
 
-function IconMemory({ size = 44 }: { size?: number }) {
+function IconMemory({ size = 44, animate = true }: { size?: number; animate?: boolean }) {
   const pat = [1,0,1,0,1,0,1,0,1]
   return (
     <div style={{
       width: size, height: size, borderRadius: size * 0.22,
       background: 'linear-gradient(145deg, #9333ea 0%, #581c87 100%)',
-      boxShadow: `0 0 ${size * 0.38}px rgba(168,85,247,0.45), inset 0 1px 3px rgba(255,255,255,0.12)`,
+      boxShadow: `0 0 ${animate ? size * 0.38 : size * 0.15}px rgba(168,85,247,${animate ? 0.45 : 0.2})`,
       display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gridTemplateRows: '1fr 1fr 1fr',
       padding: size * 0.1, gap: size * 0.06, flexShrink: 0,
     }}>
@@ -92,21 +92,21 @@ function IconMemory({ size = 44 }: { size?: number }) {
         <div key={i} style={{
           borderRadius: size * 0.04,
           background: on ? 'rgba(216,180,254,0.85)' : 'rgba(168,85,247,0.18)',
-          animation: `tile-blink 2.8s ${i * 0.28}s ease-in-out infinite`,
+          animation: animate ? `tile-blink 2.8s ${i * 0.28}s ease-in-out infinite` : 'none',
         }} />
       ))}
     </div>
   )
 }
 
-function IconArrowUp({ size = 44 }: { size?: number }) {
+function IconArrowUp({ size = 44, animate = true }: { size?: number; animate?: boolean }) {
   return (
     <div style={{
       width: size, height: size, borderRadius: size * 0.22,
       background: 'linear-gradient(145deg, #22c55e 0%, #14532d 100%)',
-      boxShadow: `0 0 ${size * 0.38}px rgba(34,197,94,0.45), inset 0 1px 3px rgba(255,255,255,0.12)`,
+      boxShadow: `0 0 ${animate ? size * 0.38 : size * 0.15}px rgba(34,197,94,${animate ? 0.45 : 0.2})`,
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-      animation: 'arrow-up 1.8s ease-in-out infinite',
+      animation: animate ? 'arrow-up 1.8s ease-in-out infinite' : 'none',
     }}>
       <svg width={size * 0.52} height={size * 0.52} viewBox="0 0 24 24" fill="none">
         <path d="M12 5l7 7h-4v7H9v-7H5l7-7z" fill="rgba(255,255,255,0.9)" />
@@ -115,14 +115,14 @@ function IconArrowUp({ size = 44 }: { size?: number }) {
   )
 }
 
-function IconArrowDown({ size = 44 }: { size?: number }) {
+function IconArrowDown({ size = 44, animate = true }: { size?: number; animate?: boolean }) {
   return (
     <div style={{
       width: size, height: size, borderRadius: size * 0.22,
       background: 'linear-gradient(145deg, #ec4899 0%, #831843 100%)',
-      boxShadow: `0 0 ${size * 0.38}px rgba(236,72,153,0.45), inset 0 1px 3px rgba(255,255,255,0.12)`,
+      boxShadow: `0 0 ${animate ? size * 0.38 : size * 0.15}px rgba(236,72,153,${animate ? 0.45 : 0.2})`,
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-      animation: 'arrow-down 1.8s ease-in-out infinite',
+      animation: animate ? 'arrow-down 1.8s ease-in-out infinite' : 'none',
     }}>
       <svg width={size * 0.52} height={size * 0.52} viewBox="0 0 24 24" fill="none">
         <path d="M12 19l-7-7h4V5h6v7h4l-7 7z" fill="rgba(255,255,255,0.9)" />
@@ -131,17 +131,17 @@ function IconArrowDown({ size = 44 }: { size?: number }) {
   )
 }
 
-function GameIcon({ id, size = 44, spin = false }: { id: string; size?: number; spin?: boolean }) {
-  if (id === 'coin-flip')      return <IconCoin size={size} spin={spin} />
-  if (id === 'math-arena')     return <IconMath size={size} />
-  if (id === 'reaction-grid')  return <IconGrid size={size} />
-  if (id === 'liars-dice')     return <IconDice size={size} />
-  if (id === 'pattern-memory') return <IconMemory size={size} />
-  if (id === 'highest-unique') return <IconArrowUp size={size} />
-  return <IconArrowDown size={size} />
+function GameIcon({ id, size = 44, animate = true }: { id: string; size?: number; animate?: boolean }) {
+  if (id === 'coin-flip')      return <IconCoin size={size} animate={animate} />
+  if (id === 'math-arena')     return <IconMath size={size} animate={animate} />
+  if (id === 'reaction-grid')  return <IconGrid size={size} animate={animate} />
+  if (id === 'liars-dice')     return <IconDice size={size} animate={animate} />
+  if (id === 'pattern-memory') return <IconMemory size={size} animate={animate} />
+  if (id === 'highest-unique') return <IconArrowUp size={size} animate={animate} />
+  return <IconArrowDown size={size} animate={animate} />
 }
 
-// ─── Data ───────────────────────────────────────────────────────────────────
+// ── Data ─────────────────────────────────────────────────────────────────────
 
 const GAMES = [
   { id:'coin-flip',      title:'Coin Flip',      short:'COIN FLIP',   desc:'Pick Heads or Tails. Best of 5 rounds. Pure 50/50 with nerve on the line.',        tags:['1v1','Fast'],       players:'2',    maxPot:'$85',  activePlayers:24, glow:'#f59e0b', glowRgb:'245,158,11', bgFrom:'#f59e0b', bgTo:'#d97706', hot:true  },
@@ -176,7 +176,7 @@ export default function Home() {
 
   const [activeGame, setActiveGame] = useState(GAMES[0])
   const [playerCount, setPlayerCount] = useState(GAMES[0].activePlayers)
-  const [chat, setChat]       = useState<ChatMsg[]>([])
+  const [chat, setChat]         = useState<ChatMsg[]>([])
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [onlineCount, setOnlineCount] = useState(0)
   const [chatInput, setChatInput] = useState('')
@@ -209,8 +209,11 @@ export default function Home() {
     setChatInput('')
   }
 
+  // Direct DOM scroll — works reliably
   function slideCarousel(dir: 1 | -1) {
-    carouselRef.current?.scrollBy({ left: dir * 220, behavior: 'smooth' })
+    const el = carouselRef.current
+    if (!el) return
+    el.scrollLeft += dir * 340
   }
 
   const g = activeGame
@@ -219,33 +222,32 @@ export default function Home() {
     <div style={{ background:'#08080f', height:'calc(100vh - 60px)', color:'#e2e8f0', display:'flex', flexDirection:'column', overflow:'hidden' }}>
       <style>{`
         @keyframes pulse-dot   { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.6)} }
-        @keyframes scan-line   { 0%{top:-3px} 100%{top:104%} }
-        @keyframes border-glow { 0%,100%{opacity:.3} 50%{opacity:.9} }
+        @keyframes border-glow { 0%,100%{opacity:.28} 50%{opacity:.9} }
         @keyframes coin-spin   { 0%{transform:perspective(180px) rotateY(0deg)} 100%{transform:perspective(180px) rotateY(360deg)} }
-        @keyframes math-pulse  { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.4) drop-shadow(0 0 8px #a78bfa)} }
-        @keyframes cell-flash  { 0%,100%{background:rgba(103,232,249,0.25)} 50%{background:rgba(103,232,249,0.95);box-shadow:0 0 8px rgba(6,182,212,0.8)} }
-        @keyframes dice-tilt   { 0%,100%{transform:rotate(0deg)} 50%{transform:rotate(15deg)} }
-        @keyframes tile-blink  { 0%,100%{opacity:.25} 50%{opacity:1;box-shadow:0 0 6px rgba(168,85,247,0.8)} }
-        @keyframes arrow-up    { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
-        @keyframes arrow-down  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(5px)} }
-        @keyframes card-idle   { 0%,100%{box-shadow:var(--cs)} 50%{box-shadow:var(--cs-hi)} }
-        @keyframes hot-badge   { 0%,100%{box-shadow:0 0 5px rgba(239,68,68,0.4)} 50%{box-shadow:0 0 14px rgba(239,68,68,0.9)} }
-        @keyframes slide-in    { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:translateX(0)} }
+        @keyframes math-pulse  { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.5) drop-shadow(0 0 10px #a78bfa)} }
+        @keyframes cell-flash  { 0%,100%{background:rgba(103,232,249,0.22)} 50%{background:rgba(103,232,249,1);box-shadow:0 0 10px rgba(6,182,212,0.9)} }
+        @keyframes dice-dots   { 0%,49%{opacity:1} 50%,74%{opacity:.35} 75%,100%{opacity:1} }
+        @keyframes tile-blink  { 0%,100%{opacity:.22} 50%{opacity:1;box-shadow:0 0 7px rgba(168,85,247,0.9)} }
+        @keyframes arrow-up    { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+        @keyframes arrow-down  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(6px)} }
+        @keyframes hot-badge   { 0%,100%{box-shadow:0 0 4px rgba(239,68,68,0.4)} 50%{box-shadow:0 0 12px rgba(239,68,68,0.9)} }
+        @keyframes slide-in    { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:translateX(0)} }
+        @keyframes card-rise   { 0%,100%{box-shadow:0 0 0 transparent} 50%{box-shadow:var(--card-glow)} }
 
-        .g-tab,.play-btn,.bot-btn,.r-tab,.carousel-card,.slide-btn { cursor:pointer; border:none; transition:all .14s; }
-        .play-btn:active   { transform:scale(.96); }
-        .g-tab:active      { transform:scale(.93); }
-        .carousel-card:active { transform:scale(.97); }
-        .slide-btn:active  { transform:scale(.9); }
+        .g-tab,.play-btn,.bot-btn,.r-tab,.c-card,.slide-btn,.send-btn { cursor:pointer; border:none; transition:all .14s; }
+        .play-btn:active  { transform:scale(.96); }
+        .g-tab:active     { transform:scale(.93); }
+        .c-card:active    { transform:scale(.97); }
+        .slide-btn:active { transform:scale(.88); }
 
         @media (hover:hover) {
-          .g-tab:hover        { background:rgba(255,255,255,0.06)!important; color:#94a3b8!important; }
-          .play-btn:hover     { filter:brightness(1.15); transform:translateY(-1px); }
-          .bot-btn:hover      { background:rgba(124,58,237,0.22)!important; }
-          .r-tab:hover        { background:rgba(255,255,255,0.04)!important; }
-          .carousel-card:hover { transform:translateY(-4px) scale(1.02)!important; }
-          .slide-btn:hover    { background:rgba(255,255,255,0.1)!important; }
-          .send-btn:hover     { filter:brightness(1.15); }
+          .g-tab:hover       { background:rgba(255,255,255,0.06)!important; color:#94a3b8!important; }
+          .play-btn:hover    { filter:brightness(1.15); transform:translateY(-1px); }
+          .bot-btn:hover     { background:rgba(124,58,237,0.22)!important; }
+          .r-tab:hover       { background:rgba(255,255,255,0.05)!important; }
+          .c-card:hover      { transform:translateY(-5px) scale(1.02)!important; }
+          .slide-btn:hover   { background:rgba(255,255,255,0.1)!important; border-color:rgba(255,255,255,0.15)!important; }
+          .send-btn:hover    { filter:brightness(1.15); }
         }
         ::-webkit-scrollbar { display:none; }
         * { scrollbar-width:none; }
@@ -267,7 +269,7 @@ export default function Home() {
         </div>
         {RECENT_WINS.map((w, i) => (
           <div key={i} style={{ flexShrink:0, display:'flex', alignItems:'center', gap:'8px', padding:'0 16px', borderRight:'1px solid #0d0d1c' }}>
-            <GameIcon id={w.gid} size={18} />
+            <GameIcon id={w.gid} size={18} animate={false} />
             <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700, color:'#64748b' }}>{w.user}</span>
             <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.66rem', fontWeight:900, color:'#22c55e' }}>{w.amount}</span>
             <span style={{ fontSize:'0.52rem', color:'#1e2030' }}>{w.t}</span>
@@ -278,7 +280,7 @@ export default function Home() {
       {/* ── 3-column body ──────────────────────────────────────── */}
       <div style={{ flex:1, display:'flex', overflow:'hidden', minHeight:0 }}>
 
-        {/* LEFT: chat panel */}
+        {/* LEFT: chat */}
         <div className="left-chat" style={{ width:'270px', flexShrink:0, borderRight:'1px solid #0d0d1e', display:'flex', flexDirection:'column', background:'#06060e' }}>
           <div style={{ padding:'10px 14px', borderBottom:'1px solid #0d0d1e', display:'flex', alignItems:'center', gap:'7px', flexShrink:0 }}>
             <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.6s infinite' }} />
@@ -286,7 +288,7 @@ export default function Home() {
             <span style={{ fontSize:'0.58rem', color:'#1e2030', fontFamily:'Orbitron,sans-serif' }}>{onlineCount || '--'}</span>
           </div>
 
-          <div style={{ flex:1, overflowY:'auto', padding:'10px 12px', display:'flex', flexDirection:'column', gap:'6px' }}>
+          <div style={{ flex:1, overflowY:'auto', padding:'10px 12px', display:'flex', flexDirection:'column', gap:'7px' }}>
             {chat.length === 0
               ? <div style={{ textAlign:'center', color:'#1e2030', fontSize:'0.72rem', marginTop:'24px' }}>Connecting...</div>
               : chat.map((m, i) => {
@@ -294,8 +296,15 @@ export default function Home() {
                   const col  = CHAT_COLORS[m.username.charCodeAt(0) % CHAT_COLORS.length]
                   return (
                     <div key={i} style={{ display:'flex', gap:'8px', alignItems:'flex-start' }}>
-                      <div style={{ width:'26px', height:'26px', borderRadius:'7px', background:`${col}1a`, border:`1px solid ${col}40`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.58rem', fontWeight:800, color:col, flexShrink:0, marginTop:'1px' }}>
-                        {m.username.slice(0,2).toUpperCase()}
+                      {/* Circle avatar with single initial */}
+                      <div style={{
+                        width:'28px', height:'28px', borderRadius:'50%',
+                        background:`linear-gradient(135deg, ${col}30, ${col}12)`,
+                        border:`1.5px solid ${col}55`,
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        fontSize:'0.62rem', fontWeight:800, color:col, flexShrink:0, marginTop:'1px',
+                      }}>
+                        {m.username.slice(0,1).toUpperCase()}
                       </div>
                       <div style={{ minWidth:0 }}>
                         <span style={{ fontSize:'0.6rem', color: isMe ? '#a78bfa' : col, fontWeight:700 }}>{isMe ? 'You' : m.username}</span>
@@ -308,7 +317,6 @@ export default function Home() {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Chat input with send button */}
           <div style={{ padding:'10px 12px', borderTop:'1px solid #0d0d1e', flexShrink:0 }}>
             <div style={{ display:'flex', gap:'6px', background:'rgba(255,255,255,0.028)', border:'1px solid #111125', borderRadius:'10px', padding:'8px 10px', alignItems:'center' }}>
               <input
@@ -319,29 +327,24 @@ export default function Home() {
                 disabled={!address}
                 style={{ flex:1, background:'transparent', border:'none', outline:'none', color:'#cbd5e1', fontSize:'0.73rem', minWidth:0 }}
               />
-              <button
-                className="send-btn"
-                onClick={sendChat}
-                disabled={!address || !chatInput.trim()}
+              <button className="send-btn" onClick={sendChat} disabled={!address || !chatInput.trim()}
                 style={{
                   background: address && chatInput.trim() ? 'linear-gradient(135deg,#7c3aed,#06b6d4)' : 'rgba(255,255,255,0.04)',
-                  border: 'none', borderRadius:'7px', padding:'5px 12px',
+                  border:'none', borderRadius:'7px', padding:'5px 13px',
                   color: address && chatInput.trim() ? '#fff' : '#374151',
-                  fontSize:'0.62rem', fontWeight:700, cursor: address && chatInput.trim() ? 'pointer' : 'default',
+                  fontSize:'0.6rem', fontWeight:700, cursor: address && chatInput.trim() ? 'pointer' : 'default',
                   fontFamily:'Orbitron,sans-serif', letterSpacing:'0.04em', flexShrink:0,
-                  transition:'all .14s',
-                }}
-              >
+                }}>
                 SEND
               </button>
             </div>
           </div>
         </div>
 
-        {/* CENTER: game area */}
+        {/* CENTER */}
         <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', overflow:'hidden' }}>
 
-          {/* Game selector tabs */}
+          {/* Game tabs */}
           <div style={{ display:'flex', gap:'3px', overflowX:'auto', padding:'10px 14px 0', flexShrink:0, background:'#08080f', borderBottom:'1px solid #0d0d1e' }}>
             {GAMES.map(gg => {
               const active = activeGame.id === gg.id
@@ -352,13 +355,13 @@ export default function Home() {
                     flexShrink:0, display:'flex', alignItems:'center', gap:'6px',
                     padding:'7px 13px 9px', borderRadius:'9px 9px 0 0', marginBottom:'-1px',
                     background: active ? '#0c0c17' : 'transparent',
-                    border: `1px solid ${active ? `rgba(${gg.glowRgb},0.28)` : 'transparent'}`,
+                    border:`1px solid ${active ? `rgba(${gg.glowRgb},0.28)` : 'transparent'}`,
                     borderBottom: active ? '1px solid #0c0c17' : '1px solid transparent',
                     borderTop: active ? `2px solid ${gg.glow}` : '2px solid transparent',
                     color: active ? gg.glow : '#374151',
                     fontFamily:'Orbitron,sans-serif', fontSize:'0.58rem', fontWeight:700, letterSpacing:'0.05em',
                   }}>
-                  <GameIcon id={gg.id} size={16} />
+                  <GameIcon id={gg.id} size={15} animate={false} />
                   {gg.short}
                   <span style={{ fontSize:'0.5rem', color: active ? `rgba(${gg.glowRgb},0.7)` : '#1e2030' }}>{gg.activePlayers}</span>
                   {gg.hot && <span style={{ fontSize:'0.44rem', padding:'1px 4px', borderRadius:'4px', background:'rgba(239,68,68,0.16)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.28)', animation:'hot-badge 1.6s infinite' }}>HOT</span>}
@@ -367,18 +370,18 @@ export default function Home() {
             })}
           </div>
 
-          {/* Scrollable content */}
+          {/* Scrollable center content */}
           <div style={{ flex:1, overflowY:'auto', padding:'14px 14px', display:'flex', flexDirection:'column', gap:'14px', minHeight:0 }}>
 
             {/* Featured game panel */}
             <div key={g.id} style={{ position:'relative', borderRadius:'18px', overflow:'hidden', border:`1px solid rgba(${g.glowRgb},0.22)`, background:'#0b0b16', animation:'slide-in .2s ease-out', flexShrink:0 }}>
-              <div style={{ position:'absolute', inset:0, background:`radial-gradient(ellipse at 70% 40%, rgba(${g.glowRgb},0.12) 0%, transparent 58%)`, pointerEvents:'none' }} />
-              <div style={{ position:'absolute', left:0, right:0, height:'2px', background:`linear-gradient(90deg,transparent,rgba(${g.glowRgb},0.75),transparent)`, animation:'scan-line 4s linear infinite', pointerEvents:'none', zIndex:1 }} />
+              <div style={{ position:'absolute', inset:0, background:`radial-gradient(ellipse at 70% 35%, rgba(${g.glowRgb},0.13) 0%, transparent 60%)`, pointerEvents:'none' }} />
               <div style={{ position:'absolute', inset:0, backgroundImage:'radial-gradient(rgba(255,255,255,0.018) 1px,transparent 1px)', backgroundSize:'26px 26px', pointerEvents:'none' }} />
-              <div style={{ position:'absolute', top:0, left:0, right:0, height:'1px', background:`linear-gradient(90deg,transparent,${g.glow},transparent)`, animation:'border-glow 2.5s ease-in-out infinite' }} />
+              {/* Static top border glow, no moving scan line */}
+              <div style={{ position:'absolute', top:0, left:0, right:0, height:'2px', background:`linear-gradient(90deg,transparent,${g.glow},transparent)`, animation:'border-glow 2.5s ease-in-out infinite' }} />
 
               <div style={{ position:'relative', zIndex:2, padding:'clamp(16px,2.2vw,28px)', display:'flex', gap:'clamp(14px,2vw,24px)', alignItems:'center', flexWrap:'wrap' }}>
-                <GameIcon id={g.id} size={74} spin={g.id === 'coin-flip'} />
+                <GameIcon id={g.id} size={76} animate={true} />
 
                 <div style={{ flex:1, minWidth:'150px' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'5px' }}>
@@ -432,63 +435,70 @@ export default function Home() {
               <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px' }}>
                 <span style={{ fontSize:'0.52rem', fontFamily:'Orbitron,sans-serif', color:'#374151', letterSpacing:'0.12em', fontWeight:700, flex:1 }}>ALL GAMES</span>
                 <button className="slide-btn" onClick={() => slideCarousel(-1)}
-                  style={{ width:'26px', height:'26px', borderRadius:'6px', background:'rgba(255,255,255,0.04)', border:'1px solid #111125', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M7 1L3 5l4 4" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  style={{ width:'28px', height:'28px', borderRadius:'7px', background:'rgba(255,255,255,0.04)', border:'1px solid #111125', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                    <path d="M8 2L4 6l4 4" stroke="#94a3b8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
                 </button>
                 <button className="slide-btn" onClick={() => slideCarousel(1)}
-                  style={{ width:'26px', height:'26px', borderRadius:'6px', background:'rgba(255,255,255,0.04)', border:'1px solid #111125', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 1l4 4-4 4" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  style={{ width:'28px', height:'28px', borderRadius:'7px', background:'rgba(255,255,255,0.04)', border:'1px solid #111125', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                    <path d="M4 2l4 4-4 4" stroke="#94a3b8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
                 </button>
               </div>
+
               <div ref={carouselRef} style={{ display:'flex', gap:'10px', overflowX:'auto', paddingBottom:'4px' }}>
                 {GAMES.filter(gg => gg.id !== activeGame.id).map(gg => (
-                  <button key={gg.id} className="carousel-card"
+                  <button key={gg.id} className="c-card"
                     onClick={() => setActiveGame(gg)}
                     style={{
-                      flexShrink:0, width:'155px', height:'190px',
-                      background:`linear-gradient(160deg, rgba(${gg.glowRgb},0.09) 0%, #0b0b16 60%)`,
-                      border:`1px solid rgba(${gg.glowRgb},0.2)`,
+                      flexShrink:0, width:'158px', height:'215px',
+                      background:`linear-gradient(160deg, rgba(${gg.glowRgb},0.1) 0%, #0b0b16 55%)`,
+                      border:`1px solid rgba(${gg.glowRgb},0.22)`,
                       borderRadius:'16px', padding:'0',
                       display:'flex', flexDirection:'column', textAlign:'left',
-                      position:'relative', overflow:'hidden', cursor:'pointer',
+                      position:'relative', overflow:'hidden',
                     }}>
-                    {/* Top glow line */}
-                    <div style={{ position:'absolute', top:0, left:0, right:0, height:'2px', background:`linear-gradient(90deg,transparent,${gg.glow},transparent)`, opacity:0.7 }} />
-                    {/* Dot grid bg */}
-                    <div style={{ position:'absolute', inset:0, backgroundImage:'radial-gradient(rgba(255,255,255,0.015) 1px,transparent 1px)', backgroundSize:'20px 20px', pointerEvents:'none' }} />
-                    {/* Radial glow */}
-                    <div style={{ position:'absolute', top:0, left:0, right:0, height:'60%', background:`radial-gradient(ellipse at 50% 0%, rgba(${gg.glowRgb},0.12) 0%, transparent 70%)`, pointerEvents:'none' }} />
+                    {/* Top colored border */}
+                    <div style={{ position:'absolute', top:0, left:0, right:0, height:'2px', background:`linear-gradient(90deg,transparent,${gg.glow},transparent)`, opacity:0.8 }} />
+                    {/* Dot grid */}
+                    <div style={{ position:'absolute', inset:0, backgroundImage:'radial-gradient(rgba(255,255,255,0.015) 1px,transparent 1px)', backgroundSize:'18px 18px', pointerEvents:'none' }} />
+                    {/* Radial glow from top */}
+                    <div style={{ position:'absolute', top:0, left:0, right:0, height:'65%', background:`radial-gradient(ellipse at 50% 0%, rgba(${gg.glowRgb},0.14) 0%, transparent 70%)`, pointerEvents:'none' }} />
 
-                    {/* Icon preview area */}
+                    {/* Icon area - large, centered, animated */}
                     <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', position:'relative', zIndex:1 }}>
                       <div style={{ position:'relative' }}>
-                        <div style={{ position:'absolute', inset:'-12px', borderRadius:'50%', background:`radial-gradient(circle, rgba(${gg.glowRgb},0.2) 0%, transparent 70%)`, pointerEvents:'none' }} />
-                        <GameIcon id={gg.id} size={58} spin={gg.id === 'coin-flip'} />
+                        {/* Glow halo behind icon */}
+                        <div style={{ position:'absolute', inset:'-18px', borderRadius:'50%', background:`radial-gradient(circle, rgba(${gg.glowRgb},0.22) 0%, transparent 65%)`, pointerEvents:'none' }} />
+                        <GameIcon id={gg.id} size={64} animate={true} />
                       </div>
                     </div>
 
-                    {/* Info bottom */}
-                    <div style={{ padding:'10px 12px 12px', position:'relative', zIndex:1, borderTop:`1px solid rgba(${gg.glowRgb},0.1)`, background:'rgba(0,0,0,0.3)' }}>
-                      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:700, color:'#cbd5e1', letterSpacing:'0.03em', marginBottom:'5px', display:'flex', alignItems:'center', gap:'5px' }}>
+                    {/* Bottom bar */}
+                    <div style={{ padding:'10px 12px 13px', position:'relative', zIndex:1, background:'rgba(0,0,0,0.35)', backdropFilter:'blur(4px)', borderTop:`1px solid rgba(${gg.glowRgb},0.1)` }}>
+                      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:700, color:'#cbd5e1', letterSpacing:'0.02em', marginBottom:'6px', display:'flex', alignItems:'center', gap:'4px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
                         {gg.title}
                         {gg.hot && <span style={{ fontSize:'0.44rem', padding:'1px 4px', borderRadius:'3px', background:'rgba(239,68,68,0.16)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.26)', animation:'hot-badge 1.6s infinite', flexShrink:0 }}>HOT</span>}
                       </div>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                         <div style={{ display:'flex', alignItems:'center', gap:'4px' }}>
                           <span style={{ width:'4px', height:'4px', borderRadius:'50%', background:'#22c55e', display:'inline-block', animation:'pulse-dot 1.8s infinite' }} />
-                          <span style={{ fontSize:'0.56rem', color:'#374151' }}>{gg.activePlayers}</span>
+                          <span style={{ fontSize:'0.56rem', color:'#374151' }}>{gg.activePlayers} live</span>
                         </div>
-                        <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:800, color:gg.glow }}>{gg.maxPot}</span>
+                        <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.64rem', fontWeight:800, color:gg.glow }}>{gg.maxPot}</span>
                       </div>
                     </div>
                   </button>
                 ))}
               </div>
             </div>
+
           </div>
         </div>
 
-        {/* RIGHT: live feed */}
+        {/* RIGHT: wins / feed */}
         <div className="right-feed" style={{ width:'250px', flexShrink:0, borderLeft:'1px solid #0d0d1e', display:'flex', flexDirection:'column', background:'#06060e' }}>
           <div style={{ display:'flex', borderBottom:'1px solid #0d0d1e', flexShrink:0 }}>
             {(['wins','feed'] as const).map(t => (
@@ -504,7 +514,7 @@ export default function Home() {
             <div style={{ flex:1, overflowY:'auto' }}>
               {RECENT_WINS.map((w, i) => (
                 <div key={i} style={{ display:'flex', alignItems:'center', gap:'9px', padding:'9px 14px', borderBottom:'1px solid #0a0a12' }}>
-                  <GameIcon id={w.gid} size={30} />
+                  <GameIcon id={w.gid} size={30} animate={false} />
                   <div style={{ minWidth:0, flex:1 }}>
                     <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700, color:'#94a3b8', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{w.user}</div>
                     <div style={{ fontSize:'0.52rem', color:'#1e2030', marginTop:'1px' }}>{w.t}</div>
@@ -531,7 +541,7 @@ export default function Home() {
                 ? <div style={{ textAlign:'center', color:'#1e2030', fontSize:'0.7rem', marginTop:'24px' }}>No activity yet...</div>
                 : [...activity].reverse().map((a, i) => (
                     <div key={i} style={{ display:'flex', gap:'9px', alignItems:'flex-start', padding:'8px 14px', borderBottom:'1px solid #0a0a12' }}>
-                      <div style={{ width:'8px', height:'8px', borderRadius:'50%', background:'#22c55e', flexShrink:0, marginTop:'4px', animation:'pulse-dot 2s infinite' }} />
+                      <div style={{ width:'7px', height:'7px', borderRadius:'50%', background:'#22c55e', flexShrink:0, marginTop:'5px', animation:'pulse-dot 2s infinite' }} />
                       <span style={{ fontSize:'0.66rem', color:'#374151', lineHeight:1.5 }}>{a.text}</span>
                     </div>
                   ))
