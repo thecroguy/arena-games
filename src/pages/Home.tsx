@@ -172,7 +172,7 @@ export default function Home() {
 
       {/* ── Stats bar ──────────────────────────────────────────────────── */}
       <div style={{ background: '#0b0b14', borderBottom: '1px solid #13131f', padding: '0 clamp(12px,4vw,32px)' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '0', height: '44px', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0', height: '44px', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', gap: '0' }}>
             {[
               { label: 'GAMES', value: '7 LIVE', color: '#22c55e' },
@@ -198,7 +198,7 @@ export default function Home() {
       </div>
 
       {/* ── Main layout ────────────────────────────────────────────────── */}
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: 'clamp(16px,3vw,28px) clamp(12px,4vw,32px)', display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: '20px' }}>
+      <div style={{ padding: 'clamp(16px,3vw,28px) clamp(12px,4vw,32px)', display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: '20px' }}>
 
         {/* ── Game tabs row ───────────────────────────────────────────── */}
         <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}>
@@ -222,7 +222,7 @@ export default function Home() {
         </div>
 
         {/* ── Featured game panel + side list ────────────────────────── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 280px', gap: '16px' }} className="home-grid">
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) clamp(240px,22vw,340px)', gap: '16px' }} className="home-grid">
           <style>{`
             @media (max-width: 768px) { .home-grid { grid-template-columns: 1fr !important; } .side-list { display: none !important; } }
           `}</style>
