@@ -552,21 +552,13 @@ export default function Home() {
 
   useEffect(() => {
     const s = connectSocket()
-    function loadAll() {
-      const merged: Room[] = []
-      let done = 0
-      GAMES.forEach(game => {
-        s.emit('rooms:list', game.id, (list: Room[]) => {
-          merged.push(...(list || []))
-          done++
-          if (done === GAMES.length) setRooms(merged)
-        })
-      })
+    function load() {
+      s.emit('rooms:list', activeGame.id, (list: Room[]) => setRooms(list || []))
     }
-    loadAll()
-    s.on('room:update', loadAll)
-    return () => { s.off('room:update', loadAll) }
-  }, [])
+    load()
+    s.on('room:update', load)
+    return () => { s.off('room:update', load) }
+  }, [activeGame.id])
 
   useEffect(() => {
     const s = connectSocket()
@@ -726,6 +718,32 @@ export default function Home() {
         {/* CENTER */}
         <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', overflow:'hidden' }}>
 
+          {/* Game tabs */}
+          <div style={{ display:'flex', gap:'3px', overflowX:'auto', padding:'10px 14px 0', flexShrink:0, background:'#08080f', borderBottom:'1px solid #0d0d1e' }}>
+            {GAMES.map(gg => {
+              const active = activeGame.id === gg.id
+              return (
+                <button key={gg.id} className="g-tab"
+                  onClick={() => setActiveGame(gg)}
+                  style={{
+                    flexShrink:0, display:'flex', alignItems:'center', gap:'6px',
+                    padding:'7px 13px 9px', borderRadius:'9px 9px 0 0', marginBottom:'-1px',
+                    background: active ? '#0c0c17' : 'transparent',
+                    border:`1px solid ${active ? `rgba(${gg.glowRgb},0.28)` : 'transparent'}`,
+                    borderBottom: active ? '1px solid #0c0c17' : '1px solid transparent',
+                    borderTop: active ? `2px solid ${gg.glow}` : '2px solid transparent',
+                    color: active ? gg.glow : '#374151',
+                    fontFamily:'Orbitron,sans-serif', fontSize:'0.58rem', fontWeight:700, letterSpacing:'0.05em',
+                  }}>
+                  <GameIcon id={gg.id} size={15} animate={false} />
+                  {gg.short}
+                  <span style={{ fontSize:'0.5rem', color: active ? `rgba(${gg.glowRgb},0.7)` : '#1e2030' }}>{gg.activePlayers}</span>
+                  {gg.hot && <span style={{ fontSize:'0.44rem', padding:'1px 4px', borderRadius:'4px', background:'rgba(239,68,68,0.16)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.28)', animation:'hot-badge 1.6s infinite' }}>HOT</span>}
+                </button>
+              )
+            })}
+          </div>
+
           {/* Scrollable center content */}
           <div style={{ flex:1, overflowY:'auto', padding:'14px 14px', display:'flex', flexDirection:'column', gap:'14px', minHeight:0 }}>
 
@@ -801,68 +819,44 @@ export default function Home() {
               </div>
             </div>
 
-            {/* LOBBY — all games */}
+            {/* LOBBY — active game rooms */}
             <div>
               <div style={{ display:'flex', alignItems:'center', gap:'7px', marginBottom:'10px' }}>
                 <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.4s infinite' }} />
-                <span style={{ fontSize:'0.52rem', fontFamily:'Orbitron,sans-serif', color:'#374151', letterSpacing:'0.12em', fontWeight:700, flex:1 }}>LOBBY</span>
-                <span style={{ fontSize:'0.52rem', color:'#374151', fontFamily:'Orbitron,sans-serif' }}>{rooms.length > 0 ? `${rooms.length} open` : 'live'}</span>
+                <span style={{ fontSize:'0.52rem', fontFamily:'Orbitron,sans-serif', color:'#374151', letterSpacing:'0.12em', fontWeight:700, flex:1 }}>{g.title.toUpperCase()} LOBBY</span>
+                <button className="play-btn" onClick={() => navigate(`/lobby/${g.id}`)}
+                  style={{ fontSize:'0.5rem', fontFamily:'Orbitron,sans-serif', fontWeight:700, color:g.glow, background:'transparent', border:`1px solid rgba(${g.glowRgb},0.25)`, borderRadius:'6px', padding:'3px 10px', letterSpacing:'0.06em' }}>
+                  + CREATE
+                </button>
               </div>
-              <div style={{ display:'flex', flexDirection:'column', gap:'5px' }}>
-                {GAMES.map(gg => {
-                  const gameRooms = rooms.filter(r => r.gameMode === gg.id).slice(0, 3)
-                  const isActive = activeGame.id === gg.id
-                  return (
-                    <div key={gg.id}
-                      style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 14px', background: isActive ? `rgba(${gg.glowRgb},0.06)` : 'rgba(255,255,255,0.018)', border:`1px solid ${isActive ? `rgba(${gg.glowRgb},0.28)` : 'rgba(255,255,255,0.05)'}`, borderRadius:'12px', cursor:'pointer', transition:'all .14s' }}
-                      onClick={() => setActiveGame(gg)}>
-                      <GameIcon id={gg.id} size={28} animate={false} />
-                      <div style={{ flex:'0 0 110px', minWidth:0 }}>
-                        <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700, color: isActive ? gg.glow : '#94a3b8', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{gg.title}</div>
-                        <div style={{ display:'flex', alignItems:'center', gap:'4px', marginTop:'2px' }}>
-                          <span style={{ width:'4px', height:'4px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.8s infinite' }} />
-                          <span style={{ fontSize:'0.52rem', color:'#374151' }}>{gg.activePlayers} playing</span>
-                          {gg.hot && <span style={{ fontSize:'0.44rem', padding:'1px 4px', borderRadius:'4px', background:'rgba(239,68,68,0.18)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.28)', animation:'hot-badge 1.6s infinite' }}>HOT</span>}
+              {(() => {
+                const gameRooms = rooms.filter(r => r.gameMode === g.id)
+                return gameRooms.length > 0 ? (
+                  <div style={{ display:'flex', flexDirection:'column', gap:'5px' }}>
+                    {gameRooms.map(r => (
+                      <div key={r.code} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'9px 14px', background:'rgba(255,255,255,0.018)', border:`1px solid rgba(${g.glowRgb},0.14)`, borderRadius:'10px' }}>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700, color:'#94a3b8', letterSpacing:'0.04em' }}>{r.code}</div>
+                          <div style={{ fontSize:'0.52rem', color:'#374151', marginTop:'2px' }}>{r.players.length} / {r.maxPlayers} players</div>
                         </div>
+                        <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.66rem', fontWeight:900, color:g.glow }}>${r.entry}</span>
+                        <button className="play-btn" onClick={() => navigate(`/game/${r.code}`)}
+                          style={{ background:`linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'7px', padding:'5px 14px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.58rem', letterSpacing:'0.06em', boxShadow:`0 0 12px rgba(${g.glowRgb},0.3)` }}>
+                          JOIN
+                        </button>
                       </div>
-                      <div style={{ flex:1, display:'flex', gap:'5px', overflowX:'auto' }}>
-                        {gameRooms.length > 0
-                          ? gameRooms.map(r => (
-                              <button key={r.code} className="play-btn"
-                                onClick={e => { e.stopPropagation(); navigate(`/game/${r.code}`) }}
-                                style={{ flexShrink:0, display:'flex', alignItems:'center', gap:'4px', background:'rgba(255,255,255,0.03)', border:`1px solid rgba(${gg.glowRgb},0.2)`, borderRadius:'7px', padding:'4px 9px' }}>
-                                <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.55rem', fontWeight:700, color:'#64748b' }}>{r.code}</span>
-                                <span style={{ fontSize:'0.5rem', color:'#374151' }}>{r.players.length}/{r.maxPlayers}</span>
-                                <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.56rem', fontWeight:900, color:gg.glow }}>${r.entry}</span>
-                              </button>
-                            ))
-                          : <span style={{ fontSize:'0.56rem', color:'#1e2030', fontStyle:'italic', alignSelf:'center' }}>no open rooms</span>
-                        }
-                      </div>
-                      <button className="play-btn"
-                        onClick={e => { e.stopPropagation(); navigate(`/lobby/${gg.id}`) }}
-                        style={{ flexShrink:0, background:`linear-gradient(135deg,${gg.bgFrom},${gg.bgTo})`, borderRadius:'8px', padding:'6px 14px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.6rem', letterSpacing:'0.06em', boxShadow:`0 0 14px rgba(${gg.glowRgb},0.28)` }}>
-                        PLAY
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Other pages */}
-            <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', paddingBottom:'8px' }}>
-              {[
-                { label:'Leaderboard', to:'/leaderboard', color:'#f59e0b' },
-                { label:'Profile',     to:'/profile',     color:'#7c3aed' },
-                { label:'Wallet',      to:'/wallet',      color:'#06b6d4' },
-                { label:'History',     to:'/history',     color:'#22c55e' },
-              ].map(p => (
-                <Link key={p.to} to={p.to} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', borderRadius:'10px', background:'rgba(255,255,255,0.025)', border:`1px solid ${p.color}22`, textDecoration:'none', transition:'all .14s' }}>
-                  <span style={{ width:'6px', height:'6px', borderRadius:'50%', background:p.color, display:'block', boxShadow:`0 0 6px ${p.color}` }} />
-                  <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:700, color:'#64748b', letterSpacing:'0.06em' }}>{p.label}</span>
-                </Link>
-              ))}
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ padding:'18px 14px', background:'rgba(255,255,255,0.012)', border:`1px solid rgba(${g.glowRgb},0.1)`, borderRadius:'12px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px' }}>
+                    <span style={{ fontSize:'0.62rem', color:'#1e2030' }}>No open rooms right now</span>
+                    <button className="play-btn" onClick={() => navigate(`/lobby/${g.id}`)}
+                      style={{ background:`linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'8px', padding:'7px 18px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.62rem', letterSpacing:'0.06em', flexShrink:0, boxShadow:`0 0 16px rgba(${g.glowRgb},0.35)` }}>
+                      CREATE ROOM
+                    </button>
+                  </div>
+                )
+              })()}
             </div>
 
           </div>
