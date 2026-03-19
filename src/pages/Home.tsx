@@ -895,7 +895,7 @@ export default function Home() {
                 <div style={{ display:'flex', gap:'8px' }}>
                   <button className="play-btn" onClick={() => payAndCreate(playFee, g.players === '2' ? 2 : playMax, 'room')} disabled={creating}
                     style={{ background: creating ? 'rgba(255,255,255,0.07)' : `linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'10px', padding:'10px 22px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.78rem', letterSpacing:'0.08em', boxShadow: creating ? 'none' : `0 0 24px rgba(${g.glowRgb},0.4)`, opacity: creating ? 0.7 : 1 }}>
-                    {creating ? (payStep === 'approving' ? 'APPROVING...' : payStep === 'paying' ? 'PAYING...' : payStep === 'creating' ? 'CREATING...' : 'WAITING...') : `PLAY NOW — $${playFee}`}
+                    {creating ? (payStep === 'approving' ? 'APPROVING...' : payStep === 'paying' ? 'PAYING...' : payStep === 'creating' ? 'CREATING...' : 'WAITING...') : `PLAY NOW $${playFee}`}
                   </button>
                   <button className="bot-btn play-btn" onClick={() => navigate('/game/practice', { state:{ bot:true, entry:0, gameMode:g.id } })}
                     style={{ background:'rgba(124,58,237,0.07)', border:'1px solid rgba(124,58,237,0.2)', borderRadius:'10px', padding:'10px 14px', color:'#a78bfa', fontWeight:700, fontSize:'0.72rem', fontFamily:'Orbitron,sans-serif' }}>
@@ -996,7 +996,7 @@ export default function Home() {
                     }}>
                     {creating
                       ? (payStep==='approving'?'APPROVING...':payStep==='paying'?'PAYING...':payStep==='creating'?'CREATING...':'WAITING...')
-                      : lobbyOpen==='duel' ? `CHALLENGE — $${lobbyFee}` : `CREATE ROOM — $${lobbyFee}`
+                      : lobbyOpen==='duel' ? `CHALLENGE $${lobbyFee}` : `CREATE ROOM $${lobbyFee}`
                     }
                   </button>
                   {createError && <div style={{ fontSize:'0.58rem', color:'#ef4444', marginTop:'8px' }}>{createError}</div>}
