@@ -928,14 +928,14 @@ export default function Home() {
                   return (
                     <button key={m} className="play-btn"
                       onClick={() => setLobbyOpen(open ? null : m)}
-                      style={{ flex:1, padding:'10px', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.62rem', letterSpacing:'0.08em', borderRadius:'10px',
+                      style={{ flex:1, padding:'7px 10px', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.58rem', letterSpacing:'0.07em', borderRadius:'8px',
                         background: open ? (isDuel ? 'linear-gradient(135deg,#f97316,#ef4444)' : `linear-gradient(135deg,${g.bgFrom},${g.bgTo})`) : 'rgba(255,255,255,0.05)',
                         color: open ? '#fff' : '#64748b',
                         border: open ? 'none' : '1px solid rgba(255,255,255,0.1)',
-                        boxShadow: open ? (isDuel ? '0 0 18px rgba(249,115,22,0.35)' : `0 0 18px rgba(${g.glowRgb},0.3)`) : 'none',
+                        boxShadow: open ? (isDuel ? '0 0 14px rgba(249,115,22,0.3)' : `0 0 14px rgba(${g.glowRgb},0.25)`) : 'none',
                         transition:'all .2s',
                       }}>
-                      {isDuel ? '⚔ DUEL 1v1' : '🏠 CREATE ROOM'}
+                      {isDuel ? 'DUEL 1v1' : 'CREATE ROOM'}
                     </button>
                   )
                 })}
@@ -990,13 +990,13 @@ export default function Home() {
                   )}
 
                   <button className="play-btn" onClick={() => payAndCreate(lobbyFee, lobbyOpen==='duel' ? 2 : lobbyMax, lobbyOpen)} disabled={creating}
-                    style={{ width:'100%', borderRadius:'10px', padding:'10px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.72rem', letterSpacing:'0.08em', opacity: creating ? 0.7 : 1,
+                    style={{ width:'100%', borderRadius:'8px', padding:'8px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.64rem', letterSpacing:'0.07em', opacity: creating ? 0.7 : 1,
                       background: creating ? 'rgba(255,255,255,0.07)' : lobbyOpen==='duel' ? 'linear-gradient(135deg,#f97316,#ef4444)' : `linear-gradient(135deg,${g.bgFrom},${g.bgTo})`,
-                      boxShadow: creating ? 'none' : lobbyOpen==='duel' ? '0 0 20px rgba(249,115,22,0.4)' : `0 0 20px rgba(${g.glowRgb},0.35)`,
+                      boxShadow: creating ? 'none' : lobbyOpen==='duel' ? '0 0 16px rgba(249,115,22,0.35)' : `0 0 16px rgba(${g.glowRgb},0.3)`,
                     }}>
                     {creating
                       ? (payStep==='approving'?'APPROVING...':payStep==='paying'?'PAYING...':payStep==='creating'?'CREATING...':'WAITING...')
-                      : lobbyOpen==='duel' ? `⚔ CHALLENGE — $${lobbyFee}` : `CREATE ROOM — $${lobbyFee}`
+                      : lobbyOpen==='duel' ? `CHALLENGE — $${lobbyFee}` : `CREATE ROOM — $${lobbyFee}`
                     }
                   </button>
                   {createError && <div style={{ fontSize:'0.58rem', color:'#ef4444', marginTop:'8px' }}>{createError}</div>}
