@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAccount } from 'wagmi'
+import { useAccount, useWriteContract, useChainId, useSwitchChain, useSignMessage, usePublicClient } from 'wagmi'
+import { parseUnits } from 'viem'
 import { connectSocket } from '../utils/socket'
 import { getUsername } from '../utils/profile'
+import { SUPPORTED_CHAINS, type SupportedChain } from '../utils/chains'
+import { getEscrowAddress, getRoomId, ESCROW_ABI, USDT_APPROVE_ABI } from '../utils/escrow'
 
 // ── Animated game icons ──────────────────────────────────────────────────────
 // animate=false used in small contexts (tabs, wins list) to stop distraction
@@ -528,17 +531,27 @@ const CHAT_COLORS = ['#7c3aed','#06b6d4','#f59e0b','#22c55e','#ec4899','#f97316'
 
 export default function Home() {
   const navigate    = useNavigate()
-  const { address } = useAccount()
-  const myName      = address ? getUsername(address) : 'Guest'
+  const { address, isConnected } = useAccount()
+  const currentChainId = useChainId()
+  const { switchChainAsync } = useSwitchChain()
+  const { writeContractAsync } = useWriteContract()
+  const { signMessageAsync } = useSignMessage()
+  const publicClient = usePublicClient()
+  const authSigRef = useRef<string | null>(null)
+  const myName = address ? getUsername(address) : 'Guest'
 
   const [activeGame, setActiveGame] = useState(GAMES[0])
-  const [playerCount, setPlayerCount] = useState(GAMES[0].activePlayers)
   const [chat, setChat]         = useState<ChatMsg[]>([])
   const [onlineCount, setOnlineCount] = useState(0)
   const [chatInput, setChatInput] = useState('')
   const [rooms, setRooms]       = useState<Room[]>([])
   const [lobbyFee, setLobbyFee] = useState(1)
   const [lobbyMax, setLobbyMax] = useState(5)
+  const [lobbyMode, setLobbyMode] = useState<'room'|'duel'>('room')
+  const [creating, setCreating]   = useState(false)
+  const [payStep, setPayStep]     = useState<'idle'|'switching'|'approving'|'paying'|'creating'>('idle')
+  const [createError, setCreateError] = useState('')
+  const [selectedChain] = useState<SupportedChain>(SUPPORTED_CHAINS[0])
   const [openSections, setOpenSections] = useState<Record<string,boolean>>({ info:true })
   const [winIdx, setWinIdx]     = useState(0)
   const [showWin, setShowWin]   = useState(false)
@@ -585,6 +598,57 @@ export default function Home() {
     }, 5000)
     return () => clearInterval(iv)
   }, [])
+
+  async function getAuthSig() {
+    if (!address) return null
+    const key = `ag_authsig_${address.toLowerCase()}`
+    const cached = authSigRef.current || localStorage.getItem(key)
+    if (cached) { authSigRef.current = cached; return cached }
+    try {
+      const sig = await signMessageAsync({ message: `Arena Games: ${address.toLowerCase()}` })
+      localStorage.setItem(key, sig); authSigRef.current = sig; return sig
+    } catch { return null }
+  }
+
+  async function payAndCreate() {
+    if (!isConnected || !address) { setCreateError('Connect your wallet first'); return }
+    setCreating(true); setCreateError(''); setPayStep('idle')
+    const authSig = await getAuthSig()
+    if (!authSig) { setCreating(false); return }
+    const chain = selectedChain
+    const fee = lobbyFee
+    const maxP = lobbyMode === 'duel' ? 2 : lobbyMax
+    const rType = lobbyMode === 'duel' ? 'duel' : 'public'
+    try {
+      if (currentChainId !== chain.id) {
+        setPayStep('switching')
+        await switchChainAsync({ chainId: chain.id })
+      }
+      const escrowAddress = getEscrowAddress(chain.id)
+      if (!escrowAddress) throw new Error('Escrow not deployed on this chain')
+      const usdtAddress = chain.usdt
+      const amount = parseUnits(String(fee), 6)
+      const tempCode = `${activeGame.id}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`
+      const roomId = getRoomId(tempCode)
+      setPayStep('approving')
+      await writeContractAsync({ address: usdtAddress, abi: USDT_APPROVE_ABI, functionName: 'approve', args: [escrowAddress, amount] })
+      setPayStep('paying')
+      const tx = await writeContractAsync({ address: escrowAddress, abi: ESCROW_ABI, functionName: 'deposit', args: [roomId, amount] })
+      setPayStep('creating')
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash: tx })
+      connectSocket().emit('room:create', { gameMode: activeGame.id, entry: fee, maxPlayers: maxP, roomType: rType, txHash: tx, chainId: chain.id, address, authSig, roomId },
+        (res: { ok?: boolean; error?: string; code?: string }) => {
+          setCreating(false); setPayStep('idle')
+          if (res.error) setCreateError(res.error)
+          else if (res.code) navigate(`/game/${res.code}`)
+        }
+      )
+    } catch (e: unknown) {
+      setCreating(false); setPayStep('idle')
+      const msg = e instanceof Error ? e.message : String(e)
+      setCreateError(msg.includes('rejected') ? 'Transaction rejected.' : 'Transaction failed.')
+    }
+  }
 
   function sendChat() {
     const msg = chatInput.trim().slice(0, 200)
@@ -754,7 +818,7 @@ export default function Home() {
           <div style={{ flex:1, overflowY:'auto', padding:'14px 14px', display:'flex', flexDirection:'column', gap:'14px', minHeight:0 }}>
 
             {/* Featured game card — unified background, no split */}
-            <div key={g.id} style={{ position:'relative', borderRadius:'18px', overflow:'hidden', border:`1px solid rgba(${g.glowRgb},0.22)`, background:`linear-gradient(120deg, #0d0d1a 0%, #0b0b16 55%, rgba(${g.glowRgb},0.06) 100%)`, animation:'slide-in .2s ease-out', flexShrink:0, minHeight:'195px', display:'flex' }}>
+            <div key={g.id} style={{ position:'relative', borderRadius:'18px', overflow:'hidden', border:`1px solid rgba(${g.glowRgb},0.22)`, background:`linear-gradient(120deg, #0d0d1a 0%, #0b0b16 55%, rgba(${g.glowRgb},0.06) 100%)`, animation:'slide-in .2s ease-out', flexShrink:0, minHeight:'320px', display:'flex' }}>
               {/* Top glow line */}
               <div style={{ position:'absolute', top:0, left:0, right:0, height:'2px', background:`linear-gradient(90deg,transparent,${g.glow},transparent)`, animation:'border-glow 2.5s ease-in-out infinite', zIndex:3 }} />
               {/* Ambient glow from right side */}
@@ -779,35 +843,18 @@ export default function Home() {
                   <p style={{ color:'#4b5563', fontSize:'0.74rem', lineHeight:1.5, margin:'0 0 12px' }}>{g.desc}</p>
                 </div>
 
-                {/* Stats + buttons */}
-                <div>
-                  <div style={{ display:'flex', gap:'16px', marginBottom:'12px' }}>
-                    <div>
-                      <div style={{ fontSize:'0.42rem', color:'#64748b', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.1em' }}>MAX POT</div>
-                      <div style={{ fontSize:'0.9rem', fontWeight:900, color:g.glow, fontFamily:'Orbitron,sans-serif' }}>{g.maxPot}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize:'0.42rem', color:'#64748b', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.1em' }}>ACTIVE</div>
-                      <div style={{ fontSize:'0.9rem', fontWeight:900, color:'#e2e8f0', fontFamily:'Orbitron,sans-serif', display:'flex', alignItems:'center', gap:'3px' }}>
-                        <span style={{ width:'4px', height:'4px', borderRadius:'50%', background:'#22c55e', display:'inline-block', animation:'pulse-dot 1.6s infinite' }} />{playerCount}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize:'0.42rem', color:'#64748b', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.1em' }}>ENTRY</div>
-                      <div style={{ fontSize:'0.9rem', fontWeight:900, color:'#e2e8f0', fontFamily:'Orbitron,sans-serif' }}>$0.5+</div>
-                    </div>
-                  </div>
-                  <div style={{ display:'flex', gap:'8px' }}>
-                    <button className="play-btn" onClick={() => navigate(`/lobby/${g.id}`, { state:{ autoMatch:true, fee:lobbyFee } })}
-                      style={{ background:`linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'10px', padding:'10px 24px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.8rem', letterSpacing:'0.08em', boxShadow:`0 0 24px rgba(${g.glowRgb},0.4)` }}>
-                      PLAY NOW
-                    </button>
-                    <button className="bot-btn play-btn" onClick={() => navigate('/game/practice', { state:{ bot:true, entry:0, gameMode:g.id } })}
-                      style={{ background:'rgba(124,58,237,0.07)', border:'1px solid rgba(124,58,237,0.2)', borderRadius:'10px', padding:'10px 14px', color:'#a78bfa', fontWeight:700, fontSize:'0.72rem', fontFamily:'Orbitron,sans-serif' }}>
-                      vs Bot
-                    </button>
-                  </div>
+                {/* Buttons */}
+                <div style={{ display:'flex', gap:'8px' }}>
+                  <button className="play-btn" onClick={payAndCreate} disabled={creating}
+                    style={{ background: creating ? 'rgba(255,255,255,0.07)' : `linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'10px', padding:'10px 24px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.8rem', letterSpacing:'0.08em', boxShadow: creating ? 'none' : `0 0 24px rgba(${g.glowRgb},0.4)`, opacity: creating ? 0.7 : 1 }}>
+                    {creating ? (payStep === 'approving' ? 'APPROVING...' : payStep === 'paying' ? 'PAYING...' : payStep === 'creating' ? 'CREATING...' : 'WAITING...') : 'PLAY NOW'}
+                  </button>
+                  <button className="bot-btn play-btn" onClick={() => navigate('/game/practice', { state:{ bot:true, entry:0, gameMode:g.id } })}
+                    style={{ background:'rgba(124,58,237,0.07)', border:'1px solid rgba(124,58,237,0.2)', borderRadius:'10px', padding:'10px 14px', color:'#a78bfa', fontWeight:700, fontSize:'0.72rem', fontFamily:'Orbitron,sans-serif' }}>
+                    vs Bot
+                  </button>
                 </div>
+                {createError && <div style={{ fontSize:'0.58rem', color:'#ef4444', marginTop:'6px' }}>{createError}</div>}
               </div>
 
               {/* RIGHT: live preview — no separate background, floats on card */}
@@ -825,58 +872,88 @@ export default function Home() {
             {/* INLINE LOBBY */}
             <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
 
-              {/* Create room panel */}
-              <div style={{ background:'rgba(255,255,255,0.022)', border:`1px solid rgba(${g.glowRgb},0.22)`, borderRadius:'14px', padding:'14px 16px' }}>
-                <div style={{ fontSize:'0.46rem', fontFamily:'Orbitron,sans-serif', color:'#64748b', letterSpacing:'0.14em', marginBottom:'10px' }}>CREATE ROOM</div>
+              {/* Mode toggle + config */}
+              <div style={{ background:'rgba(255,255,255,0.022)', border:`1px solid ${lobbyMode==='duel'?'rgba(249,115,22,0.3)':`rgba(${g.glowRgb},0.22)`}`, borderRadius:'14px', overflow:'hidden', transition:'border .2s' }}>
 
-                {/* Entry fee */}
-                <div style={{ marginBottom: g.players === '2' ? '12px' : '10px' }}>
-                  <div style={{ fontSize:'0.52rem', color:'#64748b', marginBottom:'6px' }}>Entry fee</div>
-                  <div style={{ display:'flex', gap:'4px', flexWrap:'wrap' }}>
-                    {ENTRY_FEES.map(f => (
-                      <button key={f} className="play-btn"
-                        onClick={() => setLobbyFee(f)}
-                        style={{ padding:'4px 10px', borderRadius:'7px', fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700,
-                          background: lobbyFee===f ? `linear-gradient(135deg,${g.bgFrom},${g.bgTo})` : 'rgba(255,255,255,0.05)',
-                          color: lobbyFee===f ? '#fff' : '#64748b',
-                          border: lobbyFee===f ? 'none' : `1px solid rgba(255,255,255,0.09)`,
-                          boxShadow: lobbyFee===f ? `0 0 12px rgba(${g.glowRgb},0.35)` : 'none',
-                        }}>
-                        ${f}
-                      </button>
-                    ))}
-                  </div>
+                {/* Toggle header */}
+                <div style={{ display:'flex' }}>
+                  {(['room','duel'] as const).map(m => (
+                    <button key={m} className="play-btn"
+                      onClick={() => setLobbyMode(m)}
+                      style={{ flex:1, padding:'11px', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.62rem', letterSpacing:'0.08em', border:'none',
+                        background: m===lobbyMode
+                          ? (m==='duel' ? 'linear-gradient(135deg,#f97316,#ef4444)' : `linear-gradient(135deg,${g.bgFrom},${g.bgTo})`)
+                          : 'rgba(255,255,255,0.03)',
+                        color: m===lobbyMode ? '#fff' : '#64748b',
+                        borderRight: m==='room' ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                        boxShadow: m===lobbyMode ? (m==='duel'?'0 0 20px rgba(249,115,22,0.35)':`0 0 20px rgba(${g.glowRgb},0.3)`) : 'none',
+                        transition:'all .2s',
+                      }}>
+                      {m === 'duel' ? 'DUEL 1v1' : 'ROOM'}
+                    </button>
+                  ))}
                 </div>
 
-                {/* Max players — hidden for strictly 2-player games */}
-                {g.players !== '2' && (
-                  <div style={{ marginBottom:'12px' }}>
-                    <div style={{ fontSize:'0.52rem', color:'#64748b', marginBottom:'6px' }}>Max players</div>
-                    <div style={{ display:'flex', gap:'4px' }}>
-                      {[2,3,4,5,6,8,10].map(n => {
-                        const [minP, maxP] = g.players.includes('-') ? g.players.split('-').map(Number) : [2,10]
-                        if (n < minP || n > maxP) return null
+                <div style={{ padding:'14px 16px' }}>
+                  {/* Entry fee */}
+                  <div style={{ marginBottom: lobbyMode==='duel' ? '12px' : '10px' }}>
+                    <div style={{ fontSize:'0.5rem', color:'#64748b', marginBottom:'6px' }}>Entry fee</div>
+                    <div style={{ display:'flex', gap:'4px', flexWrap:'wrap' }}>
+                      {ENTRY_FEES.map(f => {
+                        const active = lobbyFee===f
+                        const duelActive = lobbyMode==='duel' && active
                         return (
-                          <button key={n} className="play-btn"
-                            onClick={() => setLobbyMax(n)}
-                            style={{ width:'30px', height:'28px', borderRadius:'7px', fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:700,
-                              background: lobbyMax===n ? `rgba(${g.glowRgb},0.2)` : 'rgba(255,255,255,0.05)',
-                              color: lobbyMax===n ? g.glow : '#64748b',
-                              border: lobbyMax===n ? `1px solid rgba(${g.glowRgb},0.4)` : `1px solid rgba(255,255,255,0.09)`,
+                          <button key={f} className="play-btn"
+                            onClick={() => setLobbyFee(f)}
+                            style={{ padding:'4px 10px', borderRadius:'7px', fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700,
+                              background: duelActive ? 'linear-gradient(135deg,#f97316,#ef4444)' : active ? `linear-gradient(135deg,${g.bgFrom},${g.bgTo})` : 'rgba(255,255,255,0.05)',
+                              color: active ? '#fff' : '#64748b',
+                              border: active ? 'none' : '1px solid rgba(255,255,255,0.09)',
+                              boxShadow: duelActive ? '0 0 12px rgba(249,115,22,0.4)' : active ? `0 0 12px rgba(${g.glowRgb},0.35)` : 'none',
                             }}>
-                            {n}
+                            ${f}
                           </button>
                         )
                       })}
                     </div>
                   </div>
-                )}
 
-                <button className="play-btn"
-                  onClick={() => navigate(`/lobby/${g.id}`, { state:{ fee: lobbyFee, max: g.players === '2' ? 2 : lobbyMax } })}
-                  style={{ width:'100%', background:`linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'10px', padding:'10px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.72rem', letterSpacing:'0.08em', boxShadow:`0 0 20px rgba(${g.glowRgb},0.38)` }}>
-                  CREATE ROOM — ${lobbyFee} ENTRY
-                </button>
+                  {/* Max players — room mode only, non-2p games */}
+                  {lobbyMode === 'room' && g.players !== '2' && (
+                    <div style={{ marginBottom:'12px' }}>
+                      <div style={{ fontSize:'0.5rem', color:'#64748b', marginBottom:'6px' }}>Max players</div>
+                      <div style={{ display:'flex', gap:'4px' }}>
+                        {[2,3,4,5,6,8,10].map(n => {
+                          const [minP, maxP] = g.players.includes('-') ? g.players.split('-').map(Number) : [2,10]
+                          if (n < minP || n > maxP) return null
+                          return (
+                            <button key={n} className="play-btn"
+                              onClick={() => setLobbyMax(n)}
+                              style={{ width:'30px', height:'28px', borderRadius:'7px', fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:700,
+                                background: lobbyMax===n ? `rgba(${g.glowRgb},0.2)` : 'rgba(255,255,255,0.05)',
+                                color: lobbyMax===n ? g.glow : '#64748b',
+                                border: lobbyMax===n ? `1px solid rgba(${g.glowRgb},0.4)` : '1px solid rgba(255,255,255,0.09)',
+                              }}>
+                              {n}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <button className="play-btn" onClick={payAndCreate} disabled={creating}
+                    style={{ width:'100%', borderRadius:'10px', padding:'10px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.72rem', letterSpacing:'0.08em', opacity: creating ? 0.7 : 1,
+                      background: creating ? 'rgba(255,255,255,0.07)' : lobbyMode==='duel' ? 'linear-gradient(135deg,#f97316,#ef4444)' : `linear-gradient(135deg,${g.bgFrom},${g.bgTo})`,
+                      boxShadow: creating ? 'none' : lobbyMode==='duel' ? '0 0 22px rgba(249,115,22,0.4)' : `0 0 22px rgba(${g.glowRgb},0.38)`,
+                    }}>
+                    {creating
+                      ? (payStep==='approving'?'APPROVING...':payStep==='paying'?'PAYING...':payStep==='creating'?'CREATING...':'WAITING...')
+                      : lobbyMode==='duel' ? `CHALLENGE — $${lobbyFee}` : `CREATE ROOM — $${lobbyFee}`
+                    }
+                  </button>
+                  {createError && <div style={{ fontSize:'0.58rem', color:'#ef4444', marginTop:'8px' }}>{createError}</div>}
+                </div>
               </div>
 
               {/* Open rooms list */}

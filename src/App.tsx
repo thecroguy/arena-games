@@ -1,8 +1,7 @@
 import { useEffect } from 'react'
-import { Routes, Route, useSearchParams } from 'react-router-dom'
+import { Routes, Route, useSearchParams, Navigate } from 'react-router-dom'
 import { useAccount, useSignMessage } from 'wagmi'
 import Home from './pages/Home'
-import Lobby from './pages/Lobby'
 import Game from './pages/Game'
 import Profile from './pages/Profile'
 import Leaderboard from './pages/Leaderboard'
@@ -61,7 +60,7 @@ function AppInner() {
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/lobby/:gameMode" element={<Lobby />} />
+          <Route path="/lobby/:gameMode" element={<Navigate to="/" replace />} />
           <Route path="/game/:roomCode" element={<Game />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/leaderboard" element={<Leaderboard />} />

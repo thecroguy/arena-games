@@ -94,6 +94,12 @@ export default function Navbar() {
             @keyframes helm-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
             .arena-helm { animation: helm-cycle 5s ease-in-out infinite, helm-bob 3s ease-in-out infinite; }
             @media (hover: hover) { .arena-logo-wrap:hover .arena-helm { animation-duration: 1.4s, 0.8s; } }
+            @keyframes spartan-l { 0%,100%{transform:translateX(0) rotate(-2deg)} 50%{transform:translateX(3px) rotate(4deg)} }
+            @keyframes spartan-r { 0%,100%{transform:translateX(0) rotate(2deg)} 50%{transform:translateX(-3px) rotate(-4deg)} }
+            @keyframes sword-clash { 0%,100%{opacity:0;transform:scale(0.4)} 48%,52%{opacity:1;transform:scale(1)} }
+            .spartan-l { animation: spartan-l 1.1s ease-in-out infinite; transform-origin: bottom center; }
+            .spartan-r { animation: spartan-r 1.1s ease-in-out infinite; transform-origin: bottom center; }
+            .sword-spark { animation: sword-clash 1.1s ease-in-out infinite; }
           `}</style>
           {/* Spartan Helmet SVG — Corinthian style */}
           <div className="arena-logo-wrap" style={{ display:'flex', alignItems:'center' }}>
@@ -165,6 +171,65 @@ export default function Navbar() {
           }}>
             JOIN ARENA
           </span>
+          {/* Fighting spartan soldiers */}
+          <svg width="44" height="34" viewBox="0 0 44 34" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink:0, marginLeft:'2px' }}>
+            {/* Left spartan */}
+            <g className="spartan-l">
+              {/* helmet */}
+              <ellipse cx="9" cy="5" rx="4" ry="4.5" fill="#f59e0b"/>
+              <rect x="7" y="2" width="4" height="1.5" rx="0.7" fill="#fde68a"/>
+              {/* plume */}
+              <path d="M9 1 C9 0 11 0 11 1 C11 2 9 2.5 9 1Z" fill="#ef4444"/>
+              {/* face visor */}
+              <rect x="7.5" y="5.5" width="3" height="1.5" rx="0.5" fill="#08080f" opacity="0.7"/>
+              {/* body */}
+              <rect x="6.5" y="9" width="5" height="7" rx="1.5" fill="#b45309"/>
+              {/* shield (left arm, facing right) */}
+              <rect x="3" y="9" width="3.5" height="6" rx="1" fill="#7c3aed" opacity="0.9"/>
+              <rect x="3.5" y="9.5" width="2.5" height="5" rx="0.8" fill="none" stroke="#a78bfa" strokeWidth="0.6"/>
+              {/* sword arm lunging forward (right) */}
+              <line x1="11.5" y1="11" x2="20" y2="14" stroke="#fde68a" strokeWidth="1.4" strokeLinecap="round"/>
+              {/* legs */}
+              <line x1="8.5" y1="16" x2="7" y2="24" stroke="#92400e" strokeWidth="2" strokeLinecap="round"/>
+              <line x1="10.5" y1="16" x2="12" y2="24" stroke="#92400e" strokeWidth="2" strokeLinecap="round"/>
+              {/* sandal */}
+              <line x1="6" y1="24" x2="9" y2="24" stroke="#78350f" strokeWidth="1.5" strokeLinecap="round"/>
+              <line x1="11" y1="24" x2="14" y2="24" stroke="#78350f" strokeWidth="1.5" strokeLinecap="round"/>
+            </g>
+
+            {/* Right spartan (mirrored, facing left) */}
+            <g className="spartan-r">
+              {/* helmet */}
+              <ellipse cx="35" cy="5" rx="4" ry="4.5" fill="#06b6d4"/>
+              <rect x="33" y="2" width="4" height="1.5" rx="0.7" fill="#cffafe"/>
+              {/* plume */}
+              <path d="M35 1 C35 0 33 0 33 1 C33 2 35 2.5 35 1Z" fill="#ef4444"/>
+              {/* face visor */}
+              <rect x="33.5" y="5.5" width="3" height="1.5" rx="0.5" fill="#08080f" opacity="0.7"/>
+              {/* body */}
+              <rect x="32.5" y="9" width="5" height="7" rx="1.5" fill="#0e7490"/>
+              {/* shield (right arm, facing left) */}
+              <rect x="37.5" y="9" width="3.5" height="6" rx="1" fill="#7c3aed" opacity="0.9"/>
+              <rect x="38" y="9.5" width="2.5" height="5" rx="0.8" fill="none" stroke="#a78bfa" strokeWidth="0.6"/>
+              {/* sword arm lunging forward (left) */}
+              <line x1="32.5" y1="11" x2="24" y2="14" stroke="#cffafe" strokeWidth="1.4" strokeLinecap="round"/>
+              {/* legs */}
+              <line x1="34.5" y1="16" x2="33" y2="24" stroke="#164e63" strokeWidth="2" strokeLinecap="round"/>
+              <line x1="36.5" y1="16" x2="38" y2="24" stroke="#164e63" strokeWidth="2" strokeLinecap="round"/>
+              {/* sandal */}
+              <line x1="30" y1="24" x2="33" y2="24" stroke="#0c4a6e" strokeWidth="1.5" strokeLinecap="round"/>
+              <line x1="37" y1="24" x2="40" y2="24" stroke="#0c4a6e" strokeWidth="1.5" strokeLinecap="round"/>
+            </g>
+
+            {/* Clash spark in the middle */}
+            <g className="sword-spark">
+              <circle cx="22" cy="14" r="2.5" fill="#fde68a" opacity="0.9"/>
+              <line x1="22" y1="11" x2="22" y2="17" stroke="#fde68a" strokeWidth="1" strokeLinecap="round"/>
+              <line x1="19" y1="14" x2="25" y2="14" stroke="#fde68a" strokeWidth="1" strokeLinecap="round"/>
+              <line x1="20" y1="12" x2="24" y2="16" stroke="#fde68a" strokeWidth="0.8" strokeLinecap="round"/>
+              <line x1="24" y1="12" x2="20" y2="16" stroke="#fde68a" strokeWidth="0.8" strokeLinecap="round"/>
+            </g>
+          </svg>
         </Link>
 
         {/* Desktop nav */}
