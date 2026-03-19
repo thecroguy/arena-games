@@ -157,123 +157,328 @@ function GridFloor({ color }: { color: string }) {
 }
 
 function CoinPreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
+  type CPhase = 'pick' | 'flip' | 'result'
+  const [phase, setPhase] = useState<CPhase>('pick')
+  const [pick,   setPick]   = useState<'H'|'T'>('H')
+  const [result, setResult] = useState<'H'|'T'>('H')
+
+  useEffect(() => {
+    if (phase === 'pick') {
+      const t = setTimeout(() => {
+        setPick(Math.random() > 0.5 ? 'H' : 'T')
+        setResult(Math.random() > 0.5 ? 'H' : 'T')
+        setPhase('flip')
+      }, 1200)
+      return () => clearTimeout(t)
+    }
+    if (phase === 'flip') {
+      const t = setTimeout(() => setPhase('result'), 1000)
+      return () => clearTimeout(t)
+    }
+    if (phase === 'result') {
+      const t = setTimeout(() => setPhase('pick'), 1500)
+      return () => clearTimeout(t)
+    }
+  }, [phase])
+
+  const won = result === pick
   return (
     <div style={{ position:'relative', width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'8px', overflow:'hidden' }}>
       <GridFloor color={glow} />
       <div style={{ position:'absolute', inset:0, background:`radial-gradient(circle at 50% 40%, rgba(${glowRgb},0.18) 0%, transparent 65%)`, pointerEvents:'none' }}/>
       <div style={{ position:'relative', zIndex:1, filter:`drop-shadow(0 0 18px rgba(${glowRgb},0.7))` }}>
-        <IconCoin size={62} animate={true} />
+        <IconCoin size={62} animate={phase === 'flip'} />
       </div>
-      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', color:`rgba(${glowRgb},0.65)`, letterSpacing:'0.12em', zIndex:1 }}>ROUND 3 / 5</div>
+      {phase === 'pick' && (
+        <div style={{ display:'flex', gap:'6px', zIndex:1 }}>
+          {(['H','T'] as const).map(s => (
+            <div key={s} style={{ width:'28px', height:'28px', borderRadius:'7px', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.7rem', background: s === pick ? glow : 'rgba(255,255,255,0.05)', color: s === pick ? '#000' : '#374151', border:`1px solid ${s === pick ? glow : 'rgba(255,255,255,0.08)'}` }}>{s}</div>
+          ))}
+        </div>
+      )}
+      {phase === 'result' && (
+        <>
+          <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'1.1rem', fontWeight:900, color: won ? '#22c55e' : '#ef4444', zIndex:1 }}>{result}</div>
+          <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:900, letterSpacing:'0.1em', color: won ? '#22c55e' : '#ef4444', padding:'2px 9px', borderRadius:'5px', background: won ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)', border:`1px solid ${won ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, zIndex:1 }}>{won ? 'WIN' : 'LOSE'}</div>
+        </>
+      )}
+      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.4)`, letterSpacing:'0.1em', zIndex:1 }}>ROUND 3 / 5</div>
     </div>
   )
 }
 
 function MathPreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
+  type MPhase = 'question' | 'wrong' | 'correct'
+  const [phase, setPhase] = useState<MPhase>('question')
+  const [q, setQ]         = useState({ a:14, b:8, op:'+', ans:22 })
+  const [shown, setShown] = useState('')
+
+  function nextQ() {
+    const ops = ['+', '-', 'x'] as const
+    const op  = ops[Math.floor(Math.random() * 3)]
+    let a = Math.floor(Math.random() * 15) + 3
+    let b = Math.floor(Math.random() * 12) + 2
+    if (op === '-' && a < b) [a, b] = [b, a]
+    const ans = op === '+' ? a + b : op === '-' ? a - b : a * b
+    setQ({ a, b, op, ans })
+    setShown('')
+    setPhase('question')
+  }
+
+  useEffect(() => {
+    if (phase === 'question') {
+      const t = setTimeout(() => {
+        // show wrong answer first
+        const wrong = q.ans + (Math.random() > 0.5 ? 1 : -2)
+        setShown(String(wrong))
+        setPhase('wrong')
+      }, 1600)
+      return () => clearTimeout(t)
+    }
+    if (phase === 'wrong') {
+      const t = setTimeout(() => {
+        setShown(String(q.ans))
+        setPhase('correct')
+      }, 900)
+      return () => clearTimeout(t)
+    }
+    if (phase === 'correct') {
+      const t = setTimeout(nextQ, 1300)
+      return () => clearTimeout(t)
+    }
+  }, [phase, q])
+
+  const questionStr = `${q.a} ${q.op} ${q.b} =`
+  const ansColor = phase === 'correct' ? '#22c55e' : phase === 'wrong' ? '#ef4444' : `rgba(${glowRgb},0.4)`
+  const ansText  = phase === 'question' ? '?' : shown
+
   return (
-    <div style={{ position:'relative', width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'10px', overflow:'hidden' }}>
+    <div style={{ position:'relative', width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'8px', overflow:'hidden' }}>
       <GridFloor color={glow} />
       <div style={{ position:'absolute', inset:0, background:`radial-gradient(circle at 50% 40%, rgba(${glowRgb},0.14) 0%, transparent 60%)`, pointerEvents:'none' }}/>
-      <div style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'1.5rem', color:'#fff', textShadow:`0 0 20px rgba(${glowRgb},0.8)`, letterSpacing:'0.04em', zIndex:1, animation:'math-appear 2.5s ease-in-out infinite' }}>
-        14 + 8 = ?
+
+      {/* Question */}
+      <div style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'1.4rem', color:'#fff', textShadow:`0 0 18px rgba(${glowRgb},0.7)`, letterSpacing:'0.04em', zIndex:1 }}>
+        {questionStr}
       </div>
-      <div style={{ display:'flex', gap:'4px', zIndex:1 }}>
-        {[1,0.6,0.3,0.15].map((o,i) => (
-          <div key={i} style={{ width:'18px', height:'4px', borderRadius:'2px', background:glow, opacity:o }}/>
-        ))}
+
+      {/* Answer box */}
+      <div style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'1.8rem', color: ansColor, textShadow:`0 0 22px ${ansColor}`, letterSpacing:'0.04em', zIndex:1, minWidth:'60px', textAlign:'center', transition:'color .2s, text-shadow .2s' }}>
+        {ansText}
       </div>
-      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', color:`rgba(${glowRgb},0.5)`, letterSpacing:'0.1em', zIndex:1 }}>SPEED ROUND</div>
+
+      {/* Result label */}
+      {phase !== 'question' && (
+        <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:900, letterSpacing:'0.14em', color: phase === 'correct' ? '#22c55e' : '#ef4444', padding:'3px 10px', borderRadius:'6px', background: phase === 'correct' ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)', border:`1px solid ${phase === 'correct' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, zIndex:1 }}>
+          {phase === 'correct' ? 'CORRECT' : 'WRONG'}
+        </div>
+      )}
+
+      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.4)`, letterSpacing:'0.1em', zIndex:1 }}>SPEED ROUND</div>
     </div>
   )
 }
 
 function ReactionPreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
-  const CELLS = [0,1,2,3,4,5,6,7,8]
+  type RPhase = 'wait' | 'flash' | 'tapped'
+  const [phase,  setPhase]  = useState<RPhase>('wait')
+  const [target, setTarget] = useState(4)
+  const [ms,     setMs]     = useState(0)
+
+  useEffect(() => {
+    if (phase === 'wait') {
+      const t = setTimeout(() => { setTarget(Math.floor(Math.random() * 9)); setPhase('flash') }, 1300)
+      return () => clearTimeout(t)
+    }
+    if (phase === 'flash') {
+      const t = setTimeout(() => { setMs(Math.floor(Math.random() * 200) + 80); setPhase('tapped') }, 850)
+      return () => clearTimeout(t)
+    }
+    if (phase === 'tapped') {
+      const t = setTimeout(() => setPhase('wait'), 1100)
+      return () => clearTimeout(t)
+    }
+  }, [phase])
+
   return (
     <div style={{ position:'relative', width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'10px', overflow:'hidden' }}>
       <GridFloor color={glow} />
       <div style={{ position:'absolute', inset:0, background:`radial-gradient(circle at 50% 40%, rgba(${glowRgb},0.12) 0%, transparent 60%)`, pointerEvents:'none' }}/>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'5px', zIndex:1 }}>
-        {CELLS.map(i => (
-          <div key={i} style={{
-            width:'28px', height:'28px', borderRadius:'6px',
-            background:`rgba(${glowRgb},0.12)`,
-            border:`1px solid rgba(${glowRgb},0.2)`,
-            animation:`react-cell 3s ${i * 0.33}s ease-in-out infinite`,
-          }}/>
-        ))}
+        {[0,1,2,3,4,5,6,7,8].map(i => {
+          const isTarget  = i === target && phase !== 'wait'
+          const isTapped  = isTarget && phase === 'tapped'
+          return (
+            <div key={i} style={{ width:'28px', height:'28px', borderRadius:'6px', transition:'all .15s',
+              background: isTapped ? '#22c55e' : isTarget ? glow : `rgba(${glowRgb},0.08)`,
+              border:`1px solid ${isTapped ? '#22c55e' : isTarget ? glow : `rgba(${glowRgb},0.15)`}`,
+              boxShadow: isTarget ? `0 0 12px rgba(${glowRgb},0.7)` : 'none',
+            }}/>
+          )
+        })}
       </div>
-      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', color:`rgba(${glowRgb},0.5)`, letterSpacing:'0.1em', zIndex:1 }}>TAP FIRST</div>
+      {phase === 'tapped' && <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:900, color:'#22c55e', zIndex:1 }}>{ms}ms</div>}
+      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.5)`, letterSpacing:'0.1em', zIndex:1 }}>{phase === 'flash' ? 'TAP!' : 'REACTION GRID'}</div>
     </div>
   )
 }
 
 function DicePreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
-  const faces = [[1,0,1,0,1,0,1,0,1],[0,0,1,0,0,0,1,0,0],[1,0,0,0,0,0,0,0,1]]
+  type DPhase = 'roll' | 'bid' | 'challenge' | 'result'
+  const DOT_PATTERNS: Record<number,number[]> = {
+    1:[0,0,0,0,1,0,0,0,0], 2:[1,0,0,0,0,0,0,0,1], 3:[1,0,0,0,1,0,0,0,1],
+    4:[1,0,1,0,0,0,1,0,1], 5:[1,0,1,0,1,0,1,0,1], 6:[1,0,1,1,0,1,1,0,1],
+  }
+  const [phase, setPhase] = useState<DPhase>('roll')
+  const [dice,  setDice]  = useState([3,5,2])
+  const [bid,   setBid]   = useState({ qty:2, face:3 })
+  const [won,   setWon]   = useState(true)
+
+  function nextRound() {
+    setDice([Math.ceil(Math.random()*6), Math.ceil(Math.random()*6), Math.ceil(Math.random()*6)])
+    setBid({ qty:Math.floor(Math.random()*3)+1, face:Math.ceil(Math.random()*6) })
+    setWon(Math.random() > 0.4)
+    setPhase('roll')
+  }
+
+  useEffect(() => {
+    if (phase === 'roll')      { const t = setTimeout(() => setPhase('bid'),       1100); return () => clearTimeout(t) }
+    if (phase === 'bid')       { const t = setTimeout(() => setPhase('challenge'),  1000); return () => clearTimeout(t) }
+    if (phase === 'challenge') { const t = setTimeout(() => setPhase('result'),      700); return () => clearTimeout(t) }
+    if (phase === 'result')    { const t = setTimeout(nextRound,                    1400); return () => clearTimeout(t) }
+  }, [phase])
+
   return (
-    <div style={{ position:'relative', width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', overflow:'hidden' }}>
+    <div style={{ position:'relative', width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'8px', overflow:'hidden' }}>
       <GridFloor color={glow} />
       <div style={{ position:'absolute', inset:0, background:`radial-gradient(circle at 50% 40%, rgba(${glowRgb},0.12) 0%, transparent 60%)`, pointerEvents:'none' }}/>
-      {faces.map((dots, fi) => (
-        <div key={fi} style={{
-          width:'44px', height:'44px', borderRadius:'10px', zIndex:1,
-          background:`linear-gradient(145deg, rgba(${glowRgb},0.7), rgba(${glowRgb},0.3))`,
-          boxShadow:`0 4px 14px rgba(${glowRgb},0.35)`,
-          display:'grid', gridTemplateColumns:'1fr 1fr 1fr', padding:'6px', gap:'3px',
-          animation:`dice-bob 2s ${fi * 0.6}s ease-in-out infinite`,
-          transform: fi === 1 ? 'translateY(-6px)' : 'none',
-        }}>
-          {dots.map((on, di) => (
-            <div key={di} style={{ borderRadius:'50%', background: on ? 'rgba(255,255,255,0.9)' : 'transparent' }}/>
-          ))}
-        </div>
-      ))}
+      <div style={{ display:'flex', alignItems:'center', gap:'6px', zIndex:1 }}>
+        {dice.map((d, fi) => (
+          <div key={fi} style={{ width:'38px', height:'38px', borderRadius:'8px', background:`linear-gradient(145deg,rgba(${glowRgb},0.7),rgba(${glowRgb},0.3))`, display:'grid', gridTemplateColumns:'1fr 1fr 1fr', padding:'5px', gap:'3px', animation: phase === 'roll' ? `dice-bob 0.4s ${fi*0.1}s ease-in-out infinite` : 'none' }}>
+            {(DOT_PATTERNS[d] || DOT_PATTERNS[1]).map((on, di) => (
+              <div key={di} style={{ borderRadius:'50%', background: on ? 'rgba(255,255,255,0.9)' : 'transparent' }}/>
+            ))}
+          </div>
+        ))}
+      </div>
+      {phase === 'bid'       && <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.7rem', fontWeight:900, color:`rgba(${glowRgb},0.9)`, zIndex:1 }}>BID: {bid.qty}x{bid.face}s</div>}
+      {phase === 'challenge' && <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.72rem', fontWeight:900, color:'#f97316', zIndex:1, letterSpacing:'0.08em' }}>LIAR!</div>}
+      {phase === 'result'    && <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.58rem', fontWeight:900, letterSpacing:'0.08em', color: won?'#22c55e':'#ef4444', padding:'2px 9px', borderRadius:'5px', background: won?'rgba(34,197,94,0.12)':'rgba(239,68,68,0.12)', border:`1px solid ${won?'rgba(34,197,94,0.3)':'rgba(239,68,68,0.3)'}`, zIndex:1 }}>{won ? 'CALLED IT!' : 'WRONG CALL'}</div>}
+      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.5)`, letterSpacing:'0.1em', zIndex:1 }}>LIAR'S DICE</div>
     </div>
   )
 }
 
 function MemoryPreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
-  const SEQ = [0,3,6,1,4,7,2,5,8]
+  type MmPhase = 'show' | 'hide' | 'recall' | 'result'
+  const [phase,   setPhase]   = useState<MmPhase>('show')
+  const [pattern, setPattern] = useState([0,4,8,2])
+  const [recalled,setRecalled]= useState<number[]>([])
+  const [correct, setCorrect] = useState(true)
+
+  function nextRound() {
+    const count = 4
+    const p: number[] = []
+    while (p.length < count) { const n = Math.floor(Math.random()*9); if (!p.includes(n)) p.push(n) }
+    setPattern(p)
+    setRecalled([])
+    setCorrect(Math.random() > 0.3)
+    setPhase('show')
+  }
+
+  useEffect(() => {
+    if (phase === 'show')   { const t = setTimeout(() => setPhase('hide'),   1400); return () => clearTimeout(t) }
+    if (phase === 'hide')   { const t = setTimeout(() => setPhase('recall'),   700); return () => clearTimeout(t) }
+    if (phase === 'result') { const t = setTimeout(nextRound,                 1300); return () => clearTimeout(t) }
+  }, [phase])
+
+  useEffect(() => {
+    if (phase !== 'recall') return
+    let i = 0
+    const iv = setInterval(() => {
+      i++
+      const tiles = correct ? pattern : [...pattern.slice(0,-1), (pattern[pattern.length-1]+2)%9]
+      setRecalled(tiles.slice(0, i))
+      if (i >= pattern.length) { clearInterval(iv); setTimeout(() => setPhase('result'), 200) }
+    }, 380)
+    return () => clearInterval(iv)
+  }, [phase])
+
   return (
     <div style={{ position:'relative', width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'10px', overflow:'hidden' }}>
       <GridFloor color={glow} />
       <div style={{ position:'absolute', inset:0, background:`radial-gradient(circle at 50% 40%, rgba(${glowRgb},0.12) 0%, transparent 60%)`, pointerEvents:'none' }}/>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'5px', zIndex:1 }}>
-        {SEQ.map((_, i) => (
-          <div key={i} style={{
-            width:'28px', height:'28px', borderRadius:'7px',
-            background:`rgba(${glowRgb},0.15)`,
-            border:`1px solid rgba(${glowRgb},0.25)`,
-            animation:`mem-tile 4s ${i * 0.4}s ease-in-out infinite`,
-          }}/>
-        ))}
+        {[0,1,2,3,4,5,6,7,8].map(i => {
+          const inPat = pattern.includes(i)
+          const inRec = recalled.includes(i)
+          const bg = (phase==='show'&&inPat) ? glow : ((phase==='recall'||phase==='result')&&inRec) ? (correct?glow:'#ef4444') : `rgba(${glowRgb},0.08)`
+          const br = (phase==='show'&&inPat) ? glow : ((phase==='recall'||phase==='result')&&inRec) ? (correct?glow:'#ef4444') : `rgba(${glowRgb},0.15)`
+          return <div key={i} style={{ width:'28px', height:'28px', borderRadius:'7px', background:bg, border:`1px solid ${br}`, transition:'all .2s' }}/>
+        })}
       </div>
-      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', color:`rgba(${glowRgb},0.55)`, letterSpacing:'0.1em', zIndex:1 }}>MEMORIZE</div>
+      {phase==='result' && <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:900, letterSpacing:'0.1em', color:correct?'#22c55e':'#ef4444', padding:'2px 9px', borderRadius:'5px', background:correct?'rgba(34,197,94,0.12)':'rgba(239,68,68,0.12)', border:`1px solid ${correct?'rgba(34,197,94,0.3)':'rgba(239,68,68,0.3)'}`, zIndex:1 }}>{correct?'PERFECT':'MISSED'}</div>}
+      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.5)`, letterSpacing:'0.1em', zIndex:1 }}>{phase==='show'?'MEMORIZE':phase==='hide'?'...':phase==='recall'?'RECALL':''}</div>
     </div>
   )
 }
 
 function UniquePreview({ glow, glowRgb, isHigh }: { glow:string; glowRgb:string; isHigh:boolean }) {
-  const nums = [1,2,3,4,5,6,7,8,9]
-  const winner = isHigh ? 8 : 2
+  type UPhase = 'picking' | 'reveal' | 'winner'
+  const [phase,  setPhase]  = useState<UPhase>('picking')
+  const [picks,  setPicks]  = useState<number[]>([3,3,5,7,8,9])
+  const [winner, setWinner] = useState(isHigh ? 9 : 1)
+
+  function nextRound() {
+    const arr: number[] = []
+    for (let i = 0; i < 5; i++) arr.push(Math.floor(Math.random()*7)+(isHigh?2:1))
+    const w = isHigh ? 9 : 1
+    arr.push(w)
+    setPicks(arr.sort(() => Math.random()-0.5))
+    setWinner(w)
+    setPhase('picking')
+  }
+
+  useEffect(() => {
+    if (phase === 'picking') { const t = setTimeout(() => setPhase('reveal'),  1400); return () => clearTimeout(t) }
+    if (phase === 'reveal')  { const t = setTimeout(() => setPhase('winner'),   800); return () => clearTimeout(t) }
+    if (phase === 'winner')  { const t = setTimeout(nextRound,                 1500); return () => clearTimeout(t) }
+  }, [phase])
+
+  const counts: Record<number,number> = {}
+  picks.forEach(p => { counts[p] = (counts[p]||0)+1 })
+
   return (
     <div style={{ position:'relative', width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'8px', overflow:'hidden' }}>
       <GridFloor color={glow} />
       <div style={{ position:'absolute', inset:0, background:`radial-gradient(circle at 50% 40%, rgba(${glowRgb},0.12) 0%, transparent 60%)`, pointerEvents:'none' }}/>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'5px', zIndex:1 }}>
-        {nums.map(n => (
-          <div key={n} style={{
-            width:'28px', height:'28px', borderRadius:'7px', display:'flex', alignItems:'center', justifyContent:'center',
-            fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.7rem',
-            background: n === winner ? glow : `rgba(${glowRgb},0.1)`,
-            color: n === winner ? '#fff' : `rgba(${glowRgb},0.5)`,
-            border: `1px solid ${n === winner ? glow : `rgba(${glowRgb},0.18)`}`,
-            boxShadow: n === winner ? `0 0 12px rgba(${glowRgb},0.7)` : 'none',
-            animation: n === winner ? `unique-pulse 1.4s ease-in-out infinite` : 'none',
-          }}>{n}</div>
-        ))}
-      </div>
-      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', color:`rgba(${glowRgb},0.55)`, letterSpacing:'0.1em', zIndex:1 }}>UNIQUE PICK</div>
+      {phase === 'picking'
+        ? <div style={{ display:'flex', gap:'5px', flexWrap:'wrap', justifyContent:'center', maxWidth:'110px', zIndex:1 }}>
+            {picks.map((_,i) => (
+              <div key={i} style={{ width:'24px', height:'24px', borderRadius:'6px', background:`rgba(${glowRgb},0.1)`, border:`1px solid rgba(${glowRgb},0.18)`, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.58rem', color:`rgba(${glowRgb},0.3)` }}>?</span>
+              </div>
+            ))}
+          </div>
+        : <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'4px', zIndex:1 }}>
+            {[1,2,3,4,5,6,7,8,9].map(n => {
+              const isW = n===winner && phase==='winner'
+              const has = !!counts[n]
+              const dup = has && counts[n]>1
+              return (
+                <div key={n} style={{ width:'26px', height:'26px', borderRadius:'6px', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.65rem', transition:'all .2s',
+                  background: isW ? glow : has ? (dup?'rgba(239,68,68,0.15)':`rgba(${glowRgb},0.18)`) : 'rgba(255,255,255,0.03)',
+                  color:       isW ? '#fff' : has ? (dup?'#ef4444':`rgba(${glowRgb},0.9)`) : '#1e2030',
+                  border:`1px solid ${isW ? glow : has ? (dup?'rgba(239,68,68,0.3)':`rgba(${glowRgb},0.3)`) : 'rgba(255,255,255,0.04)'}`,
+                  boxShadow:   isW ? `0 0 14px rgba(${glowRgb},0.7)` : 'none',
+                  animation:   isW ? 'unique-pulse 0.8s ease-in-out infinite' : 'none',
+                }}>{n}</div>
+              )
+            })}
+          </div>
+      }
+      {phase==='winner' && <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:900, color:'#22c55e', letterSpacing:'0.1em', zIndex:1 }}>UNIQUE WIN!</div>}
+      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.4)`, letterSpacing:'0.1em', zIndex:1 }}>{isHigh?'HIGHEST UNIQUE':'LOWEST UNIQUE'}</div>
     </div>
   )
 }
@@ -312,7 +517,6 @@ const RECENT_WINS = [
 ]
 
 type ChatMsg      = { username: string; message: string; ts: number }
-type ActivityItem = { text: string; ts: number }
 type Room         = { code: string; players: { address: string }[]; maxPlayers: number; entry: number; gameMode: string }
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
@@ -328,12 +532,17 @@ export default function Home() {
   const [activeGame, setActiveGame] = useState(GAMES[0])
   const [playerCount, setPlayerCount] = useState(GAMES[0].activePlayers)
   const [chat, setChat]         = useState<ChatMsg[]>([])
-  const [activity, setActivity] = useState<ActivityItem[]>([])
   const [onlineCount, setOnlineCount] = useState(0)
   const [chatInput, setChatInput] = useState('')
-  const [rightTab, setRightTab] = useState<'wins'|'feed'>('wins')
   const [rooms, setRooms]       = useState<Room[]>([])
+  const [openSections, setOpenSections] = useState<Record<string,boolean>>({ info:true })
+  const [winIdx, setWinIdx]     = useState(0)
+  const [showWin, setShowWin]   = useState(false)
   const chatEndRef  = useRef<HTMLDivElement>(null)
+
+  function toggleSection(key: string) {
+    setOpenSections(p => ({ ...p, [key]: !p[key] }))
+  }
 
   useEffect(() => {
     setPlayerCount(activeGame.activePlayers)
@@ -361,15 +570,23 @@ export default function Home() {
 
   useEffect(() => {
     const s = connectSocket()
-    s.on('chat:message',    (m: ChatMsg)        => setChat(p => [...p, m].slice(-80)))
-    s.on('activity:update', (f: ActivityItem[]) => setActivity(f))
-    s.on('online:count',    (n: number)          => setOnlineCount(n))
-    s.emit('chat:history',  (h: ChatMsg[])       => setChat(h))
-    s.emit('activity:get',  (f: ActivityItem[])  => setActivity(f))
-    return () => { s.off('chat:message'); s.off('activity:update'); s.off('online:count') }
+    s.on('chat:message',    (m: ChatMsg)   => setChat(p => [...p, m].slice(-80)))
+    s.on('online:count',    (n: number)    => setOnlineCount(n))
+    s.emit('chat:history',  (h: ChatMsg[]) => setChat(h))
+    return () => { s.off('chat:message'); s.off('online:count') }
   }, [])
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chat])
+
+  // Win toast on featured card — cycles through recent wins
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setWinIdx(i => (i + 1) % RECENT_WINS.length)
+      setShowWin(true)
+      setTimeout(() => setShowWin(false), 2400)
+    }, 5000)
+    return () => clearInterval(iv)
+  }, [])
 
   function sendChat() {
     const msg = chatInput.trim().slice(0, 200)
@@ -573,8 +790,14 @@ export default function Home() {
               </div>
 
               {/* RIGHT: live animated game scene */}
-              <div style={{ flex:1, position:'relative', borderLeft:`1px solid rgba(${g.glowRgb},0.1)`, background:`radial-gradient(ellipse at 50% 80%, rgba(${g.glowRgb},0.07) 0%, #08080f 70%)`, minHeight:'220px', overflow:'hidden' }}>
+              <div style={{ flex:1, position:'relative', borderLeft:`1px solid rgba(${g.glowRgb},0.1)`, background:`radial-gradient(ellipse at 50% 80%, rgba(${g.glowRgb},0.07) 0%, #08080f 70%)`, minHeight:'200px', overflow:'hidden' }}>
                 <CardPreview id={g.id} glow={g.glow} glowRgb={g.glowRgb} />
+                {/* Win toast */}
+                <div style={{ position:'absolute', bottom:'10px', left:'8px', right:'8px', display:'flex', alignItems:'center', gap:'7px', padding:'7px 10px', background:'rgba(5,5,14,0.82)', backdropFilter:'blur(8px)', borderRadius:'9px', border:'1px solid rgba(34,197,94,0.18)', zIndex:6, transition:'opacity .35s, transform .35s', opacity:showWin?1:0, transform:showWin?'translateY(0)':'translateY(6px)', pointerEvents:'none' }}>
+                  <GameIcon id={RECENT_WINS[winIdx].gid} size={20} animate={false} />
+                  <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.56rem', fontWeight:700, color:'#64748b', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{RECENT_WINS[winIdx].user}</span>
+                  <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.64rem', fontWeight:900, color:'#22c55e', flexShrink:0 }}>{RECENT_WINS[winIdx].amount}</span>
+                </div>
               </div>
             </div>
 
@@ -645,56 +868,84 @@ export default function Home() {
           </div>
         </div>
 
-        {/* RIGHT: wins / feed */}
-        <div className="right-feed" style={{ width:'250px', flexShrink:0, borderLeft:'1px solid #0d0d1e', display:'flex', flexDirection:'column', background:'#06060e' }}>
-          <div style={{ display:'flex', borderBottom:'1px solid #0d0d1e', flexShrink:0 }}>
-            {(['wins','feed'] as const).map(t => (
-              <button key={t} className="r-tab"
-                onClick={() => setRightTab(t)}
-                style={{ flex:1, padding:'10px 0', background:'transparent', borderBottom:`2px solid ${rightTab===t?'#7c3aed':'transparent'}`, color: rightTab===t ? '#a78bfa' : '#374151', fontSize:'0.56rem', fontFamily:'Orbitron,sans-serif', fontWeight:700, letterSpacing:'0.06em' }}>
-                {t === 'wins' ? 'WINS' : 'LIVE FEED'}
-              </button>
+        {/* RIGHT: info panel */}
+        <div className="right-feed" style={{ width:'210px', flexShrink:0, borderLeft:'1px solid #0d0d1e', display:'flex', flexDirection:'column', background:'#06060e', overflowY:'auto' }}>
+          {/* Platform stats */}
+          <div style={{ padding:'14px 14px 10px', borderBottom:'1px solid #0d0d1e', flexShrink:0 }}>
+            <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.46rem', color:'#1e2030', letterSpacing:'0.14em', marginBottom:'10px' }}>PLATFORM</div>
+            {[
+              { l:'Online',   v: onlineCount ? String(onlineCount) : '247', c:'#22c55e' },
+              { l:'Wagered',  v:'$284K',  c:'#a78bfa' },
+              { l:'Games',    v:'1,843',  c:'#06b6d4'  },
+              { l:'Big win',  v:'$1,275', c:'#f59e0b'  },
+            ].map(s => (
+              <div key={s.l} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'4px 0', borderBottom:'1px solid #0a0a12' }}>
+                <span style={{ fontSize:'0.58rem', color:'#374151' }}>{s.l}</span>
+                <span style={{ fontSize:'0.6rem', fontWeight:700, color:s.c, fontFamily:'Orbitron,sans-serif' }}>{s.v}</span>
+              </div>
             ))}
           </div>
 
-          {rightTab === 'wins' && (
-            <div style={{ flex:1, overflowY:'auto' }}>
-              {RECENT_WINS.map((w, i) => (
-                <div key={i} style={{ display:'flex', alignItems:'center', gap:'9px', padding:'9px 14px', borderBottom:'1px solid #0a0a12' }}>
-                  <GameIcon id={w.gid} size={30} animate={false} />
-                  <div style={{ minWidth:0, flex:1 }}>
-                    <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700, color:'#94a3b8', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{w.user}</div>
-                    <div style={{ fontSize:'0.52rem', color:'#1e2030', marginTop:'1px' }}>{w.t}</div>
-                  </div>
-                  <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:900, color:'#22c55e', flexShrink:0 }}>{w.amount}</span>
+          {/* Expandable sections */}
+          {[
+            {
+              key:'explore', label:'EXPLORE',
+              links:[
+                { label:'Leaderboard', to:'/leaderboard' },
+                { label:'My Profile',  to:'/profile'     },
+                { label:'Wallet',      to:'/wallet'      },
+                { label:'History',     to:'/history'     },
+              ],
+            },
+            {
+              key:'info', label:'INFO',
+              links:[
+                { label:'About Arena',    to:'/about'    },
+                { label:'Fairness',       to:'/fairness' },
+                { label:'FAQ',            to:'/faq'      },
+                { label:'Privacy Policy', to:'/privacy'  },
+                { label:'Terms',          to:'/terms'    },
+                { label:'AML Policy',     to:'/aml'      },
+              ],
+            },
+            {
+              key:'support', label:'SUPPORT',
+              links:[
+                { label:'Help Center', to:'/help'    },
+                { label:'Contact',     to:'/contact' },
+              ],
+            },
+          ].map(section => (
+            <div key={section.key} style={{ borderBottom:'1px solid #0d0d1e', flexShrink:0 }}>
+              <button className="r-tab"
+                onClick={() => toggleSection(section.key)}
+                style={{ width:'100%', display:'flex', alignItems:'center', gap:'6px', padding:'10px 14px', background:'transparent', border:'none', cursor:'pointer', textAlign:'left' }}>
+                <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', color:'#374151', letterSpacing:'0.14em', fontWeight:700, flex:1 }}>{section.label}</span>
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ transition:'transform .2s', transform: openSections[section.key] ? 'rotate(180deg)' : 'rotate(0deg)', flexShrink:0 }}>
+                  <path d="M2 3.5L5 6.5L8 3.5" stroke="#374151" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+              {openSections[section.key] && (
+                <div style={{ paddingBottom:'6px' }}>
+                  {section.links.map(link => (
+                    <Link key={link.to} to={link.to}
+                      style={{ display:'block', padding:'6px 20px', fontSize:'0.62rem', color:'#374151', textDecoration:'none', transition:'color .12s' }}
+                      onMouseEnter={e => (e.currentTarget.style.color='#94a3b8')}
+                      onMouseLeave={e => (e.currentTarget.style.color='#374151')}>
+                      {link.label}
+                    </Link>
+                  ))}
                 </div>
-              ))}
-              <div style={{ margin:'10px 12px', padding:'11px', background:'rgba(124,58,237,0.04)', border:'1px solid rgba(124,58,237,0.1)', borderRadius:'10px' }}>
-                <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', color:'#374151', letterSpacing:'0.12em', marginBottom:'8px' }}>PLATFORM STATS</div>
-                {[{ l:'Total wagered', v:'$284K', c:'#a78bfa' }, { l:'Games today', v:'1,843', c:'#06b6d4' }, { l:'Biggest pot', v:'$1,275', c:'#f59e0b' }].map(s => (
-                  <div key={s.l} style={{ display:'flex', justifyContent:'space-between', padding:'4px 0', borderBottom:'1px solid #0c0c14' }}>
-                    <span style={{ fontSize:'0.6rem', color:'#374151' }}>{s.l}</span>
-                    <span style={{ fontSize:'0.62rem', fontWeight:700, color:s.c, fontFamily:'Orbitron,sans-serif' }}>{s.v}</span>
-                  </div>
-                ))}
-                <Link to="/leaderboard" style={{ display:'block', textAlign:'center', marginTop:'8px', fontSize:'0.62rem', color:'#374151', textDecoration:'none', fontWeight:700 }}>Leaderboard</Link>
-              </div>
+              )}
             </div>
-          )}
+          ))}
 
-          {rightTab === 'feed' && (
-            <div style={{ flex:1, overflowY:'auto' }}>
-              {activity.length === 0
-                ? <div style={{ textAlign:'center', color:'#1e2030', fontSize:'0.7rem', marginTop:'24px' }}>No activity yet...</div>
-                : [...activity].reverse().map((a, i) => (
-                    <div key={i} style={{ display:'flex', gap:'9px', alignItems:'flex-start', padding:'8px 14px', borderBottom:'1px solid #0a0a12' }}>
-                      <div style={{ width:'7px', height:'7px', borderRadius:'50%', background:'#22c55e', flexShrink:0, marginTop:'5px', animation:'pulse-dot 2s infinite' }} />
-                      <span style={{ fontSize:'0.66rem', color:'#374151', lineHeight:1.5 }}>{a.text}</span>
-                    </div>
-                  ))
-              }
-            </div>
-          )}
+          {/* Footer note */}
+          <div style={{ padding:'14px', marginTop:'auto', flexShrink:0 }}>
+            <p style={{ fontSize:'0.52rem', color:'#1e2030', lineHeight:1.6, margin:0 }}>
+              By playing you confirm you are not in a restricted jurisdiction. Play responsibly.
+            </p>
+          </div>
         </div>
 
         {/* MOBILE: fixed bottom chat */}
