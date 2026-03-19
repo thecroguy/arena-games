@@ -186,26 +186,28 @@ function CoinPreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
 
   const won = result === pick
   return (
-    <div style={{ position:'relative', width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'8px', overflow:'hidden' }}>
+    <div style={{ position:'relative', width:'100%', height:'100%', overflow:'hidden' }}>
       <GridFloor color={glow} />
       <div style={{ position:'absolute', inset:0, background:`radial-gradient(circle at 50% 40%, rgba(${glowRgb},0.18) 0%, transparent 65%)`, pointerEvents:'none' }}/>
-      <div style={{ position:'relative', zIndex:1, filter:`drop-shadow(0 0 18px rgba(${glowRgb},0.7))` }}>
+      {/* Coin — always centered, never moves */}
+      <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%, -58%)', zIndex:1, filter:`drop-shadow(0 0 18px rgba(${glowRgb},0.7))` }}>
         <IconCoin size={62} animate={phase === 'flip'} />
       </div>
-      {phase === 'pick' && (
-        <div style={{ display:'flex', gap:'6px', zIndex:1 }}>
-          {(['H','T'] as const).map(s => (
-            <div key={s} style={{ width:'28px', height:'28px', borderRadius:'7px', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.7rem', background: s === pick ? glow : 'rgba(255,255,255,0.05)', color: s === pick ? '#000' : '#64748b', border:`1px solid ${s === pick ? glow : 'rgba(255,255,255,0.08)'}` }}>{s}</div>
-          ))}
-        </div>
-      )}
-      {phase === 'result' && (
-        <>
-          <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'1.1rem', fontWeight:900, color: won ? '#22c55e' : '#ef4444', zIndex:1 }}>{result}</div>
-          <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:900, letterSpacing:'0.1em', color: won ? '#22c55e' : '#ef4444', padding:'2px 9px', borderRadius:'5px', background: won ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)', border:`1px solid ${won ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, zIndex:1 }}>{won ? 'WIN' : 'LOSE'}</div>
-        </>
-      )}
-      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.4)`, letterSpacing:'0.1em', zIndex:1 }}>ROUND 3 / 5</div>
+      {/* Pick chips — below coin, absolutely positioned */}
+      <div style={{ position:'absolute', bottom:'26%', left:0, right:0, display:'flex', justifyContent:'center', gap:'6px', zIndex:1,
+        opacity: phase === 'pick' ? 1 : 0, transition:'opacity 0.2s' }}>
+        {(['H','T'] as const).map(s => (
+          <div key={s} style={{ width:'28px', height:'28px', borderRadius:'7px', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.7rem', background: s === pick ? glow : 'rgba(255,255,255,0.05)', color: s === pick ? '#000' : '#64748b', border:`1px solid ${s === pick ? glow : 'rgba(255,255,255,0.08)'}` }}>{s}</div>
+        ))}
+      </div>
+      {/* Result label — same position as pick chips, just text */}
+      <div style={{ position:'absolute', bottom:'26%', left:0, right:0, display:'flex', flexDirection:'column', alignItems:'center', gap:'3px', zIndex:1,
+        opacity: phase === 'result' ? 1 : 0, transition:'opacity 0.25s' }}>
+        <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.95rem', fontWeight:900, color: won ? '#22c55e' : '#ef4444' }}>{result}</div>
+        <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', fontWeight:900, letterSpacing:'0.12em', color: won ? '#22c55e' : '#ef4444' }}>{won ? 'WIN' : 'LOSE'}</div>
+      </div>
+      {/* Round label */}
+      <div style={{ position:'absolute', bottom:'10px', left:0, right:0, textAlign:'center', fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.4)`, letterSpacing:'0.1em', zIndex:1 }}>ROUND 3 / 5</div>
     </div>
   )
 }
