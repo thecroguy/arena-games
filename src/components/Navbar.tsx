@@ -84,51 +84,65 @@ export default function Navbar() {
         {/* Logo */}
         <Link to="/" style={{ textDecoration: 'none', flexShrink: 0, display:'flex', alignItems:'center', gap:'9px' }}>
           <style>{`
-            @keyframes helm-hue { 0%{filter:hue-rotate(0deg) saturate(1.4) brightness(1.1)} 33%{filter:hue-rotate(40deg) saturate(1.8) brightness(1.2)} 66%{filter:hue-rotate(-30deg) saturate(1.6) brightness(1.15)} 100%{filter:hue-rotate(0deg) saturate(1.4) brightness(1.1)} }
-            @keyframes helm-glow { 0%,100%{drop-shadow(0 0 4px rgba(124,58,237,0.7))} 50%{drop-shadow(0 0 10px rgba(6,182,212,0.9))} }
-            .arena-helm { animation: helm-hue 4s ease-in-out infinite; }
-            @media (hover: hover) { .arena-logo-wrap:hover .arena-helm { animation-duration: 1.2s; } }
+            @keyframes helm-cycle {
+              0%   { filter: hue-rotate(0deg)   saturate(2.0) brightness(1.2)  drop-shadow(0 0 8px rgba(251,191,36,0.8)) }
+              20%  { filter: hue-rotate(-25deg) saturate(2.4) brightness(1.3)  drop-shadow(0 0 14px rgba(239,68,68,0.9)) }
+              45%  { filter: hue-rotate(210deg) saturate(2.2) brightness(1.25) drop-shadow(0 0 10px rgba(124,58,237,0.9)) }
+              70%  { filter: hue-rotate(155deg) saturate(2.0) brightness(1.2)  drop-shadow(0 0 12px rgba(6,182,212,0.85)) }
+              100% { filter: hue-rotate(0deg)   saturate(2.0) brightness(1.2)  drop-shadow(0 0 8px rgba(251,191,36,0.8)) }
+            }
+            @keyframes helm-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
+            .arena-helm { animation: helm-cycle 5s ease-in-out infinite, helm-bob 3s ease-in-out infinite; }
+            @media (hover: hover) { .arena-logo-wrap:hover .arena-helm { animation-duration: 1.4s, 0.8s; } }
           `}</style>
           {/* Spartan Helmet SVG */}
           <div className="arena-logo-wrap" style={{ display:'flex', alignItems:'center' }}>
-            <svg className="arena-helm" width="30" height="34" viewBox="0 0 30 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg className="arena-helm" width="32" height="36" viewBox="0 0 30 34" fill="none" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <linearGradient id="hg1" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#a78bfa"/>
-                  <stop offset="50%" stopColor="#7c3aed"/>
-                  <stop offset="100%" stopColor="#06b6d4"/>
+                  <stop offset="0%" stopColor="#fde68a"/>
+                  <stop offset="40%" stopColor="#f59e0b"/>
+                  <stop offset="100%" stopColor="#b45309"/>
                 </linearGradient>
                 <linearGradient id="hg2" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#f59e0b"/>
+                  <stop offset="0%" stopColor="#fef3c7"/>
+                  <stop offset="100%" stopColor="#f59e0b"/>
+                </linearGradient>
+                <linearGradient id="hg3" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#fde68a"/>
                   <stop offset="100%" stopColor="#d97706"/>
                 </linearGradient>
               </defs>
               {/* Plume base */}
-              <rect x="12" y="0" width="6" height="5" rx="3" fill="url(#hg2)" opacity="0.95"/>
-              {/* Plume strands flowing left */}
-              <path d="M15 4 C10 5 7 8 8 13" stroke="url(#hg2)" strokeWidth="2" strokeLinecap="round" fill="none"/>
-              <path d="M15 4 C13 7 13 10 14 14" stroke="url(#hg2)" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0.7"/>
+              <rect x="12" y="0" width="6" height="5" rx="3" fill="url(#hg2)" opacity="0.98"/>
+              {/* Plume strands */}
+              <path d="M15 4 C9 5 6 9 7 14" stroke="url(#hg2)" strokeWidth="2.2" strokeLinecap="round" fill="none"/>
+              <path d="M15 4 C12 7 12 11 13 15" stroke="url(#hg2)" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity="0.8"/>
+              <path d="M15 3 C18 5 19 8 18 13" stroke="url(#hg3)" strokeWidth="1.2" strokeLinecap="round" fill="none" opacity="0.5"/>
               {/* Helmet dome */}
-              <path d="M3 17 C3 8 7 2 15 2 C23 2 27 8 27 17 L27 21 C27 24 24 26 15 26 C6 26 3 24 3 21 Z" fill="url(#hg1)" opacity="0.95"/>
+              <path d="M3 17 C3 8 7 2 15 2 C23 2 27 8 27 17 L27 21 C27 24 24 26 15 26 C6 26 3 24 3 21 Z" fill="url(#hg1)" opacity="0.96"/>
               {/* Cheek guards */}
-              <path d="M3 19 L3 26 C3 28 5 30 7 30 L23 30 C25 30 27 28 27 26 L27 19" fill="url(#hg1)" opacity="0.7"/>
-              {/* Face opening (dark cutout) */}
-              <path d="M9 14 L9 23 C9 25 11.5 26 15 26 C18.5 26 21 25 21 23 L21 14 Z" fill="#0a0a0f"/>
+              <path d="M3 19 L3 26 C3 28 5 30 7 30 L23 30 C25 30 27 28 27 26 L27 19" fill="url(#hg1)" opacity="0.72"/>
+              {/* Face opening */}
+              <path d="M9 14 L9 23 C9 25 11.5 26 15 26 C18.5 26 21 25 21 23 L21 14 Z" fill="#08080f"/>
               {/* Nose bridge */}
-              <rect x="13.5" y="14" width="3" height="7" rx="1.5" fill="#0a0a0f"/>
-              {/* Eye slits — glowing */}
-              <rect x="9" y="15" width="4" height="2.5" rx="1.2" fill="url(#hg2)" opacity="0.8"/>
-              <rect x="17" y="15" width="4" height="2.5" rx="1.2" fill="url(#hg2)" opacity="0.8"/>
+              <rect x="13.5" y="14" width="3" height="7" rx="1.5" fill="#08080f"/>
+              {/* Eye slits */}
+              <rect x="9" y="15" width="4" height="2.5" rx="1.2" fill="url(#hg2)" opacity="0.95"/>
+              <rect x="17" y="15" width="4" height="2.5" rx="1.2" fill="url(#hg2)" opacity="0.95"/>
               {/* Bottom rim */}
-              <rect x="3" y="29" width="24" height="3" rx="1.5" fill="url(#hg1)" opacity="0.6"/>
+              <rect x="3" y="29" width="24" height="3" rx="1.5" fill="url(#hg1)" opacity="0.65"/>
+              {/* Rivets */}
+              <circle cx="6"  cy="20" r="1" fill="rgba(255,255,255,0.25)"/>
+              <circle cx="24" cy="20" r="1" fill="rgba(255,255,255,0.25)"/>
               {/* Highlight glint */}
-              <path d="M8 5 C9 4 11 3 13 3" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" strokeLinecap="round"/>
+              <path d="M7 6 C9 4 12 3 14 3" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
           </div>
           <span style={{
             fontFamily: 'Orbitron, sans-serif', fontWeight: 900,
             fontSize: 'clamp(0.8rem, 3vw, 1.05rem)',
-            background: 'linear-gradient(135deg, #a78bfa 0%, #7c3aed 45%, #06b6d4 100%)',
+            background: 'linear-gradient(135deg, #fde68a 0%, #f59e0b 40%, #ef4444 75%, #7c3aed 100%)',
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
             letterSpacing: '0.06em', whiteSpace: 'nowrap',
           }}>

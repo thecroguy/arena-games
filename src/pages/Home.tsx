@@ -445,27 +445,41 @@ export default function Home() {
                   <button key={gg.id} className="carousel-card"
                     onClick={() => setActiveGame(gg)}
                     style={{
-                      flexShrink:0, width:'188px',
-                      background:`linear-gradient(145deg, rgba(${gg.glowRgb},0.07), rgba(${gg.glowRgb},0.02))`,
-                      border:`1px solid rgba(${gg.glowRgb},0.18)`,
-                      borderRadius:'14px', padding:'14px 14px 12px',
-                      display:'flex', flexDirection:'column', gap:'10px', textAlign:'left',
-                      position:'relative', overflow:'hidden',
+                      flexShrink:0, width:'155px', height:'190px',
+                      background:`linear-gradient(160deg, rgba(${gg.glowRgb},0.09) 0%, #0b0b16 60%)`,
+                      border:`1px solid rgba(${gg.glowRgb},0.2)`,
+                      borderRadius:'16px', padding:'0',
+                      display:'flex', flexDirection:'column', textAlign:'left',
+                      position:'relative', overflow:'hidden', cursor:'pointer',
                     }}>
-                    <div style={{ position:'absolute', top:0, left:0, right:0, height:'1px', background:`linear-gradient(90deg,transparent,${gg.glow},transparent)`, opacity:0.5 }} />
-                    <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
-                      <GameIcon id={gg.id} size={38} />
-                      <div style={{ minWidth:0 }}>
-                        <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:700, color:'#94a3b8', letterSpacing:'0.03em', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{gg.title}</div>
-                        {gg.hot && <span style={{ fontSize:'0.46rem', padding:'1px 5px', borderRadius:'4px', background:'rgba(239,68,68,0.14)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.24)', animation:'hot-badge 1.6s infinite', display:'inline-block', marginTop:'2px' }}>HOT</span>}
+                    {/* Top glow line */}
+                    <div style={{ position:'absolute', top:0, left:0, right:0, height:'2px', background:`linear-gradient(90deg,transparent,${gg.glow},transparent)`, opacity:0.7 }} />
+                    {/* Dot grid bg */}
+                    <div style={{ position:'absolute', inset:0, backgroundImage:'radial-gradient(rgba(255,255,255,0.015) 1px,transparent 1px)', backgroundSize:'20px 20px', pointerEvents:'none' }} />
+                    {/* Radial glow */}
+                    <div style={{ position:'absolute', top:0, left:0, right:0, height:'60%', background:`radial-gradient(ellipse at 50% 0%, rgba(${gg.glowRgb},0.12) 0%, transparent 70%)`, pointerEvents:'none' }} />
+
+                    {/* Icon preview area */}
+                    <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', position:'relative', zIndex:1 }}>
+                      <div style={{ position:'relative' }}>
+                        <div style={{ position:'absolute', inset:'-12px', borderRadius:'50%', background:`radial-gradient(circle, rgba(${gg.glowRgb},0.2) 0%, transparent 70%)`, pointerEvents:'none' }} />
+                        <GameIcon id={gg.id} size={58} spin={gg.id === 'coin-flip'} />
                       </div>
                     </div>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:'4px' }}>
-                        <span style={{ width:'4px', height:'4px', borderRadius:'50%', background:'#22c55e', display:'inline-block', animation:'pulse-dot 1.8s infinite' }} />
-                        <span style={{ fontSize:'0.58rem', color:'#374151' }}>{gg.activePlayers} playing</span>
+
+                    {/* Info bottom */}
+                    <div style={{ padding:'10px 12px 12px', position:'relative', zIndex:1, borderTop:`1px solid rgba(${gg.glowRgb},0.1)`, background:'rgba(0,0,0,0.3)' }}>
+                      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:700, color:'#cbd5e1', letterSpacing:'0.03em', marginBottom:'5px', display:'flex', alignItems:'center', gap:'5px' }}>
+                        {gg.title}
+                        {gg.hot && <span style={{ fontSize:'0.44rem', padding:'1px 4px', borderRadius:'3px', background:'rgba(239,68,68,0.16)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.26)', animation:'hot-badge 1.6s infinite', flexShrink:0 }}>HOT</span>}
                       </div>
-                      <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700, color:gg.glow }}>{gg.maxPot}</span>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:'4px' }}>
+                          <span style={{ width:'4px', height:'4px', borderRadius:'50%', background:'#22c55e', display:'inline-block', animation:'pulse-dot 1.8s infinite' }} />
+                          <span style={{ fontSize:'0.56rem', color:'#374151' }}>{gg.activePlayers}</span>
+                        </div>
+                        <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:800, color:gg.glow }}>{gg.maxPot}</span>
+                      </div>
                     </div>
                   </button>
                 ))}
