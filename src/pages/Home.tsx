@@ -562,11 +562,8 @@ export default function Home() {
   }
 
   useEffect(() => {
-    setPlayerCount(activeGame.activePlayers)
     const [minP] = activeGame.players.includes('-') ? activeGame.players.split('-').map(Number) : [2, 2]
     setLobbyMax(Math.max(minP, activeGame.players === '2' ? 2 : 5))
-    const t = setInterval(() => setPlayerCount(n => Math.max(2, n + (Math.random() > 0.5 ? 1 : -1) * Math.floor(Math.random() * 3))), 3500)
-    return () => clearInterval(t)
   }, [activeGame])
 
   useEffect(() => {
