@@ -550,6 +550,8 @@ export default function Home() {
 
   useEffect(() => {
     setPlayerCount(activeGame.activePlayers)
+    const [minP] = activeGame.players.includes('-') ? activeGame.players.split('-').map(Number) : [2, 2]
+    setLobbyMax(Math.max(minP, activeGame.players === '2' ? 2 : 5))
     const t = setInterval(() => setPlayerCount(n => Math.max(2, n + (Math.random() > 0.5 ? 1 : -1) * Math.floor(Math.random() * 3))), 3500)
     return () => clearInterval(t)
   }, [activeGame])
@@ -852,8 +854,8 @@ export default function Home() {
                     <div style={{ fontSize:'0.52rem', color:'#64748b', marginBottom:'6px' }}>Max players</div>
                     <div style={{ display:'flex', gap:'4px' }}>
                       {[2,3,4,5,6,8,10].map(n => {
-                        const maxAllowed = g.players.includes('-') ? parseInt(g.players.split('-')[1]) : 10
-                        if (n > maxAllowed) return null
+                        const [minP, maxP] = g.players.includes('-') ? g.players.split('-').map(Number) : [2,10]
+                        if (n < minP || n > maxP) return null
                         return (
                           <button key={n} className="play-btn"
                             onClick={() => setLobbyMax(n)}
