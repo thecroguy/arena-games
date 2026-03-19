@@ -965,7 +965,7 @@ export default function Home() {
                     </div>
                   )}
 
-                  <button className="play-btn" onClick={payAndCreate} disabled={creating}
+                  <button className="play-btn" onClick={() => payAndCreate()} disabled={creating}
                     style={{ width:'100%', borderRadius:'10px', padding:'10px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.72rem', letterSpacing:'0.08em', opacity: creating ? 0.7 : 1,
                       background: creating ? 'rgba(255,255,255,0.07)' : lobbyMode==='duel' ? 'linear-gradient(135deg,#f97316,#ef4444)' : `linear-gradient(135deg,${g.bgFrom},${g.bgTo})`,
                       boxShadow: creating ? 'none' : lobbyMode==='duel' ? '0 0 22px rgba(249,115,22,0.4)' : `0 0 22px rgba(${g.glowRgb},0.38)`,
