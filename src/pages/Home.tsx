@@ -334,7 +334,6 @@ export default function Home() {
   const [rightTab, setRightTab] = useState<'wins'|'feed'>('wins')
   const [rooms, setRooms]       = useState<Room[]>([])
   const chatEndRef  = useRef<HTMLDivElement>(null)
-  const carouselRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setPlayerCount(activeGame.activePlayers)
@@ -344,13 +343,21 @@ export default function Home() {
 
   useEffect(() => {
     const s = connectSocket()
-    function load() {
-      s.emit('rooms:list', activeGame.id, (list: Room[]) => setRooms((list || []).slice(0, 5)))
+    function loadAll() {
+      const merged: Room[] = []
+      let done = 0
+      GAMES.forEach(game => {
+        s.emit('rooms:list', game.id, (list: Room[]) => {
+          merged.push(...(list || []))
+          done++
+          if (done === GAMES.length) setRooms(merged)
+        })
+      })
     }
-    load()
-    s.on('room:update', load)
-    return () => { s.off('room:update', load) }
-  }, [activeGame.id])
+    loadAll()
+    s.on('room:update', loadAll)
+    return () => { s.off('room:update', loadAll) }
+  }, [])
 
   useEffect(() => {
     const s = connectSocket()
@@ -371,12 +378,6 @@ export default function Home() {
     setChatInput('')
   }
 
-  // Direct DOM scroll — works reliably
-  function slideCarousel(dir: 1 | -1) {
-    const el = carouselRef.current
-    if (!el) return
-    el.scrollLeft += dir * 340
-  }
 
   const g = activeGame
 
@@ -425,23 +426,6 @@ export default function Home() {
         }
         @media (min-width:701px) { .mob-chat { display:none!important; } }
       `}</style>
-
-      {/* ── Recent wins strip ─────────────────────────────────── */}
-      <div style={{ background:'#070710', borderBottom:'1px solid #0d0d1e', display:'flex', alignItems:'stretch', height:'36px', flexShrink:0, overflowX:'auto' }}>
-        <div style={{ flexShrink:0, padding:'0 14px', display:'flex', alignItems:'center', gap:'6px', borderRight:'1px solid #111125' }}>
-          <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.4s infinite' }} />
-          <span style={{ fontSize:'0.56rem', fontFamily:'Orbitron,sans-serif', color:'#22c55e', fontWeight:700, letterSpacing:'0.08em' }}>LIVE</span>
-          <span style={{ fontSize:'0.62rem', color:'#22c55e', fontFamily:'Orbitron,sans-serif', fontWeight:900, marginLeft:'2px' }}>{onlineCount || '--'}</span>
-        </div>
-        {RECENT_WINS.map((w, i) => (
-          <div key={i} style={{ flexShrink:0, display:'flex', alignItems:'center', gap:'8px', padding:'0 16px', borderRight:'1px solid #0d0d1c' }}>
-            <GameIcon id={w.gid} size={18} animate={false} />
-            <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700, color:'#64748b' }}>{w.user}</span>
-            <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.66rem', fontWeight:900, color:'#22c55e' }}>{w.amount}</span>
-            <span style={{ fontSize:'0.52rem', color:'#1e2030' }}>{w.t}</span>
-          </div>
-        ))}
-      </div>
 
       {/* ── 3-column body ──────────────────────────────────────── */}
       <div style={{ flex:1, display:'flex', overflow:'hidden', minHeight:0 }}>
@@ -525,42 +509,16 @@ export default function Home() {
         {/* CENTER */}
         <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', overflow:'hidden' }}>
 
-          {/* Game tabs */}
-          <div style={{ display:'flex', gap:'3px', overflowX:'auto', padding:'10px 14px 0', flexShrink:0, background:'#08080f', borderBottom:'1px solid #0d0d1e' }}>
-            {GAMES.map(gg => {
-              const active = activeGame.id === gg.id
-              return (
-                <button key={gg.id} className="g-tab"
-                  onClick={() => setActiveGame(gg)}
-                  style={{
-                    flexShrink:0, display:'flex', alignItems:'center', gap:'6px',
-                    padding:'7px 13px 9px', borderRadius:'9px 9px 0 0', marginBottom:'-1px',
-                    background: active ? '#0c0c17' : 'transparent',
-                    border:`1px solid ${active ? `rgba(${gg.glowRgb},0.28)` : 'transparent'}`,
-                    borderBottom: active ? '1px solid #0c0c17' : '1px solid transparent',
-                    borderTop: active ? `2px solid ${gg.glow}` : '2px solid transparent',
-                    color: active ? gg.glow : '#374151',
-                    fontFamily:'Orbitron,sans-serif', fontSize:'0.58rem', fontWeight:700, letterSpacing:'0.05em',
-                  }}>
-                  <GameIcon id={gg.id} size={15} animate={false} />
-                  {gg.short}
-                  <span style={{ fontSize:'0.5rem', color: active ? `rgba(${gg.glowRgb},0.7)` : '#1e2030' }}>{gg.activePlayers}</span>
-                  {gg.hot && <span style={{ fontSize:'0.44rem', padding:'1px 4px', borderRadius:'4px', background:'rgba(239,68,68,0.16)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.28)', animation:'hot-badge 1.6s infinite' }}>HOT</span>}
-                </button>
-              )
-            })}
-          </div>
-
           {/* Scrollable center content */}
           <div style={{ flex:1, overflowY:'auto', padding:'14px 14px', display:'flex', flexDirection:'column', gap:'14px', minHeight:0 }}>
 
             {/* Featured game panel — split: info left, live scene right */}
-            <div key={g.id} style={{ position:'relative', borderRadius:'18px', overflow:'hidden', border:`1px solid rgba(${g.glowRgb},0.25)`, background:'#0b0b16', animation:'slide-in .2s ease-out', flexShrink:0, minHeight:'260px', display:'flex' }}>
+            <div key={g.id} style={{ position:'relative', borderRadius:'18px', overflow:'hidden', border:`1px solid rgba(${g.glowRgb},0.25)`, background:'#0b0b16', animation:'slide-in .2s ease-out', flexShrink:0, minHeight:'200px', display:'flex' }}>
               {/* Top glow line */}
               <div style={{ position:'absolute', top:0, left:0, right:0, height:'2px', background:`linear-gradient(90deg,transparent,${g.glow},transparent)`, animation:'border-glow 2.5s ease-in-out infinite', zIndex:3 }} />
 
               {/* LEFT: game info + controls */}
-              <div style={{ flex:'0 0 63%', padding:'22px 24px', display:'flex', flexDirection:'column', justifyContent:'space-between', position:'relative', zIndex:2, minWidth:0 }}>
+              <div style={{ flex:'0 0 52%', padding:'18px 20px', display:'flex', flexDirection:'column', justifyContent:'space-between', position:'relative', zIndex:2, minWidth:0 }}>
                 {/* Background subtle dots */}
                 <div style={{ position:'absolute', inset:0, backgroundImage:'radial-gradient(rgba(255,255,255,0.016) 1px,transparent 1px)', backgroundSize:'24px 24px', pointerEvents:'none' }} />
 
@@ -620,96 +578,68 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Open rooms */}
-            {rooms.length > 0 && (
-              <div>
-                <div style={{ display:'flex', alignItems:'center', gap:'7px', marginBottom:'8px' }}>
-                  <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.4s infinite' }} />
-                  <span style={{ fontSize:'0.52rem', fontFamily:'Orbitron,sans-serif', color:'#374151', letterSpacing:'0.12em', fontWeight:700, flex:1 }}>OPEN ROOMS</span>
-                  <span style={{ fontSize:'0.52rem', color:'#374151', fontFamily:'Orbitron,sans-serif' }}>{rooms.length} waiting</span>
-                </div>
-                <div style={{ display:'flex', gap:'8px', overflowX:'auto', paddingBottom:'4px' }}>
-                  {rooms.slice(0, 8).map(r => (
-                    <button key={r.code} className="play-btn"
-                      onClick={() => navigate(`/game/${r.code}`)}
-                      style={{
-                        flexShrink:0, display:'flex', alignItems:'center', gap:'8px',
-                        background:'rgba(255,255,255,0.025)', border:`1px solid rgba(${g.glowRgb},0.18)`,
-                        borderRadius:'10px', padding:'8px 14px',
-                        cursor:'pointer',
-                      }}>
-                      <GameIcon id={r.gameMode} size={18} animate={false} />
-                      <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start', gap:'2px' }}>
-                        <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.58rem', fontWeight:700, color:'#94a3b8', letterSpacing:'0.04em' }}>{r.code}</span>
-                        <span style={{ fontSize:'0.52rem', color:'#374151' }}>{r.players.length}/{r.maxPlayers} players</span>
-                      </div>
-                      <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.66rem', fontWeight:900, color:g.glow, marginLeft:'4px' }}>${r.entry}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* All games carousel */}
+            {/* LOBBY — all games */}
             <div>
-              <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px' }}>
-                <span style={{ fontSize:'0.52rem', fontFamily:'Orbitron,sans-serif', color:'#374151', letterSpacing:'0.12em', fontWeight:700, flex:1 }}>ALL GAMES</span>
-                <button className="slide-btn" onClick={() => slideCarousel(-1)}
-                  style={{ width:'28px', height:'28px', borderRadius:'7px', background:'rgba(255,255,255,0.04)', border:'1px solid #111125', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                    <path d="M8 2L4 6l4 4" stroke="#94a3b8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-                <button className="slide-btn" onClick={() => slideCarousel(1)}
-                  style={{ width:'28px', height:'28px', borderRadius:'7px', background:'rgba(255,255,255,0.04)', border:'1px solid #111125', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                    <path d="M4 2l4 4-4 4" stroke="#94a3b8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
+              <div style={{ display:'flex', alignItems:'center', gap:'7px', marginBottom:'10px' }}>
+                <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.4s infinite' }} />
+                <span style={{ fontSize:'0.52rem', fontFamily:'Orbitron,sans-serif', color:'#374151', letterSpacing:'0.12em', fontWeight:700, flex:1 }}>LOBBY</span>
+                <span style={{ fontSize:'0.52rem', color:'#374151', fontFamily:'Orbitron,sans-serif' }}>{rooms.length > 0 ? `${rooms.length} open` : 'live'}</span>
               </div>
-
-              <div ref={carouselRef} style={{ display:'flex', gap:'10px', overflowX:'auto', paddingBottom:'6px' }}>
-                {GAMES.filter(gg => gg.id !== activeGame.id).map(gg => (
-                  <button key={gg.id} className="c-card"
-                    onClick={() => setActiveGame(gg)}
-                    style={{
-                      flexShrink:0, width:'130px', height:'215px',
-                      background:'#0b0b16',
-                      border:`1px solid rgba(${gg.glowRgb},0.25)`,
-                      borderRadius:'18px', padding:'0',
-                      display:'flex', flexDirection:'column', textAlign:'left',
-                      position:'relative', overflow:'hidden',
-                    }}>
-                    {/* Top accent bar */}
-                    <div style={{ position:'absolute', top:0, left:0, right:0, height:'2px', background:`linear-gradient(90deg,transparent,${gg.glow},transparent)`, zIndex:3 }} />
-
-                    {/* Live game preview scene - takes up most of the card */}
-                    <div style={{ flex:1, position:'relative', overflow:'hidden', background:`radial-gradient(ellipse at 50% 100%, rgba(${gg.glowRgb},0.06) 0%, #08080f 70%)` }}>
-                      <CardPreview id={gg.id} glow={gg.glow} glowRgb={gg.glowRgb} />
-                      {/* LIVE badge */}
-                      <div style={{ position:'absolute', top:'10px', right:'10px', display:'flex', alignItems:'center', gap:'4px', padding:'3px 7px', borderRadius:'5px', background:'rgba(34,197,94,0.1)', border:'1px solid rgba(34,197,94,0.2)', zIndex:4 }}>
-                        <span style={{ width:'4px', height:'4px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.4s infinite' }}/>
-                        <span style={{ fontSize:'0.46rem', fontFamily:'Orbitron,sans-serif', fontWeight:700, color:'#22c55e', letterSpacing:'0.08em' }}>LIVE</span>
-                      </div>
-                    </div>
-
-                    {/* Bottom info bar */}
-                    <div style={{ padding:'10px 12px 12px', background:'rgba(0,0,0,0.5)', borderTop:`1px solid rgba(${gg.glowRgb},0.12)`, backdropFilter:'blur(6px)', flexShrink:0 }}>
-                      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.64rem', fontWeight:700, color:'#e2e8f0', letterSpacing:'0.02em', marginBottom:'6px', display:'flex', alignItems:'center', gap:'5px' }}>
-                        <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>{gg.title}</span>
-                        {gg.hot && <span style={{ fontSize:'0.44rem', padding:'1px 5px', borderRadius:'4px', background:'rgba(239,68,68,0.18)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.3)', animation:'hot-badge 1.6s infinite', flexShrink:0 }}>HOT</span>}
-                      </div>
-                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                        <div style={{ display:'flex', alignItems:'center', gap:'4px' }}>
-                          <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:'#22c55e', display:'inline-block', animation:'pulse-dot 1.8s infinite' }} />
-                          <span style={{ fontSize:'0.58rem', color:'#374151', fontWeight:600 }}>{gg.activePlayers} playing</span>
+              <div style={{ display:'flex', flexDirection:'column', gap:'5px' }}>
+                {GAMES.map(gg => {
+                  const gameRooms = rooms.filter(r => r.gameMode === gg.id).slice(0, 3)
+                  const isActive = activeGame.id === gg.id
+                  return (
+                    <div key={gg.id}
+                      style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 14px', background: isActive ? `rgba(${gg.glowRgb},0.06)` : 'rgba(255,255,255,0.018)', border:`1px solid ${isActive ? `rgba(${gg.glowRgb},0.28)` : 'rgba(255,255,255,0.05)'}`, borderRadius:'12px', cursor:'pointer', transition:'all .14s' }}
+                      onClick={() => setActiveGame(gg)}>
+                      <GameIcon id={gg.id} size={28} animate={false} />
+                      <div style={{ flex:'0 0 110px', minWidth:0 }}>
+                        <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700, color: isActive ? gg.glow : '#94a3b8', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{gg.title}</div>
+                        <div style={{ display:'flex', alignItems:'center', gap:'4px', marginTop:'2px' }}>
+                          <span style={{ width:'4px', height:'4px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.8s infinite' }} />
+                          <span style={{ fontSize:'0.52rem', color:'#374151' }}>{gg.activePlayers} playing</span>
+                          {gg.hot && <span style={{ fontSize:'0.44rem', padding:'1px 4px', borderRadius:'4px', background:'rgba(239,68,68,0.18)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.28)', animation:'hot-badge 1.6s infinite' }}>HOT</span>}
                         </div>
-                        <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.66rem', fontWeight:900, color:gg.glow }}>{gg.maxPot}</span>
                       </div>
+                      <div style={{ flex:1, display:'flex', gap:'5px', overflowX:'auto' }}>
+                        {gameRooms.length > 0
+                          ? gameRooms.map(r => (
+                              <button key={r.code} className="play-btn"
+                                onClick={e => { e.stopPropagation(); navigate(`/game/${r.code}`) }}
+                                style={{ flexShrink:0, display:'flex', alignItems:'center', gap:'4px', background:'rgba(255,255,255,0.03)', border:`1px solid rgba(${gg.glowRgb},0.2)`, borderRadius:'7px', padding:'4px 9px' }}>
+                                <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.55rem', fontWeight:700, color:'#64748b' }}>{r.code}</span>
+                                <span style={{ fontSize:'0.5rem', color:'#374151' }}>{r.players.length}/{r.maxPlayers}</span>
+                                <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.56rem', fontWeight:900, color:gg.glow }}>${r.entry}</span>
+                              </button>
+                            ))
+                          : <span style={{ fontSize:'0.56rem', color:'#1e2030', fontStyle:'italic', alignSelf:'center' }}>no open rooms</span>
+                        }
+                      </div>
+                      <button className="play-btn"
+                        onClick={e => { e.stopPropagation(); navigate(`/lobby/${gg.id}`) }}
+                        style={{ flexShrink:0, background:`linear-gradient(135deg,${gg.bgFrom},${gg.bgTo})`, borderRadius:'8px', padding:'6px 14px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.6rem', letterSpacing:'0.06em', boxShadow:`0 0 14px rgba(${gg.glowRgb},0.28)` }}>
+                        PLAY
+                      </button>
                     </div>
-                  </button>
-                ))}
+                  )
+                })}
               </div>
+            </div>
+
+            {/* Other pages */}
+            <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', paddingBottom:'8px' }}>
+              {[
+                { label:'Leaderboard', to:'/leaderboard', color:'#f59e0b' },
+                { label:'Profile',     to:'/profile',     color:'#7c3aed' },
+                { label:'Wallet',      to:'/wallet',      color:'#06b6d4' },
+                { label:'History',     to:'/history',     color:'#22c55e' },
+              ].map(p => (
+                <Link key={p.to} to={p.to} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', borderRadius:'10px', background:'rgba(255,255,255,0.025)', border:`1px solid ${p.color}22`, textDecoration:'none', transition:'all .14s' }}>
+                  <span style={{ width:'6px', height:'6px', borderRadius:'50%', background:p.color, display:'block', boxShadow:`0 0 6px ${p.color}` }} />
+                  <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:700, color:'#64748b', letterSpacing:'0.06em' }}>{p.label}</span>
+                </Link>
+              ))}
             </div>
 
           </div>
