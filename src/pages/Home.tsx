@@ -545,6 +545,7 @@ export default function Home() {
   const [onlineCount, setOnlineCount] = useState(0)
   const [chatInput, setChatInput] = useState('')
   const [rooms, setRooms]       = useState<Room[]>([])
+  const [playFee, setPlayFee]   = useState(1)
   const [lobbyFee, setLobbyFee] = useState(1)
   const [lobbyMax, setLobbyMax] = useState(5)
   const [lobbyMode, setLobbyMode] = useState<'room'|'duel'>('room')
@@ -607,15 +608,16 @@ export default function Home() {
     } catch { return null }
   }
 
-  async function payAndCreate() {
+  async function payAndCreate(overrideFee?: number, overrideMax?: number, overrideMode?: 'room'|'duel') {
     if (!isConnected || !address) { setCreateError('Connect your wallet first'); return }
     setCreating(true); setCreateError(''); setPayStep('idle')
     const authSig = await getAuthSig()
     if (!authSig) { setCreating(false); return }
     const chain = selectedChain
-    const fee = lobbyFee
-    const maxP = lobbyMode === 'duel' ? 2 : lobbyMax
-    const rType = lobbyMode === 'duel' ? 'duel' : 'public'
+    const fee = overrideFee ?? lobbyFee
+    const mode = overrideMode ?? lobbyMode
+    const maxP = mode === 'duel' ? 2 : (overrideMax ?? lobbyMax)
+    const rType = mode === 'duel' ? 'duel' : 'public'
     try {
       if (currentChainId !== chain.id) {
         setPayStep('switching')
@@ -837,14 +839,36 @@ export default function Home() {
                     {g.tags.map(t => <span key={t} style={{ fontSize:'0.48rem', fontWeight:700, padding:'2px 6px', borderRadius:'20px', background:`rgba(${g.glowRgb},0.1)`, color:g.glow, border:`1px solid rgba(${g.glowRgb},0.18)` }}>{t}</span>)}
                     {g.hot && <span style={{ fontSize:'0.48rem', fontWeight:700, padding:'2px 6px', borderRadius:'20px', background:'rgba(239,68,68,0.12)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.22)', animation:'hot-badge 1.6s infinite' }}>HOT</span>}
                   </div>
-                  <p style={{ color:'#4b5563', fontSize:'0.74rem', lineHeight:1.5, margin:'0 0 12px' }}>{g.desc}</p>
+                  <p style={{ color:'#4b5563', fontSize:'0.74rem', lineHeight:1.5, margin:'0 0 10px' }}>{g.desc}</p>
+                </div>
+
+                {/* Fee selector for PLAY NOW */}
+                <div style={{ marginBottom:'10px' }}>
+                  <div style={{ fontSize:'0.46rem', color:'#64748b', marginBottom:'5px', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.06em' }}>ENTRY FEE</div>
+                  <div style={{ display:'flex', gap:'4px', flexWrap:'wrap' }}>
+                    {ENTRY_FEES.map(f => {
+                      const active = playFee === f
+                      return (
+                        <button key={f} className="play-btn"
+                          onClick={() => setPlayFee(f)}
+                          style={{ padding:'3px 9px', borderRadius:'6px', fontFamily:'Orbitron,sans-serif', fontSize:'0.58rem', fontWeight:700,
+                            background: active ? `linear-gradient(135deg,${g.bgFrom},${g.bgTo})` : 'rgba(255,255,255,0.05)',
+                            color: active ? '#fff' : '#64748b',
+                            border: active ? 'none' : '1px solid rgba(255,255,255,0.09)',
+                            boxShadow: active ? `0 0 10px rgba(${g.glowRgb},0.35)` : 'none',
+                          }}>
+                          ${f}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
 
                 {/* Buttons */}
                 <div style={{ display:'flex', gap:'8px' }}>
-                  <button className="play-btn" onClick={payAndCreate} disabled={creating}
-                    style={{ background: creating ? 'rgba(255,255,255,0.07)' : `linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'10px', padding:'10px 24px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.8rem', letterSpacing:'0.08em', boxShadow: creating ? 'none' : `0 0 24px rgba(${g.glowRgb},0.4)`, opacity: creating ? 0.7 : 1 }}>
-                    {creating ? (payStep === 'approving' ? 'APPROVING...' : payStep === 'paying' ? 'PAYING...' : payStep === 'creating' ? 'CREATING...' : 'WAITING...') : 'PLAY NOW'}
+                  <button className="play-btn" onClick={() => payAndCreate(playFee, undefined, 'room')} disabled={creating}
+                    style={{ background: creating ? 'rgba(255,255,255,0.07)' : `linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'10px', padding:'10px 22px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.78rem', letterSpacing:'0.08em', boxShadow: creating ? 'none' : `0 0 24px rgba(${g.glowRgb},0.4)`, opacity: creating ? 0.7 : 1 }}>
+                    {creating ? (payStep === 'approving' ? 'APPROVING...' : payStep === 'paying' ? 'PAYING...' : payStep === 'creating' ? 'CREATING...' : 'WAITING...') : `PLAY NOW — $${playFee}`}
                   </button>
                   <button className="bot-btn play-btn" onClick={() => navigate('/game/practice', { state:{ bot:true, entry:0, gameMode:g.id } })}
                     style={{ background:'rgba(124,58,237,0.07)', border:'1px solid rgba(124,58,237,0.2)', borderRadius:'10px', padding:'10px 14px', color:'#a78bfa', fontWeight:700, fontSize:'0.72rem', fontFamily:'Orbitron,sans-serif' }}>
