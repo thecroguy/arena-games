@@ -313,6 +313,10 @@ const RECENT_WINS = [
 
 type ChatMsg      = { username: string; message: string; ts: number }
 type ActivityItem = { text: string; ts: number }
+type Room         = { code: string; players: { address: string }[]; maxPlayers: number; entry: number; gameMode: string }
+
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
+void SERVER_URL // used by connectSocket internally
 
 const CHAT_COLORS = ['#7c3aed','#06b6d4','#f59e0b','#22c55e','#ec4899','#f97316']
 
@@ -328,6 +332,7 @@ export default function Home() {
   const [onlineCount, setOnlineCount] = useState(0)
   const [chatInput, setChatInput] = useState('')
   const [rightTab, setRightTab] = useState<'wins'|'feed'>('wins')
+  const [rooms, setRooms]       = useState<Room[]>([])
   const chatEndRef  = useRef<HTMLDivElement>(null)
   const carouselRef = useRef<HTMLDivElement>(null)
 
@@ -336,6 +341,16 @@ export default function Home() {
     const t = setInterval(() => setPlayerCount(n => Math.max(2, n + (Math.random() > 0.5 ? 1 : -1) * Math.floor(Math.random() * 3))), 3500)
     return () => clearInterval(t)
   }, [activeGame])
+
+  useEffect(() => {
+    const s = connectSocket()
+    function load() {
+      s.emit('rooms:list', activeGame.id, (list: Room[]) => setRooms((list || []).slice(0, 5)))
+    }
+    load()
+    s.on('room:update', load)
+    return () => { s.off('room:update', load) }
+  }, [activeGame.id])
 
   useEffect(() => {
     const s = connectSocket()
@@ -540,12 +555,12 @@ export default function Home() {
           <div style={{ flex:1, overflowY:'auto', padding:'14px 14px', display:'flex', flexDirection:'column', gap:'14px', minHeight:0 }}>
 
             {/* Featured game panel — split: info left, live scene right */}
-            <div key={g.id} style={{ position:'relative', borderRadius:'18px', overflow:'hidden', border:`1px solid rgba(${g.glowRgb},0.25)`, background:'#0b0b16', animation:'slide-in .2s ease-out', flexShrink:0, minHeight:'220px', display:'flex' }}>
+            <div key={g.id} style={{ position:'relative', borderRadius:'18px', overflow:'hidden', border:`1px solid rgba(${g.glowRgb},0.25)`, background:'#0b0b16', animation:'slide-in .2s ease-out', flexShrink:0, minHeight:'260px', display:'flex' }}>
               {/* Top glow line */}
               <div style={{ position:'absolute', top:0, left:0, right:0, height:'2px', background:`linear-gradient(90deg,transparent,${g.glow},transparent)`, animation:'border-glow 2.5s ease-in-out infinite', zIndex:3 }} />
 
               {/* LEFT: game info + controls */}
-              <div style={{ flex:'0 0 56%', padding:'22px 24px', display:'flex', flexDirection:'column', justifyContent:'space-between', position:'relative', zIndex:2, minWidth:0 }}>
+              <div style={{ flex:'0 0 63%', padding:'22px 24px', display:'flex', flexDirection:'column', justifyContent:'space-between', position:'relative', zIndex:2, minWidth:0 }}>
                 {/* Background subtle dots */}
                 <div style={{ position:'absolute', inset:0, backgroundImage:'radial-gradient(rgba(255,255,255,0.016) 1px,transparent 1px)', backgroundSize:'24px 24px', pointerEvents:'none' }} />
 
@@ -605,6 +620,36 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Open rooms */}
+            {rooms.length > 0 && (
+              <div>
+                <div style={{ display:'flex', alignItems:'center', gap:'7px', marginBottom:'8px' }}>
+                  <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.4s infinite' }} />
+                  <span style={{ fontSize:'0.52rem', fontFamily:'Orbitron,sans-serif', color:'#374151', letterSpacing:'0.12em', fontWeight:700, flex:1 }}>OPEN ROOMS</span>
+                  <span style={{ fontSize:'0.52rem', color:'#374151', fontFamily:'Orbitron,sans-serif' }}>{rooms.length} waiting</span>
+                </div>
+                <div style={{ display:'flex', gap:'8px', overflowX:'auto', paddingBottom:'4px' }}>
+                  {rooms.slice(0, 8).map(r => (
+                    <button key={r.code} className="play-btn"
+                      onClick={() => navigate(`/game/${r.code}`)}
+                      style={{
+                        flexShrink:0, display:'flex', alignItems:'center', gap:'8px',
+                        background:'rgba(255,255,255,0.025)', border:`1px solid rgba(${g.glowRgb},0.18)`,
+                        borderRadius:'10px', padding:'8px 14px',
+                        cursor:'pointer',
+                      }}>
+                      <GameIcon id={r.gameMode} size={18} animate={false} />
+                      <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start', gap:'2px' }}>
+                        <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.58rem', fontWeight:700, color:'#94a3b8', letterSpacing:'0.04em' }}>{r.code}</span>
+                        <span style={{ fontSize:'0.52rem', color:'#374151' }}>{r.players.length}/{r.maxPlayers} players</span>
+                      </div>
+                      <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.66rem', fontWeight:900, color:g.glow, marginLeft:'4px' }}>${r.entry}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* All games carousel */}
             <div>
               <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px' }}>
@@ -628,7 +673,7 @@ export default function Home() {
                   <button key={gg.id} className="c-card"
                     onClick={() => setActiveGame(gg)}
                     style={{
-                      flexShrink:0, width:'164px', height:'260px',
+                      flexShrink:0, width:'130px', height:'215px',
                       background:'#0b0b16',
                       border:`1px solid rgba(${gg.glowRgb},0.25)`,
                       borderRadius:'18px', padding:'0',
