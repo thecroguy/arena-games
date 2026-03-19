@@ -747,74 +747,71 @@ export default function Home() {
           {/* Scrollable center content */}
           <div style={{ flex:1, overflowY:'auto', padding:'14px 14px', display:'flex', flexDirection:'column', gap:'14px', minHeight:0 }}>
 
-            {/* Featured game panel — split: info left, live scene right */}
-            <div key={g.id} style={{ position:'relative', borderRadius:'18px', overflow:'hidden', border:`1px solid rgba(${g.glowRgb},0.25)`, background:'#0b0b16', animation:'slide-in .2s ease-out', flexShrink:0, minHeight:'200px', display:'flex' }}>
+            {/* Featured game card — unified background, no split */}
+            <div key={g.id} style={{ position:'relative', borderRadius:'18px', overflow:'hidden', border:`1px solid rgba(${g.glowRgb},0.22)`, background:`linear-gradient(120deg, #0d0d1a 0%, #0b0b16 55%, rgba(${g.glowRgb},0.06) 100%)`, animation:'slide-in .2s ease-out', flexShrink:0, minHeight:'195px', display:'flex' }}>
               {/* Top glow line */}
               <div style={{ position:'absolute', top:0, left:0, right:0, height:'2px', background:`linear-gradient(90deg,transparent,${g.glow},transparent)`, animation:'border-glow 2.5s ease-in-out infinite', zIndex:3 }} />
+              {/* Ambient glow from right side */}
+              <div style={{ position:'absolute', right:0, top:0, bottom:0, width:'45%', background:`radial-gradient(ellipse at 80% 50%, rgba(${g.glowRgb},0.12) 0%, transparent 70%)`, pointerEvents:'none', zIndex:0 }} />
 
-              {/* LEFT: game info + controls */}
-              <div style={{ flex:'0 0 52%', padding:'18px 20px', display:'flex', flexDirection:'column', justifyContent:'space-between', position:'relative', zIndex:2, minWidth:0 }}>
-                {/* Background subtle dots */}
-                <div style={{ position:'absolute', inset:0, backgroundImage:'radial-gradient(rgba(255,255,255,0.016) 1px,transparent 1px)', backgroundSize:'24px 24px', pointerEvents:'none' }} />
-
-                <div style={{ position:'relative' }}>
-                  {/* Title row */}
-                  <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'8px', flexWrap:'wrap' }}>
-                    <GameIcon id={g.id} size={38} animate={false} />
-                    <h2 style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'clamp(1rem,2vw,1.5rem)', margin:0, background:`linear-gradient(135deg,#fff 30%,${g.glow})`, WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>
+              {/* LEFT: info */}
+              <div style={{ flex:'0 0 50%', padding:'20px 22px', display:'flex', flexDirection:'column', justifyContent:'space-between', position:'relative', zIndex:2, minWidth:0 }}>
+                {/* Title row */}
+                <div>
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'6px', flexWrap:'wrap' }}>
+                    <GameIcon id={g.id} size={32} animate={false} />
+                    <h2 style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'clamp(0.95rem,1.8vw,1.3rem)', margin:0, background:`linear-gradient(135deg,#fff 30%,${g.glow})`, WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>
                       {g.title}
                     </h2>
-                    <div style={{ display:'flex', alignItems:'center', gap:'4px', padding:'3px 8px', borderRadius:'6px', background:'rgba(34,197,94,0.07)', border:'1px solid rgba(34,197,94,0.18)', flexShrink:0 }}>
-                      <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.4s infinite' }} />
-                      <span style={{ fontSize:'0.52rem', fontFamily:'Orbitron,sans-serif', fontWeight:700, color:'#22c55e', letterSpacing:'0.06em' }}>LIVE</span>
+                    <div style={{ display:'flex', alignItems:'center', gap:'3px', padding:'2px 7px', borderRadius:'5px', background:'rgba(34,197,94,0.07)', border:'1px solid rgba(34,197,94,0.18)', flexShrink:0 }}>
+                      <span style={{ width:'4px', height:'4px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.4s infinite' }} />
+                      <span style={{ fontSize:'0.48rem', fontFamily:'Orbitron,sans-serif', fontWeight:700, color:'#22c55e', letterSpacing:'0.06em' }}>LIVE</span>
                     </div>
+                    {g.tags.map(t => <span key={t} style={{ fontSize:'0.48rem', fontWeight:700, padding:'2px 6px', borderRadius:'20px', background:`rgba(${g.glowRgb},0.1)`, color:g.glow, border:`1px solid rgba(${g.glowRgb},0.18)` }}>{t}</span>)}
+                    {g.hot && <span style={{ fontSize:'0.48rem', fontWeight:700, padding:'2px 6px', borderRadius:'20px', background:'rgba(239,68,68,0.12)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.22)', animation:'hot-badge 1.6s infinite' }}>HOT</span>}
                   </div>
-                  <p style={{ color:'#4b5563', fontSize:'0.8rem', lineHeight:1.6, margin:'0 0 10px', maxWidth:'360px' }}>{g.desc}</p>
-                  <div style={{ display:'flex', gap:'5px', flexWrap:'wrap' }}>
-                    {g.tags.map(t => <span key={t} style={{ fontSize:'0.54rem', fontWeight:700, padding:'2px 8px', borderRadius:'20px', background:`rgba(${g.glowRgb},0.1)`, color:g.glow, border:`1px solid rgba(${g.glowRgb},0.2)`, letterSpacing:'0.04em' }}>{t}</span>)}
-                    {g.hot && <span style={{ fontSize:'0.54rem', fontWeight:700, padding:'2px 8px', borderRadius:'20px', background:'rgba(239,68,68,0.12)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.25)', animation:'hot-badge 1.6s infinite' }}>HOT</span>}
-                  </div>
+                  <p style={{ color:'#4b5563', fontSize:'0.74rem', lineHeight:1.5, margin:'0 0 12px' }}>{g.desc}</p>
                 </div>
 
-                <div style={{ position:'relative' }}>
-                  {/* Stats */}
-                  <div style={{ display:'flex', gap:'6px', marginBottom:'12px', flexWrap:'wrap' }}>
-                    {([
-                      { l:'MAX POT', v:g.maxPot,         hi:true,  pulse:false },
-                      { l:'ACTIVE',  v:`${playerCount}`,  hi:false, pulse:true  },
-                      { l:'ENTRY',   v:'$0.5+',           hi:false, pulse:false },
-                    ] as { l:string; v:string; hi:boolean; pulse:boolean }[]).map((s, i) => (
-                      <div key={i} style={{ padding:'7px 12px', borderRadius:'9px', background: s.hi ? `rgba(${g.glowRgb},0.1)` : 'rgba(255,255,255,0.024)', border: s.hi ? `1px solid rgba(${g.glowRgb},0.22)` : '1px solid #0e0e1c', display:'flex', flexDirection:'column', gap:'2px', minWidth:'60px', textAlign:'center' }}>
-                        <span style={{ fontSize:'0.44rem', color:'#374151', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.1em' }}>{s.l}</span>
-                        <span style={{ fontSize:'0.82rem', fontWeight:800, color: s.hi ? g.glow : '#e2e8f0', fontFamily:'Orbitron,sans-serif', display:'flex', alignItems:'center', justifyContent:'center', gap:'3px' }}>
-                          {s.pulse && <span style={{ width:'4px', height:'4px', borderRadius:'50%', background:'#22c55e', display:'inline-block', animation:'pulse-dot 1.6s infinite' }} />}
-                          {s.v}
-                        </span>
+                {/* Stats + buttons */}
+                <div>
+                  <div style={{ display:'flex', gap:'16px', marginBottom:'12px' }}>
+                    <div>
+                      <div style={{ fontSize:'0.42rem', color:'#374151', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.1em' }}>MAX POT</div>
+                      <div style={{ fontSize:'0.9rem', fontWeight:900, color:g.glow, fontFamily:'Orbitron,sans-serif' }}>{g.maxPot}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize:'0.42rem', color:'#374151', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.1em' }}>ACTIVE</div>
+                      <div style={{ fontSize:'0.9rem', fontWeight:900, color:'#e2e8f0', fontFamily:'Orbitron,sans-serif', display:'flex', alignItems:'center', gap:'3px' }}>
+                        <span style={{ width:'4px', height:'4px', borderRadius:'50%', background:'#22c55e', display:'inline-block', animation:'pulse-dot 1.6s infinite' }} />{playerCount}
                       </div>
-                    ))}
+                    </div>
+                    <div>
+                      <div style={{ fontSize:'0.42rem', color:'#374151', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.1em' }}>ENTRY</div>
+                      <div style={{ fontSize:'0.9rem', fontWeight:900, color:'#e2e8f0', fontFamily:'Orbitron,sans-serif' }}>$0.5+</div>
+                    </div>
                   </div>
-                  {/* Buttons */}
-                  <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
+                  <div style={{ display:'flex', gap:'8px' }}>
                     <button className="play-btn" onClick={() => navigate(`/lobby/${g.id}`)}
-                      style={{ background:`linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'10px', padding:'11px 28px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.84rem', letterSpacing:'0.08em', boxShadow:`0 0 28px rgba(${g.glowRgb},0.45)` }}>
+                      style={{ background:`linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'10px', padding:'10px 24px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.8rem', letterSpacing:'0.08em', boxShadow:`0 0 24px rgba(${g.glowRgb},0.4)` }}>
                       PLAY NOW
                     </button>
                     <button className="bot-btn play-btn" onClick={() => navigate('/game/practice', { state:{ bot:true, entry:0, gameMode:g.id } })}
-                      style={{ background:'rgba(124,58,237,0.07)', border:'1px solid rgba(124,58,237,0.2)', borderRadius:'10px', padding:'11px 16px', color:'#a78bfa', fontWeight:700, fontSize:'0.75rem', fontFamily:'Orbitron,sans-serif' }}>
+                      style={{ background:'rgba(124,58,237,0.07)', border:'1px solid rgba(124,58,237,0.2)', borderRadius:'10px', padding:'10px 14px', color:'#a78bfa', fontWeight:700, fontSize:'0.72rem', fontFamily:'Orbitron,sans-serif' }}>
                       vs Bot
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* RIGHT: live animated game scene */}
-              <div style={{ flex:1, position:'relative', borderLeft:`1px solid rgba(${g.glowRgb},0.1)`, background:`radial-gradient(ellipse at 50% 80%, rgba(${g.glowRgb},0.07) 0%, #08080f 70%)`, minHeight:'200px', overflow:'hidden' }}>
+              {/* RIGHT: live preview — no separate background, floats on card */}
+              <div style={{ flex:1, position:'relative', overflow:'hidden', zIndex:1 }}>
                 <CardPreview id={g.id} glow={g.glow} glowRgb={g.glowRgb} />
                 {/* Win toast */}
-                <div style={{ position:'absolute', bottom:'10px', left:'8px', right:'8px', display:'flex', alignItems:'center', gap:'7px', padding:'7px 10px', background:'rgba(5,5,14,0.82)', backdropFilter:'blur(8px)', borderRadius:'9px', border:'1px solid rgba(34,197,94,0.18)', zIndex:6, transition:'opacity .35s, transform .35s', opacity:showWin?1:0, transform:showWin?'translateY(0)':'translateY(6px)', pointerEvents:'none' }}>
+                <div style={{ position:'absolute', bottom:'10px', left:'8px', right:'8px', display:'flex', alignItems:'center', gap:'7px', padding:'6px 10px', background:'rgba(5,5,14,0.85)', backdropFilter:'blur(8px)', borderRadius:'9px', border:'1px solid rgba(34,197,94,0.18)', zIndex:6, transition:'opacity .35s, transform .35s', opacity:showWin?1:0, transform:showWin?'translateY(0)':'translateY(6px)', pointerEvents:'none' }}>
                   <GameIcon id={RECENT_WINS[winIdx].gid} size={20} animate={false} />
-                  <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.56rem', fontWeight:700, color:'#64748b', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{RECENT_WINS[winIdx].user}</span>
-                  <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.64rem', fontWeight:900, color:'#22c55e', flexShrink:0 }}>{RECENT_WINS[winIdx].amount}</span>
+                  <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.55rem', fontWeight:700, color:'#64748b', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{RECENT_WINS[winIdx].user}</span>
+                  <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:900, color:'#22c55e', flexShrink:0 }}>{RECENT_WINS[winIdx].amount}</span>
                 </div>
               </div>
             </div>
