@@ -109,19 +109,13 @@ const GAMES = [
 ]
 
 // fake rotating pot values for the featured panel
-const POT_VALUES = ['$42.50', '$85.00', '$127.50', '$170.00', '$212.50', '$255.00']
 
 export default function Home() {
   const navigate = useNavigate()
   const [activeGame, setActiveGame] = useState(GAMES[0])
-  const [potIdx, setPotIdx] = useState(0)
   const [playerCount, setPlayerCount] = useState(activeGame.activePlayers)
 
   // fake live pot + player drift
-  useEffect(() => {
-    const t = setInterval(() => setPotIdx(i => (i + 1) % POT_VALUES.length), 4000)
-    return () => clearInterval(t)
-  }, [])
   useEffect(() => {
     setPlayerCount(activeGame.activePlayers)
     const t = setInterval(() => {
