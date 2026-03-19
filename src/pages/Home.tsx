@@ -558,6 +558,7 @@ export default function Home() {
   const [createError, setCreateError] = useState('')
   const [selectedChain] = useState<SupportedChain>(SUPPORTED_CHAINS[0])
   const [openSections, setOpenSections] = useState<Record<string,boolean>>({ info:true })
+  const [mobileChatOpen, setMobileChatOpen] = useState(false)
   const [winIdx, setWinIdx]     = useState(0)
   const [showWin, setShowWin]   = useState(false)
   const chatEndRef  = useRef<HTMLDivElement>(null)
@@ -705,6 +706,9 @@ export default function Home() {
           .left-chat  { display:none!important; }
           .right-feed { display:none!important; }
           .mob-chat   { display:flex!important; }
+          .game-main-card { flex-direction:column-reverse!important; min-height:unset!important; }
+          .game-card-preview { height:200px!important; width:100%!important; flex:none!important; }
+          .game-card-info { flex:none!important; width:100%!important; }
         }
         @media (min-width:701px) { .mob-chat { display:none!important; } }
       `}</style>
@@ -821,14 +825,14 @@ export default function Home() {
           <div style={{ flex:1, overflowY:'auto', padding:'14px 14px', display:'flex', flexDirection:'column', gap:'14px', minHeight:0 }}>
 
             {/* Featured game card — unified background, no split */}
-            <div key={g.id} style={{ position:'relative', borderRadius:'18px', overflow:'hidden', border:`1px solid rgba(${g.glowRgb},0.22)`, background:`linear-gradient(120deg, #0d0d1a 0%, #0b0b16 55%, rgba(${g.glowRgb},0.06) 100%)`, animation:'slide-in .2s ease-out', flexShrink:0, minHeight:'320px', display:'flex' }}>
+            <div key={g.id} className="game-main-card" style={{ position:'relative', borderRadius:'18px', overflow:'hidden', border:`1px solid rgba(${g.glowRgb},0.22)`, background:`linear-gradient(120deg, #0d0d1a 0%, #0b0b16 55%, rgba(${g.glowRgb},0.06) 100%)`, animation:'slide-in .2s ease-out', flexShrink:0, minHeight:'320px', display:'flex' }}>
               {/* Top glow line */}
               <div style={{ position:'absolute', top:0, left:0, right:0, height:'2px', background:`linear-gradient(90deg,transparent,${g.glow},transparent)`, animation:'border-glow 2.5s ease-in-out infinite', zIndex:3 }} />
               {/* Ambient glow from right side */}
               <div style={{ position:'absolute', right:0, top:0, bottom:0, width:'45%', background:`radial-gradient(ellipse at 80% 50%, rgba(${g.glowRgb},0.12) 0%, transparent 70%)`, pointerEvents:'none', zIndex:0 }} />
 
               {/* LEFT: info */}
-              <div style={{ flex:'0 0 50%', padding:'20px 22px', display:'flex', flexDirection:'column', justifyContent:'space-between', position:'relative', zIndex:2, minWidth:0 }}>
+              <div className="game-card-info" style={{ flex:'0 0 50%', padding:'20px 22px', display:'flex', flexDirection:'column', justifyContent:'space-between', position:'relative', zIndex:2, minWidth:0 }}>
                 {/* Title row */}
                 <div>
                   <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'6px', flexWrap:'wrap' }}>
@@ -906,7 +910,7 @@ export default function Home() {
               </div>
 
               {/* RIGHT: live preview — no separate background, floats on card */}
-              <div style={{ flex:1, position:'relative', overflow:'hidden', zIndex:1 }}>
+              <div className="game-card-preview" style={{ flex:1, position:'relative', overflow:'hidden', zIndex:1 }}>
                 <CardPreview id={g.id} glow={g.glow} glowRgb={g.glowRgb} />
                 {/* Win toast */}
                 <div style={{ position:'absolute', bottom:'10px', right:'10px', display:'inline-flex', alignItems:'center', gap:'6px', padding:'5px 9px', background:`rgba(${g.glowRgb},0.08)`, backdropFilter:'blur(6px)', borderRadius:'8px', border:`1px solid rgba(${g.glowRgb},0.18)`, zIndex:6, transition:'opacity .35s, transform .35s', opacity:showWin?1:0, transform:showWin?'translateY(0)':'translateY(6px)', pointerEvents:'none' }}>
@@ -1117,35 +1121,45 @@ export default function Home() {
           </div>
         </div>
 
-        {/* MOBILE: fixed bottom chat */}
-        <div className="mob-chat" style={{ position:'fixed', bottom:0, left:0, right:0, background:'#06060e', borderTop:'1px solid #0d0d1e', flexDirection:'column', zIndex:50, maxHeight:'38vh' }}>
-          <div style={{ display:'flex', alignItems:'center', padding:'6px 12px', borderBottom:'1px solid #0d0d1e', gap:'6px' }}>
-            <span style={{ width:'4px', height:'4px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.6s infinite' }} />
-            <span style={{ fontSize:'0.54rem', fontFamily:'Orbitron,sans-serif', color:'#64748b', fontWeight:700, flex:1 }}>CHAT</span>
-            <span style={{ fontSize:'0.54rem', color:'#1e2030', fontFamily:'Orbitron,sans-serif' }}>{onlineCount || '--'} online</span>
-          </div>
-          <div style={{ height:'100px', overflowY:'auto', padding:'6px 12px', display:'flex', flexDirection:'column', gap:'4px' }}>
-            {chat.slice(-8).map((m, i) => {
-              const col = CHAT_COLORS[m.username.charCodeAt(0) % CHAT_COLORS.length]
-              return (
-                <div key={i} style={{ display:'flex', gap:'5px' }}>
-                  <span style={{ fontSize:'0.58rem', color:col, fontWeight:700, flexShrink:0 }}>{m.username}:</span>
-                  <span style={{ fontSize:'0.66rem', color:'#4b5563', wordBreak:'break-word' }}>{m.message}</span>
+        {/* MOBILE: collapsible bottom chat bar */}
+        <div className="mob-chat" style={{ position:'fixed', bottom:0, left:0, right:0, background:'#06060e', borderTop:'1px solid #0d0d1e', flexDirection:'column', zIndex:50 }}>
+          {/* Header — always visible, tap to expand */}
+          <button onClick={() => setMobileChatOpen(o => !o)}
+            style={{ display:'flex', alignItems:'center', padding:'8px 14px', background:'transparent', border:'none', cursor:'pointer', width:'100%', gap:'7px' }}>
+            <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.6s infinite', flexShrink:0 }} />
+            <span style={{ fontSize:'0.56rem', fontFamily:'Orbitron,sans-serif', color:'#64748b', fontWeight:700, flex:1, textAlign:'left' }}>CHAT</span>
+            <span style={{ fontSize:'0.52rem', color:'#374151', fontFamily:'Orbitron,sans-serif', marginRight:'6px' }}>{onlineCount || '--'} online</span>
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ transition:'transform .2s', transform: mobileChatOpen ? 'rotate(0deg)' : 'rotate(180deg)', flexShrink:0 }}>
+              <path d="M2 6.5L5 3.5L8 6.5" stroke="#64748b" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          {/* Expandable content */}
+          {mobileChatOpen && (
+            <>
+              <div style={{ height:'110px', overflowY:'auto', padding:'6px 12px', display:'flex', flexDirection:'column', gap:'4px', borderTop:'1px solid #0d0d1e' }}>
+                {chat.slice(-8).map((m, i) => {
+                  const col = CHAT_COLORS[m.username.charCodeAt(0) % CHAT_COLORS.length]
+                  return (
+                    <div key={i} style={{ display:'flex', gap:'5px' }}>
+                      <span style={{ fontSize:'0.58rem', color:col, fontWeight:700, flexShrink:0 }}>{m.username}:</span>
+                      <span style={{ fontSize:'0.64rem', color:'#4b5563', wordBreak:'break-word' }}>{m.message}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{ padding:'7px 10px', borderTop:'1px solid #0d0d1e' }}>
+                <div style={{ display:'flex', gap:'6px', background:'rgba(255,255,255,0.025)', border:'1px solid #111125', borderRadius:'8px', padding:'6px 10px', alignItems:'center' }}>
+                  <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key==='Enter' && sendChat()}
+                    placeholder={address ? 'Message...' : 'Connect wallet to chat'} disabled={!address}
+                    style={{ flex:1, background:'transparent', border:'none', outline:'none', color:'#cbd5e1', fontSize:'0.72rem', minWidth:0 }}/>
+                  <button onClick={sendChat} disabled={!address || !chatInput.trim()}
+                    style={{ background: address && chatInput.trim() ? 'linear-gradient(135deg,#7c3aed,#06b6d4)' : 'rgba(255,255,255,0.04)', border:'none', borderRadius:'6px', padding:'4px 11px', color: address && chatInput.trim() ? '#fff' : '#64748b', fontSize:'0.6rem', fontWeight:700, cursor: address && chatInput.trim() ? 'pointer' : 'default', fontFamily:'Orbitron,sans-serif' }}>
+                    SEND
+                  </button>
                 </div>
-              )
-            })}
-          </div>
-          <div style={{ padding:'7px 10px', borderTop:'1px solid #0d0d1e' }}>
-            <div style={{ display:'flex', gap:'6px', background:'rgba(255,255,255,0.025)', border:'1px solid #111125', borderRadius:'8px', padding:'6px 10px', alignItems:'center' }}>
-              <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key==='Enter' && sendChat()}
-                placeholder={address ? 'Message...' : 'Connect wallet to chat'} disabled={!address}
-                style={{ flex:1, background:'transparent', border:'none', outline:'none', color:'#cbd5e1', fontSize:'0.72rem', minWidth:0 }}/>
-              <button onClick={sendChat} disabled={!address || !chatInput.trim()}
-                style={{ background: address && chatInput.trim() ? 'linear-gradient(135deg,#7c3aed,#06b6d4)' : 'rgba(255,255,255,0.04)', border:'none', borderRadius:'6px', padding:'4px 11px', color: address && chatInput.trim() ? '#fff' : '#64748b', fontSize:'0.6rem', fontWeight:700, cursor: address && chatInput.trim() ? 'pointer' : 'default', fontFamily:'Orbitron,sans-serif' }}>
-                SEND
-              </button>
-            </div>
-          </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
