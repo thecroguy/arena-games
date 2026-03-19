@@ -539,52 +539,56 @@ export default function Home() {
           {/* Scrollable center content */}
           <div style={{ flex:1, overflowY:'auto', padding:'14px 14px', display:'flex', flexDirection:'column', gap:'14px', minHeight:0 }}>
 
-            {/* Featured game panel */}
-            <div key={g.id} style={{ position:'relative', borderRadius:'18px', overflow:'hidden', border:`1px solid rgba(${g.glowRgb},0.22)`, background:'#0b0b16', animation:'slide-in .2s ease-out', flexShrink:0 }}>
-              <div style={{ position:'absolute', inset:0, background:`radial-gradient(ellipse at 70% 35%, rgba(${g.glowRgb},0.13) 0%, transparent 60%)`, pointerEvents:'none' }} />
-              <div style={{ position:'absolute', inset:0, backgroundImage:'radial-gradient(rgba(255,255,255,0.018) 1px,transparent 1px)', backgroundSize:'26px 26px', pointerEvents:'none' }} />
-              {/* Static top border glow, no moving scan line */}
-              <div style={{ position:'absolute', top:0, left:0, right:0, height:'2px', background:`linear-gradient(90deg,transparent,${g.glow},transparent)`, animation:'border-glow 2.5s ease-in-out infinite' }} />
+            {/* Featured game panel — split: info left, live scene right */}
+            <div key={g.id} style={{ position:'relative', borderRadius:'18px', overflow:'hidden', border:`1px solid rgba(${g.glowRgb},0.25)`, background:'#0b0b16', animation:'slide-in .2s ease-out', flexShrink:0, minHeight:'220px', display:'flex' }}>
+              {/* Top glow line */}
+              <div style={{ position:'absolute', top:0, left:0, right:0, height:'2px', background:`linear-gradient(90deg,transparent,${g.glow},transparent)`, animation:'border-glow 2.5s ease-in-out infinite', zIndex:3 }} />
 
-              <div style={{ position:'relative', zIndex:2, padding:'clamp(16px,2.2vw,28px)', display:'flex', gap:'clamp(14px,2vw,24px)', alignItems:'center', flexWrap:'wrap' }}>
-                <GameIcon id={g.id} size={76} animate={true} />
+              {/* LEFT: game info + controls */}
+              <div style={{ flex:'0 0 56%', padding:'22px 24px', display:'flex', flexDirection:'column', justifyContent:'space-between', position:'relative', zIndex:2, minWidth:0 }}>
+                {/* Background subtle dots */}
+                <div style={{ position:'absolute', inset:0, backgroundImage:'radial-gradient(rgba(255,255,255,0.016) 1px,transparent 1px)', backgroundSize:'24px 24px', pointerEvents:'none' }} />
 
-                <div style={{ flex:1, minWidth:'150px' }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'5px' }}>
-                    <h2 style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'clamp(1rem,2.3vw,1.65rem)', margin:0, background:`linear-gradient(135deg,#fff 35%,${g.glow})`, WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>
+                <div style={{ position:'relative' }}>
+                  {/* Title row */}
+                  <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'8px', flexWrap:'wrap' }}>
+                    <GameIcon id={g.id} size={38} animate={false} />
+                    <h2 style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'clamp(1rem,2vw,1.5rem)', margin:0, background:`linear-gradient(135deg,#fff 30%,${g.glow})`, WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>
                       {g.title}
                     </h2>
-                    <div style={{ display:'flex', alignItems:'center', gap:'4px', padding:'3px 8px', borderRadius:'6px', background:'rgba(34,197,94,0.07)', border:'1px solid rgba(34,197,94,0.16)', flexShrink:0 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:'4px', padding:'3px 8px', borderRadius:'6px', background:'rgba(34,197,94,0.07)', border:'1px solid rgba(34,197,94,0.18)', flexShrink:0 }}>
                       <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.4s infinite' }} />
-                      <span style={{ fontSize:'0.54rem', fontFamily:'Orbitron,sans-serif', fontWeight:700, color:'#22c55e', letterSpacing:'0.06em' }}>LIVE</span>
+                      <span style={{ fontSize:'0.52rem', fontFamily:'Orbitron,sans-serif', fontWeight:700, color:'#22c55e', letterSpacing:'0.06em' }}>LIVE</span>
                     </div>
                   </div>
-                  <p style={{ color:'#4b5563', fontSize:'0.83rem', lineHeight:1.6, margin:'0 0 11px', maxWidth:'420px' }}>{g.desc}</p>
+                  <p style={{ color:'#4b5563', fontSize:'0.8rem', lineHeight:1.6, margin:'0 0 10px', maxWidth:'360px' }}>{g.desc}</p>
                   <div style={{ display:'flex', gap:'5px', flexWrap:'wrap' }}>
-                    {g.tags.map(t => <span key={t} style={{ fontSize:'0.55rem', fontWeight:700, padding:'2px 8px', borderRadius:'20px', background:`rgba(${g.glowRgb},0.1)`, color:g.glow, border:`1px solid rgba(${g.glowRgb},0.2)`, letterSpacing:'0.05em' }}>{t}</span>)}
-                    {g.hot && <span style={{ fontSize:'0.55rem', fontWeight:700, padding:'2px 8px', borderRadius:'20px', background:'rgba(239,68,68,0.12)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.26)', animation:'hot-badge 1.6s infinite' }}>HOT</span>}
+                    {g.tags.map(t => <span key={t} style={{ fontSize:'0.54rem', fontWeight:700, padding:'2px 8px', borderRadius:'20px', background:`rgba(${g.glowRgb},0.1)`, color:g.glow, border:`1px solid rgba(${g.glowRgb},0.2)`, letterSpacing:'0.04em' }}>{t}</span>)}
+                    {g.hot && <span style={{ fontSize:'0.54rem', fontWeight:700, padding:'2px 8px', borderRadius:'20px', background:'rgba(239,68,68,0.12)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.25)', animation:'hot-badge 1.6s infinite' }}>HOT</span>}
                   </div>
                 </div>
 
-                <div style={{ display:'flex', flexDirection:'column', gap:'10px', flexShrink:0, alignItems:'flex-end' }}>
-                  <div style={{ display:'flex', gap:'6px' }}>
+                <div style={{ position:'relative' }}>
+                  {/* Stats */}
+                  <div style={{ display:'flex', gap:'6px', marginBottom:'12px', flexWrap:'wrap' }}>
                     {([
-                      { l:'MAX POT', v:g.maxPot,        hi:true,  pulse:false },
-                      { l:'ACTIVE',  v:`${playerCount}`, hi:false, pulse:true  },
-                      { l:'ENTRY',   v:'$0.5+',          hi:false, pulse:false },
+                      { l:'MAX POT', v:g.maxPot,         hi:true,  pulse:false },
+                      { l:'ACTIVE',  v:`${playerCount}`,  hi:false, pulse:true  },
+                      { l:'ENTRY',   v:'$0.5+',           hi:false, pulse:false },
                     ] as { l:string; v:string; hi:boolean; pulse:boolean }[]).map((s, i) => (
-                      <div key={i} style={{ padding:'7px 11px', borderRadius:'9px', background: s.hi ? `rgba(${g.glowRgb},0.1)` : 'rgba(255,255,255,0.024)', border: s.hi ? `1px solid rgba(${g.glowRgb},0.2)` : '1px solid #0e0e1c', display:'flex', flexDirection:'column', gap:'2px', minWidth:'62px', textAlign:'center' }}>
-                        <span style={{ fontSize:'0.46rem', color:'#374151', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.1em' }}>{s.l}</span>
-                        <span style={{ fontSize:'0.8rem', fontWeight:800, color: s.hi ? g.glow : '#e2e8f0', fontFamily:'Orbitron,sans-serif', display:'flex', alignItems:'center', justifyContent:'center', gap:'3px' }}>
+                      <div key={i} style={{ padding:'7px 12px', borderRadius:'9px', background: s.hi ? `rgba(${g.glowRgb},0.1)` : 'rgba(255,255,255,0.024)', border: s.hi ? `1px solid rgba(${g.glowRgb},0.22)` : '1px solid #0e0e1c', display:'flex', flexDirection:'column', gap:'2px', minWidth:'60px', textAlign:'center' }}>
+                        <span style={{ fontSize:'0.44rem', color:'#374151', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.1em' }}>{s.l}</span>
+                        <span style={{ fontSize:'0.82rem', fontWeight:800, color: s.hi ? g.glow : '#e2e8f0', fontFamily:'Orbitron,sans-serif', display:'flex', alignItems:'center', justifyContent:'center', gap:'3px' }}>
                           {s.pulse && <span style={{ width:'4px', height:'4px', borderRadius:'50%', background:'#22c55e', display:'inline-block', animation:'pulse-dot 1.6s infinite' }} />}
                           {s.v}
                         </span>
                       </div>
                     ))}
                   </div>
-                  <div style={{ display:'flex', gap:'7px' }}>
+                  {/* Buttons */}
+                  <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
                     <button className="play-btn" onClick={() => navigate(`/lobby/${g.id}`)}
-                      style={{ background:`linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'10px', padding:'11px 26px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.84rem', letterSpacing:'0.08em', boxShadow:`0 0 26px rgba(${g.glowRgb},0.42)` }}>
+                      style={{ background:`linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'10px', padding:'11px 28px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.84rem', letterSpacing:'0.08em', boxShadow:`0 0 28px rgba(${g.glowRgb},0.45)` }}>
                       PLAY NOW
                     </button>
                     <button className="bot-btn play-btn" onClick={() => navigate('/game/practice', { state:{ bot:true, entry:0, gameMode:g.id } })}
@@ -593,6 +597,11 @@ export default function Home() {
                     </button>
                   </div>
                 </div>
+              </div>
+
+              {/* RIGHT: live animated game scene */}
+              <div style={{ flex:1, position:'relative', borderLeft:`1px solid rgba(${g.glowRgb},0.1)`, background:`radial-gradient(ellipse at 50% 80%, rgba(${g.glowRgb},0.07) 0%, #08080f 70%)`, minHeight:'220px', overflow:'hidden' }}>
+                <CardPreview id={g.id} glow={g.glow} glowRgb={g.glowRgb} />
               </div>
             </div>
 
