@@ -141,6 +141,153 @@ function GameIcon({ id, size = 44, animate = true }: { id: string; size?: number
   return <IconArrowDown size={size} animate={animate} />
 }
 
+// ── Live game preview scenes (inside carousel cards) ─────────────────────────
+
+function GridFloor({ color }: { color: string }) {
+  return (
+    <div style={{
+      position:'absolute', bottom:0, left:0, right:0, height:'55%',
+      backgroundImage:`linear-gradient(${color}18 1px,transparent 1px),linear-gradient(90deg,${color}18 1px,transparent 1px)`,
+      backgroundSize:'22px 22px',
+      transform:'perspective(120px) rotateX(38deg)',
+      transformOrigin:'bottom center',
+      pointerEvents:'none',
+    }}/>
+  )
+}
+
+function CoinPreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
+  return (
+    <div style={{ position:'relative', width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'8px', overflow:'hidden' }}>
+      <GridFloor color={glow} />
+      <div style={{ position:'absolute', inset:0, background:`radial-gradient(circle at 50% 40%, rgba(${glowRgb},0.18) 0%, transparent 65%)`, pointerEvents:'none' }}/>
+      <div style={{ position:'relative', zIndex:1, filter:`drop-shadow(0 0 18px rgba(${glowRgb},0.7))` }}>
+        <IconCoin size={62} animate={true} />
+      </div>
+      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', color:`rgba(${glowRgb},0.65)`, letterSpacing:'0.12em', zIndex:1 }}>ROUND 3 / 5</div>
+    </div>
+  )
+}
+
+function MathPreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
+  return (
+    <div style={{ position:'relative', width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'10px', overflow:'hidden' }}>
+      <GridFloor color={glow} />
+      <div style={{ position:'absolute', inset:0, background:`radial-gradient(circle at 50% 40%, rgba(${glowRgb},0.14) 0%, transparent 60%)`, pointerEvents:'none' }}/>
+      <div style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'1.5rem', color:'#fff', textShadow:`0 0 20px rgba(${glowRgb},0.8)`, letterSpacing:'0.04em', zIndex:1, animation:'math-appear 2.5s ease-in-out infinite' }}>
+        14 + 8 = ?
+      </div>
+      <div style={{ display:'flex', gap:'4px', zIndex:1 }}>
+        {[1,0.6,0.3,0.15].map((o,i) => (
+          <div key={i} style={{ width:'18px', height:'4px', borderRadius:'2px', background:glow, opacity:o }}/>
+        ))}
+      </div>
+      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', color:`rgba(${glowRgb},0.5)`, letterSpacing:'0.1em', zIndex:1 }}>SPEED ROUND</div>
+    </div>
+  )
+}
+
+function ReactionPreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
+  const CELLS = [0,1,2,3,4,5,6,7,8]
+  return (
+    <div style={{ position:'relative', width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'10px', overflow:'hidden' }}>
+      <GridFloor color={glow} />
+      <div style={{ position:'absolute', inset:0, background:`radial-gradient(circle at 50% 40%, rgba(${glowRgb},0.12) 0%, transparent 60%)`, pointerEvents:'none' }}/>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'5px', zIndex:1 }}>
+        {CELLS.map(i => (
+          <div key={i} style={{
+            width:'28px', height:'28px', borderRadius:'6px',
+            background:`rgba(${glowRgb},0.12)`,
+            border:`1px solid rgba(${glowRgb},0.2)`,
+            animation:`react-cell 3s ${i * 0.33}s ease-in-out infinite`,
+          }}/>
+        ))}
+      </div>
+      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', color:`rgba(${glowRgb},0.5)`, letterSpacing:'0.1em', zIndex:1 }}>TAP FIRST</div>
+    </div>
+  )
+}
+
+function DicePreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
+  const faces = [[1,0,1,0,1,0,1,0,1],[0,0,1,0,0,0,1,0,0],[1,0,0,0,0,0,0,0,1]]
+  return (
+    <div style={{ position:'relative', width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', overflow:'hidden' }}>
+      <GridFloor color={glow} />
+      <div style={{ position:'absolute', inset:0, background:`radial-gradient(circle at 50% 40%, rgba(${glowRgb},0.12) 0%, transparent 60%)`, pointerEvents:'none' }}/>
+      {faces.map((dots, fi) => (
+        <div key={fi} style={{
+          width:'44px', height:'44px', borderRadius:'10px', zIndex:1,
+          background:`linear-gradient(145deg, rgba(${glowRgb},0.7), rgba(${glowRgb},0.3))`,
+          boxShadow:`0 4px 14px rgba(${glowRgb},0.35)`,
+          display:'grid', gridTemplateColumns:'1fr 1fr 1fr', padding:'6px', gap:'3px',
+          animation:`dice-bob 2s ${fi * 0.6}s ease-in-out infinite`,
+          transform: fi === 1 ? 'translateY(-6px)' : 'none',
+        }}>
+          {dots.map((on, di) => (
+            <div key={di} style={{ borderRadius:'50%', background: on ? 'rgba(255,255,255,0.9)' : 'transparent' }}/>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function MemoryPreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
+  const SEQ = [0,3,6,1,4,7,2,5,8]
+  return (
+    <div style={{ position:'relative', width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'10px', overflow:'hidden' }}>
+      <GridFloor color={glow} />
+      <div style={{ position:'absolute', inset:0, background:`radial-gradient(circle at 50% 40%, rgba(${glowRgb},0.12) 0%, transparent 60%)`, pointerEvents:'none' }}/>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'5px', zIndex:1 }}>
+        {SEQ.map((_, i) => (
+          <div key={i} style={{
+            width:'28px', height:'28px', borderRadius:'7px',
+            background:`rgba(${glowRgb},0.15)`,
+            border:`1px solid rgba(${glowRgb},0.25)`,
+            animation:`mem-tile 4s ${i * 0.4}s ease-in-out infinite`,
+          }}/>
+        ))}
+      </div>
+      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', color:`rgba(${glowRgb},0.55)`, letterSpacing:'0.1em', zIndex:1 }}>MEMORIZE</div>
+    </div>
+  )
+}
+
+function UniquePreview({ glow, glowRgb, isHigh }: { glow:string; glowRgb:string; isHigh:boolean }) {
+  const nums = [1,2,3,4,5,6,7,8,9]
+  const winner = isHigh ? 8 : 2
+  return (
+    <div style={{ position:'relative', width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'8px', overflow:'hidden' }}>
+      <GridFloor color={glow} />
+      <div style={{ position:'absolute', inset:0, background:`radial-gradient(circle at 50% 40%, rgba(${glowRgb},0.12) 0%, transparent 60%)`, pointerEvents:'none' }}/>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'5px', zIndex:1 }}>
+        {nums.map(n => (
+          <div key={n} style={{
+            width:'28px', height:'28px', borderRadius:'7px', display:'flex', alignItems:'center', justifyContent:'center',
+            fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.7rem',
+            background: n === winner ? glow : `rgba(${glowRgb},0.1)`,
+            color: n === winner ? '#fff' : `rgba(${glowRgb},0.5)`,
+            border: `1px solid ${n === winner ? glow : `rgba(${glowRgb},0.18)`}`,
+            boxShadow: n === winner ? `0 0 12px rgba(${glowRgb},0.7)` : 'none',
+            animation: n === winner ? `unique-pulse 1.4s ease-in-out infinite` : 'none',
+          }}>{n}</div>
+        ))}
+      </div>
+      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', color:`rgba(${glowRgb},0.55)`, letterSpacing:'0.1em', zIndex:1 }}>UNIQUE PICK</div>
+    </div>
+  )
+}
+
+function CardPreview({ id, glow, glowRgb }: { id:string; glow:string; glowRgb:string }) {
+  if (id === 'coin-flip')      return <CoinPreview glow={glow} glowRgb={glowRgb} />
+  if (id === 'math-arena')     return <MathPreview glow={glow} glowRgb={glowRgb} />
+  if (id === 'reaction-grid')  return <ReactionPreview glow={glow} glowRgb={glowRgb} />
+  if (id === 'liars-dice')     return <DicePreview glow={glow} glowRgb={glowRgb} />
+  if (id === 'pattern-memory') return <MemoryPreview glow={glow} glowRgb={glowRgb} />
+  if (id === 'highest-unique') return <UniquePreview glow={glow} glowRgb={glowRgb} isHigh={true} />
+  return <UniquePreview glow={glow} glowRgb={glowRgb} isHigh={false} />
+}
+
 // ── Data ─────────────────────────────────────────────────────────────────────
 
 const GAMES = [
@@ -230,9 +377,13 @@ export default function Home() {
         @keyframes tile-blink  { 0%,100%{opacity:.22} 50%{opacity:1;box-shadow:0 0 7px rgba(168,85,247,0.9)} }
         @keyframes arrow-up    { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
         @keyframes arrow-down  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(6px)} }
-        @keyframes hot-badge   { 0%,100%{box-shadow:0 0 4px rgba(239,68,68,0.4)} 50%{box-shadow:0 0 12px rgba(239,68,68,0.9)} }
-        @keyframes slide-in    { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:translateX(0)} }
-        @keyframes card-rise   { 0%,100%{box-shadow:0 0 0 transparent} 50%{box-shadow:var(--card-glow)} }
+        @keyframes hot-badge    { 0%,100%{box-shadow:0 0 4px rgba(239,68,68,0.4)} 50%{box-shadow:0 0 12px rgba(239,68,68,0.9)} }
+        @keyframes slide-in     { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:translateX(0)} }
+        @keyframes math-appear  { 0%,100%{opacity:.4;transform:scale(0.95)} 45%,55%{opacity:1;transform:scale(1)} }
+        @keyframes react-cell   { 0%,100%,30%{background:rgba(var(--cr),0.1);box-shadow:none} 15%{background:rgba(var(--cr),0.95);box-shadow:0 0 14px rgba(var(--cr),0.8)} }
+        @keyframes dice-bob     { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-5px) rotate(4deg)} }
+        @keyframes mem-tile     { 0%,100%,60%{background:rgba(var(--cm),0.12);box-shadow:none} 20%,40%{background:rgba(var(--cm),0.9);box-shadow:0 0 12px rgba(var(--cm),0.7)} }
+        @keyframes unique-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
 
         .g-tab,.play-btn,.bot-btn,.r-tab,.c-card,.slide-btn,.send-btn { cursor:pointer; border:none; transition:all .14s; }
         .play-btn:active  { transform:scale(.96); }
@@ -463,46 +614,43 @@ export default function Home() {
                 </button>
               </div>
 
-              <div ref={carouselRef} style={{ display:'flex', gap:'10px', overflowX:'auto', paddingBottom:'4px' }}>
+              <div ref={carouselRef} style={{ display:'flex', gap:'10px', overflowX:'auto', paddingBottom:'6px' }}>
                 {GAMES.filter(gg => gg.id !== activeGame.id).map(gg => (
                   <button key={gg.id} className="c-card"
                     onClick={() => setActiveGame(gg)}
                     style={{
-                      flexShrink:0, width:'158px', height:'215px',
-                      background:`linear-gradient(160deg, rgba(${gg.glowRgb},0.1) 0%, #0b0b16 55%)`,
-                      border:`1px solid rgba(${gg.glowRgb},0.22)`,
-                      borderRadius:'16px', padding:'0',
+                      flexShrink:0, width:'164px', height:'260px',
+                      background:'#0b0b16',
+                      border:`1px solid rgba(${gg.glowRgb},0.25)`,
+                      borderRadius:'18px', padding:'0',
                       display:'flex', flexDirection:'column', textAlign:'left',
                       position:'relative', overflow:'hidden',
                     }}>
-                    {/* Top colored border */}
-                    <div style={{ position:'absolute', top:0, left:0, right:0, height:'2px', background:`linear-gradient(90deg,transparent,${gg.glow},transparent)`, opacity:0.8 }} />
-                    {/* Dot grid */}
-                    <div style={{ position:'absolute', inset:0, backgroundImage:'radial-gradient(rgba(255,255,255,0.015) 1px,transparent 1px)', backgroundSize:'18px 18px', pointerEvents:'none' }} />
-                    {/* Radial glow from top */}
-                    <div style={{ position:'absolute', top:0, left:0, right:0, height:'65%', background:`radial-gradient(ellipse at 50% 0%, rgba(${gg.glowRgb},0.14) 0%, transparent 70%)`, pointerEvents:'none' }} />
+                    {/* Top accent bar */}
+                    <div style={{ position:'absolute', top:0, left:0, right:0, height:'2px', background:`linear-gradient(90deg,transparent,${gg.glow},transparent)`, zIndex:3 }} />
 
-                    {/* Icon area - large, centered, animated */}
-                    <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', position:'relative', zIndex:1 }}>
-                      <div style={{ position:'relative' }}>
-                        {/* Glow halo behind icon */}
-                        <div style={{ position:'absolute', inset:'-18px', borderRadius:'50%', background:`radial-gradient(circle, rgba(${gg.glowRgb},0.22) 0%, transparent 65%)`, pointerEvents:'none' }} />
-                        <GameIcon id={gg.id} size={64} animate={true} />
+                    {/* Live game preview scene - takes up most of the card */}
+                    <div style={{ flex:1, position:'relative', overflow:'hidden', background:`radial-gradient(ellipse at 50% 100%, rgba(${gg.glowRgb},0.06) 0%, #08080f 70%)` }}>
+                      <CardPreview id={gg.id} glow={gg.glow} glowRgb={gg.glowRgb} />
+                      {/* LIVE badge */}
+                      <div style={{ position:'absolute', top:'10px', right:'10px', display:'flex', alignItems:'center', gap:'4px', padding:'3px 7px', borderRadius:'5px', background:'rgba(34,197,94,0.1)', border:'1px solid rgba(34,197,94,0.2)', zIndex:4 }}>
+                        <span style={{ width:'4px', height:'4px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.4s infinite' }}/>
+                        <span style={{ fontSize:'0.46rem', fontFamily:'Orbitron,sans-serif', fontWeight:700, color:'#22c55e', letterSpacing:'0.08em' }}>LIVE</span>
                       </div>
                     </div>
 
-                    {/* Bottom bar */}
-                    <div style={{ padding:'10px 12px 13px', position:'relative', zIndex:1, background:'rgba(0,0,0,0.35)', backdropFilter:'blur(4px)', borderTop:`1px solid rgba(${gg.glowRgb},0.1)` }}>
-                      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:700, color:'#cbd5e1', letterSpacing:'0.02em', marginBottom:'6px', display:'flex', alignItems:'center', gap:'4px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                        {gg.title}
-                        {gg.hot && <span style={{ fontSize:'0.44rem', padding:'1px 4px', borderRadius:'3px', background:'rgba(239,68,68,0.16)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.26)', animation:'hot-badge 1.6s infinite', flexShrink:0 }}>HOT</span>}
+                    {/* Bottom info bar */}
+                    <div style={{ padding:'10px 12px 12px', background:'rgba(0,0,0,0.5)', borderTop:`1px solid rgba(${gg.glowRgb},0.12)`, backdropFilter:'blur(6px)', flexShrink:0 }}>
+                      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.64rem', fontWeight:700, color:'#e2e8f0', letterSpacing:'0.02em', marginBottom:'6px', display:'flex', alignItems:'center', gap:'5px' }}>
+                        <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>{gg.title}</span>
+                        {gg.hot && <span style={{ fontSize:'0.44rem', padding:'1px 5px', borderRadius:'4px', background:'rgba(239,68,68,0.18)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.3)', animation:'hot-badge 1.6s infinite', flexShrink:0 }}>HOT</span>}
                       </div>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                         <div style={{ display:'flex', alignItems:'center', gap:'4px' }}>
-                          <span style={{ width:'4px', height:'4px', borderRadius:'50%', background:'#22c55e', display:'inline-block', animation:'pulse-dot 1.8s infinite' }} />
-                          <span style={{ fontSize:'0.56rem', color:'#374151' }}>{gg.activePlayers} live</span>
+                          <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:'#22c55e', display:'inline-block', animation:'pulse-dot 1.8s infinite' }} />
+                          <span style={{ fontSize:'0.58rem', color:'#374151', fontWeight:600 }}>{gg.activePlayers} playing</span>
                         </div>
-                        <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.64rem', fontWeight:800, color:gg.glow }}>{gg.maxPot}</span>
+                        <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.66rem', fontWeight:900, color:gg.glow }}>{gg.maxPot}</span>
                       </div>
                     </div>
                   </button>
