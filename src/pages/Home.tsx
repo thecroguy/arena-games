@@ -548,9 +548,11 @@ export default function Home() {
   const [chatInput, setChatInput] = useState('')
   const [rooms, setRooms]       = useState<Room[]>([])
   const [playFee, setPlayFee]   = useState(1)
+  const [playMax, setPlayMax]   = useState(5)
   const [lobbyFee, setLobbyFee] = useState(1)
   const [lobbyMax, setLobbyMax] = useState(5)
-  const [lobbyMode, setLobbyMode] = useState<'room'|'duel'>('room')
+  const [lobbyOpen, setLobbyOpen] = useState<null|'room'|'duel'>(null)
+  const lobbyMode = lobbyOpen ?? 'room'
   const [creating, setCreating]   = useState(false)
   const [payStep, setPayStep]     = useState<'idle'|'switching'|'approving'|'paying'|'creating'>('idle')
   const [createError, setCreateError] = useState('')
@@ -845,7 +847,7 @@ export default function Home() {
                 </div>
 
                 {/* Fee selector for PLAY NOW */}
-                <div style={{ marginBottom:'10px' }}>
+                <div style={{ marginBottom:'8px' }}>
                   <div style={{ fontSize:'0.46rem', color:'#64748b', marginBottom:'5px', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.06em' }}>ENTRY FEE</div>
                   <div style={{ display:'flex', gap:'4px', flexWrap:'wrap' }}>
                     {ENTRY_FEES.map(f => {
@@ -865,10 +867,33 @@ export default function Home() {
                     })}
                   </div>
                 </div>
+                {/* Player count selector on main card — for non-2p games only */}
+                {g.players !== '2' && (
+                  <div style={{ marginBottom:'8px' }}>
+                    <div style={{ fontSize:'0.46rem', color:'#64748b', marginBottom:'5px', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.06em' }}>PLAYERS</div>
+                    <div style={{ display:'flex', gap:'4px' }}>
+                      {[3,4,5,6,8,10].map(n => {
+                        const [minP, maxP] = g.players.includes('-') ? g.players.split('-').map(Number) : [3,10]
+                        if (n < minP || n > maxP) return null
+                        const active = playMax === n
+                        return (
+                          <button key={n} className="play-btn" onClick={() => setPlayMax(n)}
+                            style={{ width:'28px', height:'26px', borderRadius:'6px', fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700,
+                              background: active ? `rgba(${g.glowRgb},0.2)` : 'rgba(255,255,255,0.05)',
+                              color: active ? g.glow : '#64748b',
+                              border: active ? `1px solid rgba(${g.glowRgb},0.4)` : '1px solid rgba(255,255,255,0.09)',
+                            }}>
+                            {n}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Buttons */}
                 <div style={{ display:'flex', gap:'8px' }}>
-                  <button className="play-btn" onClick={() => payAndCreate(playFee, undefined, 'room')} disabled={creating}
+                  <button className="play-btn" onClick={() => payAndCreate(playFee, g.players === '2' ? 2 : playMax, 'room')} disabled={creating}
                     style={{ background: creating ? 'rgba(255,255,255,0.07)' : `linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'10px', padding:'10px 22px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.78rem', letterSpacing:'0.08em', boxShadow: creating ? 'none' : `0 0 24px rgba(${g.glowRgb},0.4)`, opacity: creating ? 0.7 : 1 }}>
                     {creating ? (payStep === 'approving' ? 'APPROVING...' : payStep === 'paying' ? 'PAYING...' : payStep === 'creating' ? 'CREATING...' : 'WAITING...') : `PLAY NOW — $${playFee}`}
                   </button>
@@ -884,7 +909,7 @@ export default function Home() {
               <div style={{ flex:1, position:'relative', overflow:'hidden', zIndex:1 }}>
                 <CardPreview id={g.id} glow={g.glow} glowRgb={g.glowRgb} />
                 {/* Win toast */}
-                <div style={{ position:'absolute', bottom:'10px', left:'8px', right:'8px', display:'flex', alignItems:'center', gap:'7px', padding:'6px 10px', background:'rgba(5,5,14,0.85)', backdropFilter:'blur(8px)', borderRadius:'9px', border:'1px solid rgba(34,197,94,0.18)', zIndex:6, transition:'opacity .35s, transform .35s', opacity:showWin?1:0, transform:showWin?'translateY(0)':'translateY(6px)', pointerEvents:'none' }}>
+                <div style={{ position:'absolute', bottom:'10px', right:'10px', display:'inline-flex', alignItems:'center', gap:'6px', padding:'5px 9px', background:`rgba(${g.glowRgb},0.08)`, backdropFilter:'blur(6px)', borderRadius:'8px', border:`1px solid rgba(${g.glowRgb},0.18)`, zIndex:6, transition:'opacity .35s, transform .35s', opacity:showWin?1:0, transform:showWin?'translateY(0)':'translateY(6px)', pointerEvents:'none' }}>
                   <GameIcon id={RECENT_WINS[winIdx].gid} size={20} animate={false} />
                   <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.55rem', fontWeight:700, color:'#64748b', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{RECENT_WINS[winIdx].user}</span>
                   <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:900, color:'#22c55e', flexShrink:0 }}>{RECENT_WINS[winIdx].amount}</span>
@@ -895,44 +920,43 @@ export default function Home() {
             {/* INLINE LOBBY */}
             <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
 
-              {/* Mode toggle + config */}
-              <div style={{ background:'rgba(255,255,255,0.022)', border:`1px solid ${lobbyMode==='duel'?'rgba(249,115,22,0.3)':`rgba(${g.glowRgb},0.22)`}`, borderRadius:'14px', overflow:'hidden', transition:'border .2s' }}>
-
-                {/* Toggle header */}
-                <div style={{ display:'flex' }}>
-                  {(['room','duel'] as const).map(m => (
+              {/* DUEL / ROOM — two expand buttons */}
+              <div style={{ display:'flex', gap:'8px' }}>
+                {(['duel','room'] as const).map(m => {
+                  const open = lobbyOpen === m
+                  const isDuel = m === 'duel'
+                  return (
                     <button key={m} className="play-btn"
-                      onClick={() => setLobbyMode(m)}
-                      style={{ flex:1, padding:'11px', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.62rem', letterSpacing:'0.08em', border:'none',
-                        background: m===lobbyMode
-                          ? (m==='duel' ? 'linear-gradient(135deg,#f97316,#ef4444)' : `linear-gradient(135deg,${g.bgFrom},${g.bgTo})`)
-                          : 'rgba(255,255,255,0.03)',
-                        color: m===lobbyMode ? '#fff' : '#64748b',
-                        borderRight: m==='room' ? '1px solid rgba(255,255,255,0.06)' : 'none',
-                        boxShadow: m===lobbyMode ? (m==='duel'?'0 0 20px rgba(249,115,22,0.35)':`0 0 20px rgba(${g.glowRgb},0.3)`) : 'none',
+                      onClick={() => setLobbyOpen(open ? null : m)}
+                      style={{ flex:1, padding:'10px', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.62rem', letterSpacing:'0.08em', borderRadius:'10px',
+                        background: open ? (isDuel ? 'linear-gradient(135deg,#f97316,#ef4444)' : `linear-gradient(135deg,${g.bgFrom},${g.bgTo})`) : 'rgba(255,255,255,0.05)',
+                        color: open ? '#fff' : '#64748b',
+                        border: open ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                        boxShadow: open ? (isDuel ? '0 0 18px rgba(249,115,22,0.35)' : `0 0 18px rgba(${g.glowRgb},0.3)`) : 'none',
                         transition:'all .2s',
                       }}>
-                      {m === 'duel' ? 'DUEL 1v1' : 'ROOM'}
+                      {isDuel ? '⚔ DUEL 1v1' : '🏠 CREATE ROOM'}
                     </button>
-                  ))}
-                </div>
+                  )
+                })}
+              </div>
 
-                <div style={{ padding:'14px 16px' }}>
+              {/* Expanded panel — slides in */}
+              {lobbyOpen !== null && (
+                <div style={{ background:'rgba(255,255,255,0.022)', border:`1px solid ${lobbyOpen==='duel'?'rgba(249,115,22,0.25)':`rgba(${g.glowRgb},0.2)`}`, borderRadius:'12px', padding:'14px 16px', animation:'slide-in .18s ease-out' }}>
                   {/* Entry fee */}
-                  <div style={{ marginBottom: lobbyMode==='duel' ? '12px' : '10px' }}>
-                    <div style={{ fontSize:'0.5rem', color:'#64748b', marginBottom:'6px' }}>Entry fee</div>
+                  <div style={{ marginBottom:'10px' }}>
+                    <div style={{ fontSize:'0.46rem', color:'#64748b', marginBottom:'5px', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.06em' }}>ENTRY FEE</div>
                     <div style={{ display:'flex', gap:'4px', flexWrap:'wrap' }}>
                       {ENTRY_FEES.map(f => {
                         const active = lobbyFee===f
-                        const duelActive = lobbyMode==='duel' && active
                         return (
-                          <button key={f} className="play-btn"
-                            onClick={() => setLobbyFee(f)}
+                          <button key={f} className="play-btn" onClick={() => setLobbyFee(f)}
                             style={{ padding:'4px 10px', borderRadius:'7px', fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700,
-                              background: duelActive ? 'linear-gradient(135deg,#f97316,#ef4444)' : active ? `linear-gradient(135deg,${g.bgFrom},${g.bgTo})` : 'rgba(255,255,255,0.05)',
+                              background: active ? (lobbyOpen==='duel' ? 'linear-gradient(135deg,#f97316,#ef4444)' : `linear-gradient(135deg,${g.bgFrom},${g.bgTo})`) : 'rgba(255,255,255,0.05)',
                               color: active ? '#fff' : '#64748b',
                               border: active ? 'none' : '1px solid rgba(255,255,255,0.09)',
-                              boxShadow: duelActive ? '0 0 12px rgba(249,115,22,0.4)' : active ? `0 0 12px rgba(${g.glowRgb},0.35)` : 'none',
+                              boxShadow: active ? (lobbyOpen==='duel' ? '0 0 10px rgba(249,115,22,0.4)' : `0 0 10px rgba(${g.glowRgb},0.35)`) : 'none',
                             }}>
                             ${f}
                           </button>
@@ -941,21 +965,21 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Max players — room mode only, non-2p games */}
-                  {lobbyMode === 'room' && g.players !== '2' && (
+                  {/* Max players — room only, non-2p games */}
+                  {lobbyOpen === 'room' && g.players !== '2' && (
                     <div style={{ marginBottom:'12px' }}>
-                      <div style={{ fontSize:'0.5rem', color:'#64748b', marginBottom:'6px' }}>Max players</div>
+                      <div style={{ fontSize:'0.46rem', color:'#64748b', marginBottom:'5px', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.06em' }}>MAX PLAYERS</div>
                       <div style={{ display:'flex', gap:'4px' }}>
                         {[2,3,4,5,6,8,10].map(n => {
                           const [minP, maxP] = g.players.includes('-') ? g.players.split('-').map(Number) : [2,10]
                           if (n < minP || n > maxP) return null
+                          const active = lobbyMax===n
                           return (
-                            <button key={n} className="play-btn"
-                              onClick={() => setLobbyMax(n)}
+                            <button key={n} className="play-btn" onClick={() => setLobbyMax(n)}
                               style={{ width:'30px', height:'28px', borderRadius:'7px', fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:700,
-                                background: lobbyMax===n ? `rgba(${g.glowRgb},0.2)` : 'rgba(255,255,255,0.05)',
-                                color: lobbyMax===n ? g.glow : '#64748b',
-                                border: lobbyMax===n ? `1px solid rgba(${g.glowRgb},0.4)` : '1px solid rgba(255,255,255,0.09)',
+                                background: active ? `rgba(${g.glowRgb},0.2)` : 'rgba(255,255,255,0.05)',
+                                color: active ? g.glow : '#64748b',
+                                border: active ? `1px solid rgba(${g.glowRgb},0.4)` : '1px solid rgba(255,255,255,0.09)',
                               }}>
                               {n}
                             </button>
@@ -965,19 +989,19 @@ export default function Home() {
                     </div>
                   )}
 
-                  <button className="play-btn" onClick={() => payAndCreate()} disabled={creating}
+                  <button className="play-btn" onClick={() => payAndCreate(lobbyFee, lobbyOpen==='duel' ? 2 : lobbyMax, lobbyOpen)} disabled={creating}
                     style={{ width:'100%', borderRadius:'10px', padding:'10px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.72rem', letterSpacing:'0.08em', opacity: creating ? 0.7 : 1,
-                      background: creating ? 'rgba(255,255,255,0.07)' : lobbyMode==='duel' ? 'linear-gradient(135deg,#f97316,#ef4444)' : `linear-gradient(135deg,${g.bgFrom},${g.bgTo})`,
-                      boxShadow: creating ? 'none' : lobbyMode==='duel' ? '0 0 22px rgba(249,115,22,0.4)' : `0 0 22px rgba(${g.glowRgb},0.38)`,
+                      background: creating ? 'rgba(255,255,255,0.07)' : lobbyOpen==='duel' ? 'linear-gradient(135deg,#f97316,#ef4444)' : `linear-gradient(135deg,${g.bgFrom},${g.bgTo})`,
+                      boxShadow: creating ? 'none' : lobbyOpen==='duel' ? '0 0 20px rgba(249,115,22,0.4)' : `0 0 20px rgba(${g.glowRgb},0.35)`,
                     }}>
                     {creating
                       ? (payStep==='approving'?'APPROVING...':payStep==='paying'?'PAYING...':payStep==='creating'?'CREATING...':'WAITING...')
-                      : lobbyMode==='duel' ? `CHALLENGE — $${lobbyFee}` : `CREATE ROOM — $${lobbyFee}`
+                      : lobbyOpen==='duel' ? `⚔ CHALLENGE — $${lobbyFee}` : `CREATE ROOM — $${lobbyFee}`
                     }
                   </button>
                   {createError && <div style={{ fontSize:'0.58rem', color:'#ef4444', marginTop:'8px' }}>{createError}</div>}
                 </div>
-              </div>
+              )}
 
               {/* Open rooms list */}
               <div>
