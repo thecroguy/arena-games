@@ -288,27 +288,42 @@ export default function Home() {
             <span style={{ fontSize:'0.58rem', color:'#1e2030', fontFamily:'Orbitron,sans-serif' }}>{onlineCount || '--'}</span>
           </div>
 
-          <div style={{ flex:1, overflowY:'auto', padding:'10px 12px', display:'flex', flexDirection:'column', gap:'7px' }}>
+          <div style={{ flex:1, overflowY:'auto', padding:'10px 12px', display:'flex', flexDirection:'column', gap:'6px' }}>
             {chat.length === 0
               ? <div style={{ textAlign:'center', color:'#1e2030', fontSize:'0.72rem', marginTop:'24px' }}>Connecting...</div>
               : chat.map((m, i) => {
                   const isMe = m.username === myName
                   const col  = CHAT_COLORS[m.username.charCodeAt(0) % CHAT_COLORS.length]
                   return (
-                    <div key={i} style={{ display:'flex', gap:'8px', alignItems:'flex-start' }}>
-                      {/* Circle avatar with single initial */}
-                      <div style={{
-                        width:'28px', height:'28px', borderRadius:'50%',
-                        background:`linear-gradient(135deg, ${col}30, ${col}12)`,
-                        border:`1.5px solid ${col}55`,
-                        display:'flex', alignItems:'center', justifyContent:'center',
-                        fontSize:'0.62rem', fontWeight:800, color:col, flexShrink:0, marginTop:'1px',
-                      }}>
-                        {m.username.slice(0,1).toUpperCase()}
-                      </div>
-                      <div style={{ minWidth:0 }}>
-                        <span style={{ fontSize:'0.6rem', color: isMe ? '#a78bfa' : col, fontWeight:700 }}>{isMe ? 'You' : m.username}</span>
-                        <div style={{ fontSize:'0.72rem', color:'#4b5563', lineHeight:1.45, wordBreak:'break-word', marginTop:'1px' }}>{m.message}</div>
+                    <div key={i} style={{ display:'flex', flexDirection: isMe ? 'row-reverse' : 'row', gap:'6px', alignItems:'flex-end' }}>
+                      {/* Avatar — only for others */}
+                      {!isMe && (
+                        <div style={{
+                          width:'26px', height:'26px', borderRadius:'50%',
+                          background:`linear-gradient(135deg, ${col}28, ${col}10)`,
+                          border:`1.5px solid ${col}50`,
+                          display:'flex', alignItems:'center', justifyContent:'center',
+                          fontSize:'0.58rem', fontWeight:800, color:col, flexShrink:0,
+                        }}>
+                          {m.username.slice(0,1).toUpperCase()}
+                        </div>
+                      )}
+                      <div style={{ maxWidth:'80%' }}>
+                        {!isMe && <div style={{ fontSize:'0.54rem', color:col, fontWeight:700, marginBottom:'2px', paddingLeft:'3px' }}>{m.username}</div>}
+                        <div style={{
+                          padding:'7px 11px',
+                          borderRadius: isMe ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
+                          fontSize:'0.72rem', lineHeight:1.45, wordBreak:'break-word',
+                          background: isMe
+                            ? 'linear-gradient(135deg, rgba(124,58,237,0.38), rgba(6,182,212,0.24))'
+                            : 'rgba(255,255,255,0.045)',
+                          color: isMe ? '#e2e8f0' : '#94a3b8',
+                          border: isMe
+                            ? '1px solid rgba(124,58,237,0.3)'
+                            : '1px solid rgba(255,255,255,0.06)',
+                        }}>
+                          {m.message}
+                        </div>
                       </div>
                     </div>
                   )
