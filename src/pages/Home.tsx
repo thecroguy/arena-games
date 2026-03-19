@@ -192,7 +192,7 @@ function CoinPreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
       {phase === 'pick' && (
         <div style={{ display:'flex', gap:'6px', zIndex:1 }}>
           {(['H','T'] as const).map(s => (
-            <div key={s} style={{ width:'28px', height:'28px', borderRadius:'7px', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.7rem', background: s === pick ? glow : 'rgba(255,255,255,0.05)', color: s === pick ? '#000' : '#374151', border:`1px solid ${s === pick ? glow : 'rgba(255,255,255,0.08)'}` }}>{s}</div>
+            <div key={s} style={{ width:'28px', height:'28px', borderRadius:'7px', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.7rem', background: s === pick ? glow : 'rgba(255,255,255,0.05)', color: s === pick ? '#000' : '#64748b', border:`1px solid ${s === pick ? glow : 'rgba(255,255,255,0.08)'}` }}>{s}</div>
           ))}
         </div>
       )}
@@ -647,7 +647,7 @@ export default function Home() {
         <div className="left-chat" style={{ width:'270px', flexShrink:0, borderRight:'1px solid #0d0d1e', display:'flex', flexDirection:'column', background:'#06060e' }}>
           <div style={{ padding:'10px 14px', borderBottom:'1px solid #0d0d1e', display:'flex', alignItems:'center', gap:'7px', flexShrink:0 }}>
             <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.6s infinite' }} />
-            <span style={{ fontSize:'0.58rem', fontFamily:'Orbitron,sans-serif', color:'#374151', fontWeight:700, letterSpacing:'0.1em', flex:1 }}>GENERAL CHAT</span>
+            <span style={{ fontSize:'0.58rem', fontFamily:'Orbitron,sans-serif', color:'#64748b', fontWeight:700, letterSpacing:'0.1em', flex:1 }}>GENERAL CHAT</span>
             <span style={{ fontSize:'0.58rem', color:'#1e2030', fontFamily:'Orbitron,sans-serif' }}>{onlineCount || '--'}</span>
           </div>
 
@@ -709,7 +709,7 @@ export default function Home() {
                 style={{
                   background: address && chatInput.trim() ? 'linear-gradient(135deg,#7c3aed,#06b6d4)' : 'rgba(255,255,255,0.04)',
                   border:'none', borderRadius:'7px', padding:'5px 13px',
-                  color: address && chatInput.trim() ? '#fff' : '#374151',
+                  color: address && chatInput.trim() ? '#fff' : '#64748b',
                   fontSize:'0.6rem', fontWeight:700, cursor: address && chatInput.trim() ? 'pointer' : 'default',
                   fontFamily:'Orbitron,sans-serif', letterSpacing:'0.04em', flexShrink:0,
                 }}>
@@ -736,7 +736,7 @@ export default function Home() {
                     border:`1px solid ${active ? `rgba(${gg.glowRgb},0.28)` : 'transparent'}`,
                     borderBottom: active ? '1px solid #0c0c17' : '1px solid transparent',
                     borderTop: active ? `2px solid ${gg.glow}` : '2px solid transparent',
-                    color: active ? gg.glow : '#374151',
+                    color: active ? gg.glow : '#64748b',
                     fontFamily:'Orbitron,sans-serif', fontSize:'0.58rem', fontWeight:700, letterSpacing:'0.05em',
                   }}>
                   <GameIcon id={gg.id} size={15} animate={false} />
@@ -781,22 +781,22 @@ export default function Home() {
                 <div>
                   <div style={{ display:'flex', gap:'16px', marginBottom:'12px' }}>
                     <div>
-                      <div style={{ fontSize:'0.42rem', color:'#374151', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.1em' }}>MAX POT</div>
+                      <div style={{ fontSize:'0.42rem', color:'#64748b', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.1em' }}>MAX POT</div>
                       <div style={{ fontSize:'0.9rem', fontWeight:900, color:g.glow, fontFamily:'Orbitron,sans-serif' }}>{g.maxPot}</div>
                     </div>
                     <div>
-                      <div style={{ fontSize:'0.42rem', color:'#374151', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.1em' }}>ACTIVE</div>
+                      <div style={{ fontSize:'0.42rem', color:'#64748b', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.1em' }}>ACTIVE</div>
                       <div style={{ fontSize:'0.9rem', fontWeight:900, color:'#e2e8f0', fontFamily:'Orbitron,sans-serif', display:'flex', alignItems:'center', gap:'3px' }}>
                         <span style={{ width:'4px', height:'4px', borderRadius:'50%', background:'#22c55e', display:'inline-block', animation:'pulse-dot 1.6s infinite' }} />{playerCount}
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize:'0.42rem', color:'#374151', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.1em' }}>ENTRY</div>
+                      <div style={{ fontSize:'0.42rem', color:'#64748b', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.1em' }}>ENTRY</div>
                       <div style={{ fontSize:'0.9rem', fontWeight:900, color:'#e2e8f0', fontFamily:'Orbitron,sans-serif' }}>$0.5+</div>
                     </div>
                   </div>
                   <div style={{ display:'flex', gap:'8px' }}>
-                    <button className="play-btn" onClick={() => navigate(`/lobby/${g.id}`)}
+                    <button className="play-btn" onClick={() => navigate(`/lobby/${g.id}`, { state:{ autoMatch:true, fee:lobbyFee } })}
                       style={{ background:`linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'10px', padding:'10px 24px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.8rem', letterSpacing:'0.08em', boxShadow:`0 0 24px rgba(${g.glowRgb},0.4)` }}>
                       PLAY NOW
                     </button>
@@ -824,20 +824,20 @@ export default function Home() {
             <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
 
               {/* Create room panel */}
-              <div style={{ background:'rgba(255,255,255,0.018)', border:`1px solid rgba(${g.glowRgb},0.18)`, borderRadius:'14px', padding:'14px 16px' }}>
-                <div style={{ fontSize:'0.46rem', fontFamily:'Orbitron,sans-serif', color:'#374151', letterSpacing:'0.14em', marginBottom:'10px' }}>CREATE ROOM</div>
+              <div style={{ background:'rgba(255,255,255,0.022)', border:`1px solid rgba(${g.glowRgb},0.22)`, borderRadius:'14px', padding:'14px 16px' }}>
+                <div style={{ fontSize:'0.46rem', fontFamily:'Orbitron,sans-serif', color:'#64748b', letterSpacing:'0.14em', marginBottom:'10px' }}>CREATE ROOM</div>
 
                 {/* Entry fee */}
-                <div style={{ marginBottom:'10px' }}>
-                  <div style={{ fontSize:'0.52rem', color:'#374151', marginBottom:'6px' }}>Entry fee</div>
+                <div style={{ marginBottom: g.players === '2' ? '12px' : '10px' }}>
+                  <div style={{ fontSize:'0.52rem', color:'#64748b', marginBottom:'6px' }}>Entry fee</div>
                   <div style={{ display:'flex', gap:'4px', flexWrap:'wrap' }}>
                     {ENTRY_FEES.map(f => (
                       <button key={f} className="play-btn"
                         onClick={() => setLobbyFee(f)}
                         style={{ padding:'4px 10px', borderRadius:'7px', fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700,
-                          background: lobbyFee===f ? `linear-gradient(135deg,${g.bgFrom},${g.bgTo})` : 'rgba(255,255,255,0.035)',
-                          color: lobbyFee===f ? '#fff' : '#374151',
-                          border: lobbyFee===f ? 'none' : '1px solid rgba(255,255,255,0.06)',
+                          background: lobbyFee===f ? `linear-gradient(135deg,${g.bgFrom},${g.bgTo})` : 'rgba(255,255,255,0.05)',
+                          color: lobbyFee===f ? '#fff' : '#64748b',
+                          border: lobbyFee===f ? 'none' : `1px solid rgba(255,255,255,0.09)`,
                           boxShadow: lobbyFee===f ? `0 0 12px rgba(${g.glowRgb},0.35)` : 'none',
                         }}>
                         ${f}
@@ -846,30 +846,32 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Max players */}
-                <div style={{ marginBottom:'12px' }}>
-                  <div style={{ fontSize:'0.52rem', color:'#374151', marginBottom:'6px' }}>Max players</div>
-                  <div style={{ display:'flex', gap:'4px' }}>
-                    {[2,3,4,5,6,8,10].filter(n => n <= (g.players === '2' ? 2 : 10)).concat(g.players === '2' ? [] : []).map(n => {
-                      const maxAllowed = g.players === '2' ? 2 : g.players.includes('-') ? parseInt(g.players.split('-')[1]) : 10
-                      if (n > maxAllowed) return null
-                      return (
-                        <button key={n} className="play-btn"
-                          onClick={() => setLobbyMax(n)}
-                          style={{ width:'30px', height:'28px', borderRadius:'7px', fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:700,
-                            background: lobbyMax===n ? `rgba(${g.glowRgb},0.25)` : 'rgba(255,255,255,0.035)',
-                            color: lobbyMax===n ? g.glow : '#374151',
-                            border: lobbyMax===n ? `1px solid rgba(${g.glowRgb},0.4)` : '1px solid rgba(255,255,255,0.06)',
-                          }}>
-                          {n}
-                        </button>
-                      )
-                    })}
+                {/* Max players — hidden for strictly 2-player games */}
+                {g.players !== '2' && (
+                  <div style={{ marginBottom:'12px' }}>
+                    <div style={{ fontSize:'0.52rem', color:'#64748b', marginBottom:'6px' }}>Max players</div>
+                    <div style={{ display:'flex', gap:'4px' }}>
+                      {[2,3,4,5,6,8,10].map(n => {
+                        const maxAllowed = g.players.includes('-') ? parseInt(g.players.split('-')[1]) : 10
+                        if (n > maxAllowed) return null
+                        return (
+                          <button key={n} className="play-btn"
+                            onClick={() => setLobbyMax(n)}
+                            style={{ width:'30px', height:'28px', borderRadius:'7px', fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:700,
+                              background: lobbyMax===n ? `rgba(${g.glowRgb},0.2)` : 'rgba(255,255,255,0.05)',
+                              color: lobbyMax===n ? g.glow : '#64748b',
+                              border: lobbyMax===n ? `1px solid rgba(${g.glowRgb},0.4)` : `1px solid rgba(255,255,255,0.09)`,
+                            }}>
+                            {n}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <button className="play-btn"
-                  onClick={() => navigate(`/lobby/${g.id}`, { state:{ fee: lobbyFee, max: lobbyMax } })}
+                  onClick={() => navigate(`/lobby/${g.id}`, { state:{ fee: lobbyFee, max: g.players === '2' ? 2 : lobbyMax } })}
                   style={{ width:'100%', background:`linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'10px', padding:'10px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.72rem', letterSpacing:'0.08em', boxShadow:`0 0 20px rgba(${g.glowRgb},0.38)` }}>
                   CREATE ROOM — ${lobbyFee} ENTRY
                 </button>
@@ -879,11 +881,11 @@ export default function Home() {
               <div>
                 <div style={{ display:'flex', alignItems:'center', gap:'7px', marginBottom:'8px' }}>
                   <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.4s infinite' }} />
-                  <span style={{ fontSize:'0.5rem', fontFamily:'Orbitron,sans-serif', color:'#374151', letterSpacing:'0.12em', fontWeight:700, flex:1 }}>OPEN ROOMS</span>
-                  <span style={{ fontSize:'0.5rem', color:'#374151', fontFamily:'Orbitron,sans-serif' }}>{rooms.filter(r=>r.status==='waiting').length} waiting</span>
+                  <span style={{ fontSize:'0.5rem', fontFamily:'Orbitron,sans-serif', color:'#64748b', letterSpacing:'0.12em', fontWeight:700, flex:1 }}>OPEN ROOMS</span>
+                  <span style={{ fontSize:'0.5rem', color:'#64748b', fontFamily:'Orbitron,sans-serif' }}>{rooms.filter(r=>r.status==='waiting').length} waiting</span>
                 </div>
                 {rooms.length === 0
-                  ? <div style={{ padding:'14px', textAlign:'center', fontSize:'0.62rem', color:'#1e2030', background:'rgba(255,255,255,0.01)', borderRadius:'10px', border:'1px solid rgba(255,255,255,0.04)' }}>No open rooms yet</div>
+                  ? <div style={{ padding:'14px', textAlign:'center', fontSize:'0.62rem', color:'#475569', background:'rgba(255,255,255,0.02)', borderRadius:'10px', border:`1px solid rgba(${g.glowRgb},0.1)` }}>No open rooms yet</div>
                   : <div style={{ display:'flex', flexDirection:'column', gap:'5px' }}>
                       {rooms.filter(r => r.status === 'waiting').map(r => (
                         <div key={r.code} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'9px 14px', background:'rgba(255,255,255,0.02)', border:`1px solid rgba(${g.glowRgb},0.12)`, borderRadius:'10px' }}>
@@ -892,7 +894,7 @@ export default function Home() {
                               <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700, color:'#94a3b8' }}>{r.code}</span>
                               {r.roomType === 'duel' && <span style={{ fontSize:'0.44rem', padding:'1px 5px', borderRadius:'4px', background:'rgba(249,115,22,0.14)', color:'#f97316', border:'1px solid rgba(249,115,22,0.25)' }}>DUEL</span>}
                             </div>
-                            <div style={{ fontSize:'0.52rem', color:'#374151' }}>by {r.hostName} · {r.players}/{r.max} players</div>
+                            <div style={{ fontSize:'0.52rem', color:'#64748b' }}>by {r.hostName} · {r.players}/{r.max} players</div>
                           </div>
                           <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.68rem', fontWeight:900, color:g.glow, flexShrink:0 }}>${r.entry}</span>
                           <button className="play-btn" onClick={() => navigate(`/lobby/${g.id}`, { state:{ joinCode: r.code } })}
@@ -921,7 +923,7 @@ export default function Home() {
               { l:'Big win',  v:'$1,275', c:'#f59e0b'  },
             ].map(s => (
               <div key={s.l} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'4px 0', borderBottom:'1px solid #0a0a12' }}>
-                <span style={{ fontSize:'0.58rem', color:'#374151' }}>{s.l}</span>
+                <span style={{ fontSize:'0.58rem', color:'#64748b' }}>{s.l}</span>
                 <span style={{ fontSize:'0.6rem', fontWeight:700, color:s.c, fontFamily:'Orbitron,sans-serif' }}>{s.v}</span>
               </div>
             ))}
@@ -961,18 +963,18 @@ export default function Home() {
               <button className="r-tab"
                 onClick={() => toggleSection(section.key)}
                 style={{ width:'100%', display:'flex', alignItems:'center', gap:'6px', padding:'10px 14px', background:'transparent', border:'none', cursor:'pointer', textAlign:'left' }}>
-                <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', color:'#374151', letterSpacing:'0.14em', fontWeight:700, flex:1 }}>{section.label}</span>
+                <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', color:'#64748b', letterSpacing:'0.14em', fontWeight:700, flex:1 }}>{section.label}</span>
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ transition:'transform .2s', transform: openSections[section.key] ? 'rotate(180deg)' : 'rotate(0deg)', flexShrink:0 }}>
-                  <path d="M2 3.5L5 6.5L8 3.5" stroke="#374151" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 3.5L5 6.5L8 3.5" stroke="#64748b" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
               {openSections[section.key] && (
                 <div style={{ paddingBottom:'6px' }}>
                   {section.links.map(link => (
                     <Link key={link.to} to={link.to}
-                      style={{ display:'block', padding:'6px 20px', fontSize:'0.62rem', color:'#374151', textDecoration:'none', transition:'color .12s' }}
+                      style={{ display:'block', padding:'6px 20px', fontSize:'0.62rem', color:'#64748b', textDecoration:'none', transition:'color .12s' }}
                       onMouseEnter={e => (e.currentTarget.style.color='#94a3b8')}
-                      onMouseLeave={e => (e.currentTarget.style.color='#374151')}>
+                      onMouseLeave={e => (e.currentTarget.style.color='#64748b')}>
                       {link.label}
                     </Link>
                   ))}
@@ -993,7 +995,7 @@ export default function Home() {
         <div className="mob-chat" style={{ position:'fixed', bottom:0, left:0, right:0, background:'#06060e', borderTop:'1px solid #0d0d1e', flexDirection:'column', zIndex:50, maxHeight:'38vh' }}>
           <div style={{ display:'flex', alignItems:'center', padding:'6px 12px', borderBottom:'1px solid #0d0d1e', gap:'6px' }}>
             <span style={{ width:'4px', height:'4px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.6s infinite' }} />
-            <span style={{ fontSize:'0.54rem', fontFamily:'Orbitron,sans-serif', color:'#374151', fontWeight:700, flex:1 }}>CHAT</span>
+            <span style={{ fontSize:'0.54rem', fontFamily:'Orbitron,sans-serif', color:'#64748b', fontWeight:700, flex:1 }}>CHAT</span>
             <span style={{ fontSize:'0.54rem', color:'#1e2030', fontFamily:'Orbitron,sans-serif' }}>{onlineCount || '--'} online</span>
           </div>
           <div style={{ height:'100px', overflowY:'auto', padding:'6px 12px', display:'flex', flexDirection:'column', gap:'4px' }}>
@@ -1013,7 +1015,7 @@ export default function Home() {
                 placeholder={address ? 'Message...' : 'Connect wallet to chat'} disabled={!address}
                 style={{ flex:1, background:'transparent', border:'none', outline:'none', color:'#cbd5e1', fontSize:'0.72rem', minWidth:0 }}/>
               <button onClick={sendChat} disabled={!address || !chatInput.trim()}
-                style={{ background: address && chatInput.trim() ? 'linear-gradient(135deg,#7c3aed,#06b6d4)' : 'rgba(255,255,255,0.04)', border:'none', borderRadius:'6px', padding:'4px 11px', color: address && chatInput.trim() ? '#fff' : '#374151', fontSize:'0.6rem', fontWeight:700, cursor: address && chatInput.trim() ? 'pointer' : 'default', fontFamily:'Orbitron,sans-serif' }}>
+                style={{ background: address && chatInput.trim() ? 'linear-gradient(135deg,#7c3aed,#06b6d4)' : 'rgba(255,255,255,0.04)', border:'none', borderRadius:'6px', padding:'4px 11px', color: address && chatInput.trim() ? '#fff' : '#64748b', fontSize:'0.6rem', fontWeight:700, cursor: address && chatInput.trim() ? 'pointer' : 'default', fontFamily:'Orbitron,sans-serif' }}>
                 SEND
               </button>
             </div>

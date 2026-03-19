@@ -242,6 +242,17 @@ export default function Lobby() {
     }
   }, [gameMode])
 
+  // Auto-trigger matchmaking when launched from home page PLAY NOW
+  useEffect(() => {
+    const s = location.state as { autoMatch?: boolean; fee?: number } | null
+    if (s?.autoMatch) {
+      if (s.fee) setSelectedFee(s.fee)
+      // small delay to let socket connect
+      const t = setTimeout(() => findMatch(), 600)
+      return () => clearTimeout(t)
+    }
+  }, [])
+
   // Auto-scroll chat — fires on new messages, tab switch, drawer open, panel open
   useEffect(() => {
     const isVisible = (isDesktop && panelOpen && panelTab === 'chat') || (!isDesktop && mobileDrawerOpen && panelTab === 'chat')
