@@ -1116,70 +1116,58 @@ export default function Home() {
           </div>
         </div>
 
-        {/* MOBILE: chat FAB */}
+        {/* MOBILE: chat FAB — glowing arena-style */}
         <button className="mob-chat-bubble" onClick={() => setMobileChatOpen(true)}
-          style={{ display:'none', position:'fixed', bottom:'22px', right:'16px', height:'36px', borderRadius:'18px', background:'rgba(8,8,18,0.95)', border:'1px solid rgba(124,58,237,0.4)', cursor:'pointer', zIndex:60, alignItems:'center', gap:'7px', padding:'0 13px 0 10px', backdropFilter:'blur(12px)', boxShadow:'0 0 0 1px rgba(124,58,237,0.1), 0 4px 20px rgba(0,0,0,0.6)' }}>
-          <span style={{ width:'6px', height:'6px', borderRadius:'50%', background:'#22c55e', flexShrink:0, animation:'pulse-dot 1.6s infinite' }}/>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(167,139,250,0.9)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}>
-            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+          style={{ display:'none', position:'fixed', bottom:'24px', right:'18px', width:'46px', height:'46px', borderRadius:'50%', background:'#06060e', border:'2px solid rgba(124,58,237,0.55)', cursor:'pointer', zIndex:60, alignItems:'center', justifyContent:'center', boxShadow:'0 0 18px rgba(124,58,237,0.35), 0 0 6px rgba(124,58,237,0.2)', animation:'border-glow 2.5s ease-in-out infinite' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ position:'relative', zIndex:1 }}>
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" fill="rgba(167,139,250,0.9)"/>
           </svg>
-          <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', fontWeight:700, color:'rgba(167,139,250,0.8)', letterSpacing:'0.1em' }}>CHAT</span>
-          {onlineCount > 0 && <span style={{ fontSize:'0.46rem', color:'#374151', fontFamily:'Orbitron,sans-serif' }}>{onlineCount}</span>}
+          {onlineCount > 0 && (
+            <div style={{ position:'absolute', top:'-3px', right:'-3px', minWidth:'16px', height:'16px', borderRadius:'8px', background:'#22c55e', border:'2px solid #06060e', display:'flex', alignItems:'center', justifyContent:'center', padding:'0 3px' }}>
+              <span style={{ fontSize:'0.38rem', fontWeight:900, color:'#000', fontFamily:'Orbitron,sans-serif' }}>{onlineCount > 99 ? '99+' : onlineCount}</span>
+            </div>
+          )}
         </button>
 
         {/* MOBILE: chat drawer */}
         {mobileChatOpen && (
           <div className="mob-chat" style={{ display:'contents' }}>
-            {/* Backdrop */}
-            <div onClick={() => setMobileChatOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(3,3,10,0.7)', zIndex:61 }}/>
-            {/* Sheet */}
-            <div style={{ position:'fixed', bottom:0, left:0, right:0, zIndex:62, height:'62vh', display:'flex', flexDirection:'column', background:'#06060e', animation:'slide-up .22s cubic-bezier(0.4,0,0.2,1)' }}>
-              {/* Top accent line — matches game card style */}
-              <div style={{ height:'2px', background:'linear-gradient(90deg,transparent 0%,#7c3aed 40%,#06b6d4 70%,transparent 100%)', flexShrink:0, animation:'border-glow 3s ease-in-out infinite' }}/>
-              {/* Handle + header in one row */}
-              <div style={{ display:'flex', alignItems:'center', padding:'10px 16px 10px', gap:'10px', flexShrink:0, borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:'6px', flex:1 }}>
-                  <span style={{ width:'6px', height:'6px', borderRadius:'50%', background:'#22c55e', flexShrink:0, animation:'pulse-dot 1.6s infinite' }}/>
-                  <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.54rem', fontWeight:700, color:'#475569', letterSpacing:'0.1em' }}>GENERAL CHAT</span>
-                </div>
-                <div style={{ display:'flex', alignItems:'center', gap:'4px', padding:'2px 8px', borderRadius:'20px', background:'rgba(34,197,94,0.06)', border:'1px solid rgba(34,197,94,0.12)' }}>
-                  <span style={{ width:'4px', height:'4px', borderRadius:'50%', background:'#22c55e', flexShrink:0 }}/>
-                  <span style={{ fontSize:'0.46rem', color:'#22c55e', fontFamily:'Orbitron,sans-serif', fontWeight:700 }}>{onlineCount || '--'}</span>
-                </div>
-                <button onClick={() => setMobileChatOpen(false)}
-                  style={{ width:'22px', height:'22px', borderRadius:'50%', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.06)', color:'#475569', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.75rem', flexShrink:0, lineHeight:1 }}>
-                  ×
-                </button>
+            <div onClick={() => setMobileChatOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(3,3,10,0.75)', zIndex:61 }}/>
+            <div style={{ position:'fixed', bottom:0, left:0, right:0, zIndex:62, height:'65vh', display:'flex', flexDirection:'column', background:'#06060e', borderTop:'1px solid rgba(124,58,237,0.25)', animation:'slide-up .2s cubic-bezier(0.4,0,0.2,1)' }}>
+              {/* Purple-cyan glow bar — same as game cards */}
+              <div style={{ height:'2px', flexShrink:0, background:'linear-gradient(90deg,transparent,#7c3aed 35%,#06b6d4 70%,transparent)', animation:'border-glow 2.5s ease-in-out infinite' }}/>
+              {/* Header */}
+              <div style={{ display:'flex', alignItems:'center', padding:'11px 16px', gap:'10px', flexShrink:0, borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+                <span style={{ width:'7px', height:'7px', borderRadius:'50%', background:'#22c55e', flexShrink:0, animation:'pulse-dot 1.4s infinite', boxShadow:'0 0 6px #22c55e' }}/>
+                <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.52rem', fontWeight:700, color:'#334155', letterSpacing:'0.12em', flex:1 }}>GENERAL CHAT</span>
+                <span style={{ fontSize:'0.44rem', color:'#1e293b', fontFamily:'Orbitron,sans-serif' }}>{onlineCount || '--'} online</span>
+                <button onClick={() => setMobileChatOpen(false)} style={{ width:'20px', height:'20px', borderRadius:'50%', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.06)', color:'#334155', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.8rem', flexShrink:0 }}>×</button>
               </div>
               {/* Messages */}
-              <div style={{ flex:1, overflowY:'auto', padding:'6px 0', display:'flex', flexDirection:'column' }}>
+              <div style={{ flex:1, overflowY:'auto', display:'flex', flexDirection:'column', padding:'4px 0' }}>
                 {chat.length === 0
-                  ? <div style={{ display:'flex', alignItems:'center', justifyContent:'center', flex:1 }}>
-                      <span style={{ fontSize:'0.58rem', color:'#1e293b', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.1em' }}>NO MESSAGES YET</span>
+                  ? <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      <span style={{ fontSize:'0.54rem', color:'#0f172a', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.1em' }}>NO MESSAGES YET</span>
                     </div>
                   : chat.slice(-50).map((m, i) => {
                     const col = CHAT_COLORS[m.username.charCodeAt(0) % CHAT_COLORS.length]
                     return (
-                      <div key={i} style={{ display:'flex', gap:'10px', padding:'7px 16px', alignItems:'flex-start', borderBottom:'1px solid rgba(255,255,255,0.025)' }}>
-                        {/* Color tag */}
-                        <div style={{ width:'3px', borderRadius:'2px', background:col, alignSelf:'stretch', flexShrink:0, minHeight:'12px', opacity:0.7 }}/>
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <span style={{ fontSize:'0.56rem', fontWeight:700, color:col, fontFamily:'Orbitron,sans-serif', letterSpacing:'0.04em' }}>{m.username} </span>
-                          <span style={{ fontSize:'0.7rem', color:'#94a3b8', lineHeight:1.45, wordBreak:'break-word' }}>{m.message}</span>
-                        </div>
+                      <div key={i} style={{ padding:'6px 16px', display:'flex', flexDirection:'column', gap:'1px', borderBottom:'1px solid rgba(255,255,255,0.02)' }}>
+                        <span style={{ fontSize:'0.54rem', fontWeight:700, color:col, fontFamily:'Orbitron,sans-serif', letterSpacing:'0.04em' }}>{m.username}</span>
+                        <span style={{ fontSize:'0.72rem', color:'#4b5563', lineHeight:1.5, wordBreak:'break-word' }}>{m.message}</span>
                       </div>
                     )
                   })
                 }
               </div>
-              {/* Input */}
-              <div style={{ padding:'10px 14px 20px', borderTop:'1px solid rgba(255,255,255,0.04)', flexShrink:0, background:'rgba(4,4,12,0.8)' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:'0', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(124,58,237,0.18)', borderRadius:'10px', overflow:'hidden' }}>
+              {/* Input row */}
+              <div style={{ padding:'10px 14px 22px', flexShrink:0, borderTop:'1px solid rgba(255,255,255,0.04)' }}>
+                <div style={{ display:'flex', alignItems:'center', borderRadius:'10px', overflow:'hidden', border:'1px solid rgba(124,58,237,0.2)', background:'rgba(255,255,255,0.025)' }}>
                   <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key==='Enter' && sendChat()}
                     placeholder={address ? 'Say something...' : 'Connect wallet to chat'} disabled={!address}
-                    style={{ flex:1, background:'transparent', border:'none', outline:'none', color:'#cbd5e1', fontSize:'0.76rem', padding:'11px 14px', minWidth:0, fontFamily:'inherit' }}/>
+                    style={{ flex:1, background:'transparent', border:'none', outline:'none', color:'#94a3b8', fontSize:'0.78rem', padding:'11px 14px', minWidth:0 }}/>
                   <button onClick={sendChat} disabled={!address || !chatInput.trim()}
-                    style={{ flexShrink:0, background: address && chatInput.trim() ? 'linear-gradient(135deg,#7c3aed,#06b6d4)' : 'transparent', border:'none', borderLeft:'1px solid rgba(124,58,237,0.15)', padding:'11px 18px', color: address && chatInput.trim() ? '#fff' : '#1e293b', fontSize:'0.58rem', fontWeight:700, fontFamily:'Orbitron,sans-serif', letterSpacing:'0.06em', cursor: address && chatInput.trim() ? 'pointer' : 'default', transition:'all .15s' }}>
+                    style={{ flexShrink:0, width:'70px', height:'100%', padding:'11px 0', background: address && chatInput.trim() ? 'linear-gradient(135deg,#7c3aed,#06b6d4)' : 'transparent', border:'none', borderLeft:'1px solid rgba(124,58,237,0.15)', color: address && chatInput.trim() ? '#fff' : '#1e293b', fontSize:'0.56rem', fontWeight:700, fontFamily:'Orbitron,sans-serif', letterSpacing:'0.05em', cursor: address && chatInput.trim() ? 'pointer' : 'default', transition:'background .15s' }}>
                     SEND
                   </button>
                 </div>
