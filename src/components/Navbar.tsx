@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useAccount } from 'wagmi'
+import QuestDrawer from './QuestDrawer'
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
 
@@ -51,6 +52,7 @@ export default function Navbar() {
   const navigate = useNavigate()
   const { address } = useAccount()
   const [open, setOpen] = useState(false)
+  const [questOpen, setQuestOpen] = useState(false)
   const [activeRoom, setActiveRoom] = useState('')
 
   // Fetch active room from server on mount and poll every 10s
@@ -183,6 +185,21 @@ export default function Navbar() {
               </Link>
             )
           })}
+          <button onClick={() => setQuestOpen(true)} style={{
+            background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.28)',
+            borderRadius: '8px', padding: '6px 12px', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: '6px', color: '#fb923c',
+            fontFamily: 'Orbitron,sans-serif', fontSize: '0.62rem', fontWeight: 800,
+            letterSpacing: '0.04em', transition: 'all .15s',
+          }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(249,115,22,0.18)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(249,115,22,0.1)')}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2C9 6 7 8 8 12C5 11 4 8 5 5C2 8 1 12 3 16C5 19.5 8.5 22 12 22C15.5 22 19 19.5 21 16C23 12 20 7 17 5C17.5 8 16 10 14 11C15 8 14 5 12 2Z" fill="#fb923c"/>
+            </svg>
+            QUESTS
+          </button>
           <div style={{ marginLeft: '8px' }}>
             <ConnectButton chainStatus="icon" accountStatus="address" showBalance={false} />
           </div>
@@ -290,6 +307,20 @@ export default function Navbar() {
                   </Link>
                 )
               })}
+              {/* Quests button */}
+              <button onClick={() => { setOpen(false); setQuestOpen(true) }} style={{
+                display: 'flex', alignItems: 'center', gap: '14px',
+                padding: '13px 16px', borderRadius: '12px', cursor: 'pointer',
+                background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)',
+                color: '#fb923c', fontWeight: 600, fontSize: '0.92rem', transition: 'all 0.14s',
+              }}>
+                <span style={{ width: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2C9 6 7 8 8 12C5 11 4 8 5 5C2 8 1 12 3 16C5 19.5 8.5 22 12 22C15.5 22 19 19.5 21 16C23 12 20 7 17 5C17.5 8 16 10 14 11C15 8 14 5 12 2Z" fill="#fb923c"/>
+                  </svg>
+                </span>
+                Quests
+              </button>
             </div>
 
             {/* Footer */}
@@ -312,6 +343,8 @@ export default function Navbar() {
           div.mobile-nav { display: block !important; }
         }
       `}</style>
+
+      <QuestDrawer open={questOpen} onClose={() => setQuestOpen(false)} />
     </>
   )
 }
