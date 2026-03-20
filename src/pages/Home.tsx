@@ -1116,50 +1116,70 @@ export default function Home() {
           </div>
         </div>
 
-        {/* MOBILE: floating chat bubble */}
+        {/* MOBILE: chat FAB */}
         <button className="mob-chat-bubble" onClick={() => setMobileChatOpen(true)}
-          style={{ display:'none', position:'fixed', bottom:'20px', right:'16px', width:'52px', height:'52px', borderRadius:'50%', background:'linear-gradient(135deg,#7c3aed,#06b6d4)', border:'none', cursor:'pointer', zIndex:60, alignItems:'center', justifyContent:'center', boxShadow:'0 4px 18px rgba(124,58,237,0.5)' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+          style={{ display:'none', position:'fixed', bottom:'22px', right:'16px', height:'36px', borderRadius:'18px', background:'rgba(8,8,18,0.95)', border:'1px solid rgba(124,58,237,0.4)', cursor:'pointer', zIndex:60, alignItems:'center', gap:'7px', padding:'0 13px 0 10px', backdropFilter:'blur(12px)', boxShadow:'0 0 0 1px rgba(124,58,237,0.1), 0 4px 20px rgba(0,0,0,0.6)' }}>
+          <span style={{ width:'6px', height:'6px', borderRadius:'50%', background:'#22c55e', flexShrink:0, animation:'pulse-dot 1.6s infinite' }}/>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(167,139,250,0.9)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}>
             <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
           </svg>
-          <span style={{ position:'absolute', top:'10px', right:'10px', width:'10px', height:'10px', borderRadius:'50%', background:'#22c55e', border:'2px solid #06060e' }}/>
+          <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', fontWeight:700, color:'rgba(167,139,250,0.8)', letterSpacing:'0.1em' }}>CHAT</span>
+          {onlineCount > 0 && <span style={{ fontSize:'0.46rem', color:'#374151', fontFamily:'Orbitron,sans-serif' }}>{onlineCount}</span>}
         </button>
 
         {/* MOBILE: chat drawer */}
         {mobileChatOpen && (
           <div className="mob-chat" style={{ display:'contents' }}>
-            <div onClick={() => setMobileChatOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:61 }}/>
-            <div style={{ position:'fixed', bottom:0, left:0, right:0, zIndex:62, maxHeight:'70vh', display:'flex', flexDirection:'column', background:'#09090f', borderRadius:'18px 18px 0 0', borderTop:'1px solid #14142a', animation:'slide-up .2s ease-out' }}>
-              <div style={{ padding:'10px 0 0', display:'flex', justifyContent:'center', flexShrink:0 }}>
-                <div style={{ width:'34px', height:'3px', borderRadius:'99px', background:'#1a1a2e' }}/>
+            {/* Backdrop */}
+            <div onClick={() => setMobileChatOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(3,3,10,0.7)', zIndex:61 }}/>
+            {/* Sheet */}
+            <div style={{ position:'fixed', bottom:0, left:0, right:0, zIndex:62, height:'62vh', display:'flex', flexDirection:'column', background:'#06060e', animation:'slide-up .22s cubic-bezier(0.4,0,0.2,1)' }}>
+              {/* Top accent line — matches game card style */}
+              <div style={{ height:'2px', background:'linear-gradient(90deg,transparent 0%,#7c3aed 40%,#06b6d4 70%,transparent 100%)', flexShrink:0, animation:'border-glow 3s ease-in-out infinite' }}/>
+              {/* Handle + header in one row */}
+              <div style={{ display:'flex', alignItems:'center', padding:'10px 16px 10px', gap:'10px', flexShrink:0, borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'6px', flex:1 }}>
+                  <span style={{ width:'6px', height:'6px', borderRadius:'50%', background:'#22c55e', flexShrink:0, animation:'pulse-dot 1.6s infinite' }}/>
+                  <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.54rem', fontWeight:700, color:'#475569', letterSpacing:'0.1em' }}>GENERAL CHAT</span>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:'4px', padding:'2px 8px', borderRadius:'20px', background:'rgba(34,197,94,0.06)', border:'1px solid rgba(34,197,94,0.12)' }}>
+                  <span style={{ width:'4px', height:'4px', borderRadius:'50%', background:'#22c55e', flexShrink:0 }}/>
+                  <span style={{ fontSize:'0.46rem', color:'#22c55e', fontFamily:'Orbitron,sans-serif', fontWeight:700 }}>{onlineCount || '--'}</span>
+                </div>
+                <button onClick={() => setMobileChatOpen(false)}
+                  style={{ width:'22px', height:'22px', borderRadius:'50%', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.06)', color:'#475569', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.75rem', flexShrink:0, lineHeight:1 }}>
+                  ×
+                </button>
               </div>
-              <div style={{ display:'flex', alignItems:'center', padding:'8px 16px 10px', gap:'8px', flexShrink:0, borderBottom:'1px solid #0f0f1e' }}>
-                <span style={{ width:'7px', height:'7px', borderRadius:'50%', background:'#22c55e', flexShrink:0, animation:'pulse-dot 1.6s infinite' }}/>
-                <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.56rem', fontWeight:700, color:'#7c8da0', flex:1 }}>CHAT</span>
-                <span style={{ fontSize:'0.48rem', color:'#2a3040', fontFamily:'Orbitron,sans-serif' }}>{onlineCount || '--'} online</span>
-                <button onClick={() => setMobileChatOpen(false)} style={{ background:'none', border:'none', color:'#3a4050', cursor:'pointer', fontSize:'1rem', lineHeight:1, padding:'0 2px' }}>×</button>
-              </div>
-              <div style={{ flex:1, overflowY:'auto', padding:'8px 14px 4px', display:'flex', flexDirection:'column', gap:'0' }}>
+              {/* Messages */}
+              <div style={{ flex:1, overflowY:'auto', padding:'6px 0', display:'flex', flexDirection:'column' }}>
                 {chat.length === 0
-                  ? <p style={{ textAlign:'center', color:'#1a1a2e', fontSize:'0.6rem', margin:'24px 0' }}>No messages yet</p>
-                  : chat.slice(-40).map((m, i) => {
+                  ? <div style={{ display:'flex', alignItems:'center', justifyContent:'center', flex:1 }}>
+                      <span style={{ fontSize:'0.58rem', color:'#1e293b', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.1em' }}>NO MESSAGES YET</span>
+                    </div>
+                  : chat.slice(-50).map((m, i) => {
                     const col = CHAT_COLORS[m.username.charCodeAt(0) % CHAT_COLORS.length]
                     return (
-                      <div key={i} style={{ padding:'5px 0', borderBottom:'1px solid #0d0d1a' }}>
-                        <span style={{ fontSize:'0.6rem', fontWeight:700, color:col, marginRight:'5px' }}>{m.username}</span>
-                        <span style={{ fontSize:'0.68rem', color:'#566070' }}>{m.message}</span>
+                      <div key={i} style={{ display:'flex', gap:'10px', padding:'7px 16px', alignItems:'flex-start', borderBottom:'1px solid rgba(255,255,255,0.025)' }}>
+                        {/* Color tag */}
+                        <div style={{ width:'3px', borderRadius:'2px', background:col, alignSelf:'stretch', flexShrink:0, minHeight:'12px', opacity:0.7 }}/>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <span style={{ fontSize:'0.56rem', fontWeight:700, color:col, fontFamily:'Orbitron,sans-serif', letterSpacing:'0.04em' }}>{m.username} </span>
+                          <span style={{ fontSize:'0.7rem', color:'#94a3b8', lineHeight:1.45, wordBreak:'break-word' }}>{m.message}</span>
+                        </div>
                       </div>
                     )
                   })
                 }
               </div>
-              <div style={{ padding:'8px 12px 16px', borderTop:'1px solid #0f0f1e', flexShrink:0 }}>
-                <div style={{ display:'flex', alignItems:'center', background:'#0d0d1e', borderRadius:'10px', overflow:'hidden', border:'1px solid #161628' }}>
+              {/* Input */}
+              <div style={{ padding:'10px 14px 20px', borderTop:'1px solid rgba(255,255,255,0.04)', flexShrink:0, background:'rgba(4,4,12,0.8)' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'0', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(124,58,237,0.18)', borderRadius:'10px', overflow:'hidden' }}>
                   <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key==='Enter' && sendChat()}
-                    placeholder={address ? 'Message...' : 'Connect wallet to chat'} disabled={!address}
-                    style={{ flex:1, background:'transparent', border:'none', outline:'none', color:'#c8d0dc', fontSize:'0.76rem', padding:'10px 12px', minWidth:0 }}/>
+                    placeholder={address ? 'Say something...' : 'Connect wallet to chat'} disabled={!address}
+                    style={{ flex:1, background:'transparent', border:'none', outline:'none', color:'#cbd5e1', fontSize:'0.76rem', padding:'11px 14px', minWidth:0, fontFamily:'inherit' }}/>
                   <button onClick={sendChat} disabled={!address || !chatInput.trim()}
-                    style={{ background: address && chatInput.trim() ? 'linear-gradient(135deg,#7c3aed,#06b6d4)' : 'transparent', border:'none', padding:'10px 16px', color: address && chatInput.trim() ? '#fff' : '#2a3040', fontSize:'0.6rem', fontWeight:700, fontFamily:'Orbitron,sans-serif', cursor: address && chatInput.trim() ? 'pointer' : 'default', flexShrink:0 }}>
+                    style={{ flexShrink:0, background: address && chatInput.trim() ? 'linear-gradient(135deg,#7c3aed,#06b6d4)' : 'transparent', border:'none', borderLeft:'1px solid rgba(124,58,237,0.15)', padding:'11px 18px', color: address && chatInput.trim() ? '#fff' : '#1e293b', fontSize:'0.58rem', fontWeight:700, fontFamily:'Orbitron,sans-serif', letterSpacing:'0.06em', cursor: address && chatInput.trim() ? 'pointer' : 'default', transition:'all .15s' }}>
                     SEND
                   </button>
                 </div>
