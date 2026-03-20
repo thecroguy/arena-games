@@ -682,7 +682,7 @@ export default function Home() {
   const g = activeGame
 
   return (
-    <div style={{ background:'#08080f', height:'calc(100vh - 60px)', color:'#e2e8f0', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+    <div className="home-outer" style={{ background:'#08080f', height:'calc(100vh - 60px)', color:'#e2e8f0', display:'flex', flexDirection:'column', overflow:'hidden' }}>
       <style>{`
         @keyframes pulse-dot   { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.6)} }
         @keyframes border-glow { 0%,100%{opacity:.28} 50%{opacity:.9} }
@@ -728,14 +728,17 @@ export default function Home() {
           .game-main-card { flex-direction:column-reverse!important; min-height:unset!important; }
           .game-card-preview { height:240px!important; width:100%!important; flex:none!important; overflow:hidden!important; }
           .game-card-info { flex:none!important; width:100%!important; }
-          .mob-scroll-pad { padding-bottom:80px!important; }
+          .mob-scroll-pad { padding-bottom:80px!important; overflow-y:visible!important; flex:none!important; }
+          .home-outer  { height:auto!important; overflow:visible!important; min-height:calc(100vh - 60px); }
+          .home-body   { overflow:visible!important; flex:none!important; }
+          .home-center { overflow:visible!important; flex:none!important; }
         }
         @keyframes slide-up { from{transform:translateY(100%)} to{transform:translateY(0)} }
         @media (min-width:701px) { .mob-chat { display:none!important; } .mob-chat-bubble { display:none!important; } }
       `}</style>
 
       {/* ── 3-column body ──────────────────────────────────────── */}
-      <div style={{ flex:1, display:'flex', overflow:'hidden', minHeight:0 }}>
+      <div className="home-body" style={{ flex:1, display:'flex', overflow:'hidden', minHeight:0 }}>
 
         {/* LEFT: chat */}
         <div className="left-chat" style={{ width:'270px', flexShrink:0, borderRight:'1px solid #0d0d1e', display:'flex', flexDirection:'column', background:'#06060e' }}>
@@ -814,7 +817,7 @@ export default function Home() {
         </div>
 
         {/* CENTER */}
-        <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+        <div className="home-center" style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', overflow:'hidden' }}>
 
           {/* Game tabs */}
           <div style={{ display:'flex', gap:'4px', overflowX:'auto', padding:'8px 14px', flexShrink:0, background:'#08080f', borderBottom:'1px solid #0d0d1e', alignItems:'center' }}>
