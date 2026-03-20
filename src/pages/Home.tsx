@@ -28,18 +28,23 @@ function IconCoin({ size = 44, animate = true }: { size?: number; animate?: bool
 }
 
 function IconMath({ size = 44, animate = true }: { size?: number; animate?: boolean }) {
+  const fs = size * 0.22
   return (
     <div style={{
       width: size, height: size, borderRadius: size * 0.22,
       background: 'linear-gradient(145deg, #8b5cf6 0%, #4c1d95 100%)',
       boxShadow: `0 0 ${animate ? size * 0.38 : size * 0.15}px rgba(124,58,237,${animate ? 0.5 : 0.25})`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr',
+      padding: size * 0.14, gap: size * 0.07, flexShrink: 0,
       animation: animate ? 'math-pulse 2s ease-in-out infinite' : 'none',
     }}>
-      <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 24 24" fill="white">
-        <rect x="11" y="3" width="2" height="18" rx="1" />
-        <rect x="3" y="11" width="18" height="2" rx="1" />
-      </svg>
+      {['+', '−', '×', '='].map((op, i) => (
+        <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'center',
+          background: 'rgba(167,139,250,0.18)', borderRadius: size * 0.06,
+          fontSize: fs, fontWeight: 900, color: 'rgba(233,213,255,0.9)',
+          fontFamily: 'serif', lineHeight: 1,
+        }}>{op}</div>
+      ))}
     </div>
   )
 }
@@ -82,22 +87,35 @@ function IconDice({ size = 44, animate = true }: { size?: number; animate?: bool
 }
 
 function IconMemory({ size = 44, animate = true }: { size?: number; animate?: boolean }) {
-  const pat = [1,0,1,0,1,0,1,0,1]
+  const r = size * 0.11
+  // 5 nodes: top-left, top-right, center, bottom-left, bottom-right
+  const nodes = [
+    { cx: 0.25, cy: 0.22 }, { cx: 0.75, cy: 0.22 },
+    { cx: 0.5,  cy: 0.52 },
+    { cx: 0.25, cy: 0.78 }, { cx: 0.75, cy: 0.78 },
+  ]
+  const edges = [[0,2],[1,2],[2,3],[2,4],[0,1],[3,4]]
   return (
     <div style={{
       width: size, height: size, borderRadius: size * 0.22,
-      background: 'linear-gradient(145deg, #9333ea 0%, #581c87 100%)',
+      background: 'linear-gradient(145deg, #a855f7 0%, #581c87 100%)',
       boxShadow: `0 0 ${animate ? size * 0.38 : size * 0.15}px rgba(168,85,247,${animate ? 0.45 : 0.2})`,
-      display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gridTemplateRows: '1fr 1fr 1fr',
-      padding: size * 0.1, gap: size * 0.06, flexShrink: 0,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative', overflow: 'hidden',
     }}>
-      {pat.map((on, i) => (
-        <div key={i} style={{
-          borderRadius: size * 0.04,
-          background: on ? 'rgba(216,180,254,0.85)' : 'rgba(168,85,247,0.18)',
-          animation: animate ? `tile-blink 2.8s ${i * 0.28}s ease-in-out infinite` : 'none',
-        }} />
-      ))}
+      <svg width={size} height={size} viewBox="0 0 1 1" style={{ position:'absolute', inset:0 }}>
+        {edges.map(([a, b], i) => (
+          <line key={i}
+            x1={nodes[a].cx} y1={nodes[a].cy} x2={nodes[b].cx} y2={nodes[b].cy}
+            stroke="rgba(233,213,255,0.3)" strokeWidth="0.04" strokeLinecap="round"
+          />
+        ))}
+        {nodes.map((n, i) => (
+          <circle key={i} cx={n.cx} cy={n.cy} r={r / size}
+            fill={i === 2 ? 'rgba(233,213,255,0.95)' : 'rgba(216,180,254,0.75)'}
+            style={{ animation: animate ? `node-pulse 2.4s ${i * 0.38}s ease-in-out infinite` : 'none' }}
+          />
+        ))}
+      </svg>
     </div>
   )
 }
@@ -706,6 +724,7 @@ export default function Home() {
         @keyframes dice-bob     { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-5px) rotate(4deg)} }
         @keyframes mem-tile     { 0%,100%,60%{background:rgba(var(--cm),0.12);box-shadow:none} 20%,40%{background:rgba(var(--cm),0.9);box-shadow:0 0 12px rgba(var(--cm),0.7)} }
         @keyframes unique-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
+        @keyframes node-pulse   { 0%,100%{opacity:0.65} 50%{opacity:1} }
 
         .g-tab,.play-btn,.bot-btn,.r-tab,.c-card,.slide-btn,.send-btn { cursor:pointer; border:none; transition:all .14s; }
         .play-btn:active  { transform:scale(.96); }
@@ -827,9 +846,9 @@ export default function Home() {
                   onClick={() => setActiveGame(gg)}
                   style={{
                     flexShrink:0, display:'flex', alignItems:'center', gap:'6px',
-                    padding:'7px 13px 9px', borderRadius:'9px 9px 0 0', marginBottom:'-1px',
-                    background: active ? '#0c0c17' : 'transparent',
-                    border:`1px solid ${active ? `rgba(${gg.glowRgb},0.28)` : 'transparent'}`,
+                    padding:'6px 12px 7px', borderRadius:'8px 8px 0 0', marginBottom:'-1px',
+                    background: active ? `rgba(${gg.glowRgb},0.07)` : 'transparent',
+                    border: active ? `1px solid rgba(${gg.glowRgb},0.32)` : '1px solid transparent',
                     borderBottom: active ? '1px solid #0c0c17' : '1px solid transparent',
                     borderTop: active ? `2px solid ${gg.glow}` : '2px solid transparent',
                     color: active ? gg.glow : '#64748b',
@@ -837,7 +856,6 @@ export default function Home() {
                   }}>
                   <GameIcon id={gg.id} size={15} animate={false} />
                   {gg.short}
-                  <span style={{ fontSize:'0.5rem', color: active ? `rgba(${gg.glowRgb},0.7)` : '#1e2030' }}>{gg.activePlayers}</span>
                   {gg.hot && <span style={{ fontSize:'0.44rem', padding:'1px 4px', borderRadius:'4px', background:'rgba(239,68,68,0.16)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.28)', animation:'hot-badge 1.6s infinite' }}>HOT</span>}
                 </button>
               )
@@ -894,29 +912,31 @@ export default function Home() {
                     })}
                   </div>
                 </div>
-                {/* Player count selector on main card — for non-2p games only */}
-                {g.players !== '2' && (
-                  <div style={{ marginBottom:'8px' }}>
-                    <div style={{ fontSize:'0.46rem', color:'#64748b', marginBottom:'5px', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.06em' }}>PLAYERS</div>
-                    <div style={{ display:'flex', gap:'4px' }}>
-                      {[3,4,5,6,8,10].map(n => {
-                        const [minP, maxP] = g.players.includes('-') ? g.players.split('-').map(Number) : [3,10]
-                        if (n < minP || n > maxP) return null
-                        const active = playMax === n
-                        return (
-                          <button key={n} className="play-btn" onClick={() => setPlayMax(n)}
-                            style={{ width:'28px', height:'26px', borderRadius:'6px', fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700,
-                              background: active ? `rgba(${g.glowRgb},0.2)` : 'rgba(255,255,255,0.05)',
-                              color: active ? g.glow : '#64748b',
-                              border: active ? `1px solid rgba(${g.glowRgb},0.4)` : '1px solid rgba(255,255,255,0.09)',
-                            }}>
-                            {n}
-                          </button>
-                        )
-                      })}
+                {/* Player count selector — hidden only for strict 2-player games */}
+                {g.players !== '2' && (() => {
+                  const [minP, maxP] = g.players.includes('-') ? g.players.split('-').map(Number) : [2, 10]
+                  const options = [2,3,4,5,6,8,10].filter(n => n >= minP && n <= maxP)
+                  return (
+                    <div style={{ marginBottom:'8px' }}>
+                      <div style={{ fontSize:'0.46rem', color:'#64748b', marginBottom:'5px', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.06em' }}>PLAYERS</div>
+                      <div style={{ display:'flex', gap:'4px' }}>
+                        {options.map(n => {
+                          const active = playMax === n
+                          return (
+                            <button key={n} className="play-btn" onClick={() => setPlayMax(n)}
+                              style={{ width:'28px', height:'26px', borderRadius:'6px', fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700,
+                                background: active ? `rgba(${g.glowRgb},0.2)` : 'rgba(255,255,255,0.05)',
+                                color: active ? g.glow : '#64748b',
+                                border: active ? `1px solid rgba(${g.glowRgb},0.4)` : '1px solid rgba(255,255,255,0.09)',
+                              }}>
+                              {n}
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )
+                })()}
 
                 {/* Buttons */}
                 <div style={{ display:'flex', gap:'8px' }}>
@@ -1030,35 +1050,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Open rooms list */}
-              <div>
-                <div style={{ display:'flex', alignItems:'center', gap:'7px', marginBottom:'8px' }}>
-                  <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.4s infinite' }} />
-                  <span style={{ fontSize:'0.5rem', fontFamily:'Orbitron,sans-serif', color:'#64748b', letterSpacing:'0.12em', fontWeight:700, flex:1 }}>OPEN ROOMS</span>
-                  <span style={{ fontSize:'0.5rem', color:'#64748b', fontFamily:'Orbitron,sans-serif' }}>{rooms.filter(r=>r.status==='waiting').length} waiting</span>
-                </div>
-                {rooms.length === 0
-                  ? <div style={{ padding:'14px', textAlign:'center', fontSize:'0.62rem', color:'#475569', background:'rgba(255,255,255,0.02)', borderRadius:'10px', border:`1px solid rgba(${g.glowRgb},0.1)` }}>No open rooms yet</div>
-                  : <div style={{ display:'flex', flexDirection:'column', gap:'5px' }}>
-                      {rooms.filter(r => r.status === 'waiting').map(r => (
-                        <div key={r.code} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'9px 14px', background:'rgba(255,255,255,0.02)', border:`1px solid rgba(${g.glowRgb},0.12)`, borderRadius:'10px' }}>
-                          <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'2px' }}>
-                              <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700, color:'#94a3b8' }}>{r.code}</span>
-                              {r.roomType === 'duel' && <span style={{ fontSize:'0.44rem', padding:'1px 5px', borderRadius:'4px', background:'rgba(249,115,22,0.14)', color:'#f97316', border:'1px solid rgba(249,115,22,0.25)' }}>DUEL</span>}
-                            </div>
-                            <div style={{ fontSize:'0.52rem', color:'#64748b' }}>by {r.hostName} · {r.players}/{r.max} players</div>
-                          </div>
-                          <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.68rem', fontWeight:900, color:g.glow, flexShrink:0 }}>${r.entry}</span>
-                          <button className="play-btn" onClick={() => navigate(`/lobby/${g.id}`, { state:{ joinCode: r.code } })}
-                            style={{ flexShrink:0, background:`linear-gradient(135deg,${g.bgFrom},${g.bgTo})`, borderRadius:'8px', padding:'6px 14px', color:'#fff', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.6rem', letterSpacing:'0.06em', boxShadow:`0 0 12px rgba(${g.glowRgb},0.3)` }}>
-                            JOIN
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                }
-              </div>
             </div>
 
           </div>
