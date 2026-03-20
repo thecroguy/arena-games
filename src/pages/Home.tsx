@@ -827,7 +827,7 @@ export default function Home() {
         <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', overflow:'hidden' }}>
 
           {/* Game tabs */}
-          <div style={{ display:'flex', gap:'3px', overflowX:'auto', padding:'10px 14px 0', flexShrink:0, background:'#08080f', borderBottom:'1px solid #0d0d1e' }}>
+          <div style={{ display:'flex', gap:'4px', overflowX:'auto', padding:'8px 14px', flexShrink:0, background:'#08080f', borderBottom:'1px solid #0d0d1e', alignItems:'center' }}>
             {GAMES.map(gg => {
               const active = activeGame.id === gg.id
               return (
@@ -835,13 +835,15 @@ export default function Home() {
                   onClick={() => setActiveGame(gg)}
                   style={{
                     flexShrink:0, display:'flex', alignItems:'center', gap:'6px',
-                    padding:'6px 12px 7px', borderRadius:'8px 8px 0 0', marginBottom:'-1px',
-                    background: active ? `rgba(${gg.glowRgb},0.07)` : 'transparent',
-                    border: active ? `1px solid rgba(${gg.glowRgb},0.32)` : '1px solid transparent',
-                    borderBottom: active ? '1px solid #0c0c17' : '1px solid transparent',
-                    borderTop: active ? `2px solid ${gg.glow}` : '2px solid transparent',
+                    padding:'5px 12px', borderRadius:'7px', marginBottom:'4px',
+                    background: active ? `rgba(${gg.glowRgb},0.1)` : 'transparent',
+                    border: active ? `1px solid rgba(${gg.glowRgb},0.45)` : '1px solid transparent',
+                    outline: active ? `1px solid rgba(${gg.glowRgb},0.12)` : 'none',
+                    outlineOffset: '2px',
+                    boxShadow: active ? `0 0 10px rgba(${gg.glowRgb},0.18), inset 0 1px 0 rgba(${gg.glowRgb},0.15)` : 'none',
                     color: active ? gg.glow : '#64748b',
                     fontFamily:'Orbitron,sans-serif', fontSize:'0.58rem', fontWeight:700, letterSpacing:'0.05em',
+                    transition:'all .15s',
                   }}>
                   <GameIcon id={gg.id} size={15} animate={false} />
                   {gg.short}
