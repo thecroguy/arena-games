@@ -728,10 +728,10 @@ export default function Home() {
           .game-main-card { flex-direction:column-reverse!important; min-height:unset!important; }
           .game-card-preview { height:240px!important; width:100%!important; flex:none!important; overflow:hidden!important; }
           .game-card-info { flex:none!important; width:100%!important; }
-          .mob-scroll-pad { padding-bottom:80px!important; overflow-y:visible!important; flex:none!important; }
-          .home-outer  { height:auto!important; overflow:visible!important; min-height:calc(100vh - 60px); }
-          .home-body   { overflow:visible!important; flex:none!important; }
-          .home-center { overflow:visible!important; flex:none!important; }
+          .mob-scroll-pad { padding-bottom:80px!important; height:auto!important; overflow-y:visible!important; flex:none!important; }
+          .home-outer  { height:auto!important; overflow:auto!important; }
+          .home-body   { height:auto!important; overflow:visible!important; }
+          .home-center { width:100%!important; height:auto!important; overflow:visible!important; }
         }
         @keyframes slide-up { from{transform:translateY(100%)} to{transform:translateY(0)} }
         @media (min-width:701px) { .mob-chat { display:none!important; } .mob-chat-bubble { display:none!important; } }
