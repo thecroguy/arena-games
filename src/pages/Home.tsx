@@ -194,28 +194,29 @@ function CoinPreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
 
   const won = result === pick
   return (
-    <div style={{ position:'relative', width:'100%', height:'100%', overflow:'hidden' }}>
+    <div style={{ position:'relative', width:'100%', height:'100%', overflow:'hidden', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
       <GridFloor color={glow} />
       <div style={{ position:'absolute', inset:0, background:`radial-gradient(circle at 50% 40%, rgba(${glowRgb},0.18) 0%, transparent 65%)`, pointerEvents:'none' }}/>
-      {/* Coin — always centered, never moves */}
-      <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%, -58%)', zIndex:1, filter:`drop-shadow(0 0 18px rgba(${glowRgb},0.7))` }}>
+      {/* Round label — top */}
+      <div style={{ position:'absolute', top:'10px', left:0, right:0, textAlign:'center', fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.4)`, letterSpacing:'0.1em', zIndex:1 }}>ROUND 3 / 5</div>
+      {/* Coin — true center */}
+      <div style={{ zIndex:1, filter:`drop-shadow(0 0 18px rgba(${glowRgb},0.7))`, marginBottom:'14px' }}>
         <IconCoin size={62} animate={phase === 'flip'} />
       </div>
-      {/* Pick chips — below coin, absolutely positioned */}
-      <div style={{ position:'absolute', bottom:'26%', left:0, right:0, display:'flex', justifyContent:'center', gap:'6px', zIndex:1,
-        opacity: phase === 'pick' ? 1 : 0, transition:'opacity 0.2s' }}>
-        {(['H','T'] as const).map(s => (
-          <div key={s} style={{ width:'28px', height:'28px', borderRadius:'7px', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.7rem', background: s === pick ? glow : 'rgba(255,255,255,0.05)', color: s === pick ? '#000' : '#64748b', border:`1px solid ${s === pick ? glow : 'rgba(255,255,255,0.08)'}` }}>{s}</div>
-        ))}
+      {/* Bottom slot: pick chips OR result — fixed 36px height so nothing shifts */}
+      <div style={{ position:'relative', height:'36px', width:'100%', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1 }}>
+        <div style={{ position:'absolute', inset:0, display:'flex', justifyContent:'center', alignItems:'center', gap:'6px',
+          opacity: phase === 'pick' ? 1 : 0, transition:'opacity 0.2s', pointerEvents:'none' }}>
+          {(['H','T'] as const).map(s => (
+            <div key={s} style={{ width:'28px', height:'28px', borderRadius:'7px', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.7rem', background: s === pick ? glow : 'rgba(255,255,255,0.05)', color: s === pick ? '#000' : '#64748b', border:`1px solid ${s === pick ? glow : 'rgba(255,255,255,0.08)'}` }}>{s}</div>
+          ))}
+        </div>
+        <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', gap:'3px',
+          opacity: phase === 'result' ? 1 : 0, transition:'opacity 0.25s', pointerEvents:'none' }}>
+          <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.95rem', fontWeight:900, color: won ? '#22c55e' : '#ef4444' }}>{result}</div>
+          <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', fontWeight:900, letterSpacing:'0.12em', color: won ? '#22c55e' : '#ef4444' }}>{won ? 'WIN' : 'LOSE'}</div>
+        </div>
       </div>
-      {/* Result label — same position as pick chips, just text */}
-      <div style={{ position:'absolute', bottom:'26%', left:0, right:0, display:'flex', flexDirection:'column', alignItems:'center', gap:'3px', zIndex:1,
-        opacity: phase === 'result' ? 1 : 0, transition:'opacity 0.25s' }}>
-        <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.95rem', fontWeight:900, color: won ? '#22c55e' : '#ef4444' }}>{result}</div>
-        <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', fontWeight:900, letterSpacing:'0.12em', color: won ? '#22c55e' : '#ef4444' }}>{won ? 'WIN' : 'LOSE'}</div>
-      </div>
-      {/* Round label */}
-      <div style={{ position:'absolute', bottom:'10px', left:0, right:0, textAlign:'center', fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.4)`, letterSpacing:'0.1em', zIndex:1 }}>ROUND 3 / 5</div>
     </div>
   )
 }
@@ -266,33 +267,31 @@ function MathPreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
   const ansText  = phase === 'question' ? '?' : shown
 
   return (
-    <div style={{ position:'relative', width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'8px', overflow:'hidden' }}>
+    <div style={{ position:'relative', width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
       <GridFloor color={glow} />
       <div style={{ position:'absolute', inset:0, background:`radial-gradient(circle at 50% 40%, rgba(${glowRgb},0.14) 0%, transparent 60%)`, pointerEvents:'none' }}/>
+      <div style={{ position:'absolute', top:'10px', left:0, right:0, textAlign:'center', fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.4)`, letterSpacing:'0.1em', zIndex:1 }}>SPEED ROUND</div>
 
-      {/* Question */}
-      <div style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'1.4rem', color:'#fff', textShadow:`0 0 18px rgba(${glowRgb},0.7)`, letterSpacing:'0.04em', zIndex:1 }}>
-        {questionStr}
+      {/* Question + Answer — locked center block, never changes height */}
+      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'6px', zIndex:1 }}>
+        <div style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'1.4rem', color:'#fff', textShadow:`0 0 18px rgba(${glowRgb},0.7)`, letterSpacing:'0.04em' }}>
+          {questionStr}
+        </div>
+        <div style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'1.8rem', color: ansColor, textShadow:`0 0 22px ${ansColor}`, letterSpacing:'0.04em', minWidth:'60px', textAlign:'center', transition:'color .2s, text-shadow .2s' }}>
+          {ansText}
+        </div>
       </div>
 
-      {/* Answer box */}
-      <div style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'1.8rem', color: ansColor, textShadow:`0 0 22px ${ansColor}`, letterSpacing:'0.04em', zIndex:1, minWidth:'60px', textAlign:'center', transition:'color .2s, text-shadow .2s' }}>
-        {ansText}
-      </div>
-
-      {/* Result label — absolute so it never moves the question/answer */}
-      <div style={{ position:'absolute', bottom:'18%', left:0, right:0, display:'flex', justifyContent:'center', zIndex:1,
+      {/* Result badge — absolute below the center block, never shifts content */}
+      <div style={{ position:'absolute', bottom:'16px', left:0, right:0, display:'flex', justifyContent:'center', zIndex:1,
         opacity: phase !== 'question' ? 1 : 0, transition:'opacity 0.18s', pointerEvents:'none' }}>
         <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:900, letterSpacing:'0.14em',
-          color: phase === 'correct' ? '#22c55e' : '#ef4444',
-          padding:'3px 10px', borderRadius:'6px',
+          color: phase === 'correct' ? '#22c55e' : '#ef4444', padding:'3px 10px', borderRadius:'6px',
           background: phase === 'correct' ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
           border:`1px solid ${phase === 'correct' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
           {phase === 'correct' ? 'CORRECT' : 'WRONG'}
         </div>
       </div>
-
-      <div style={{ position:'absolute', bottom:'8px', left:0, right:0, textAlign:'center', fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.4)`, letterSpacing:'0.1em', zIndex:1 }}>SPEED ROUND</div>
     </div>
   )
 }
@@ -335,12 +334,10 @@ function ReactionPreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
           )
         })}
       </div>
-      {/* Reaction ms — absolute so grid never moves */}
-      <div style={{ position:'absolute', bottom:'18%', left:0, right:0, textAlign:'center', zIndex:1, pointerEvents:'none',
-        opacity: phase === 'tapped' ? 1 : 0, transition:'opacity 0.15s' }}>
+      <div style={{ position:'absolute', top:'10px', left:0, right:0, textAlign:'center', fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.5)`, letterSpacing:'0.1em', zIndex:1 }}>{phase === 'flash' ? 'TAP!' : 'REACTION GRID'}</div>
+      <div style={{ position:'absolute', bottom:'16px', left:0, right:0, textAlign:'center', zIndex:1, pointerEvents:'none', opacity: phase === 'tapped' ? 1 : 0, transition:'opacity 0.15s' }}>
         <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:900, color:'#22c55e' }}>{ms}ms</span>
       </div>
-      <div style={{ position:'absolute', bottom:'8px', left:0, right:0, textAlign:'center', fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.5)`, letterSpacing:'0.1em', zIndex:1 }}>{phase === 'flash' ? 'TAP!' : 'REACTION GRID'}</div>
     </div>
   )
 }
@@ -389,7 +386,7 @@ function DicePreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
         {phase === 'challenge' && <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.72rem', fontWeight:900, color:'#f97316', letterSpacing:'0.08em' }}>LIAR!</div>}
         {phase === 'result'    && <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.58rem', fontWeight:900, letterSpacing:'0.08em', color: won?'#22c55e':'#ef4444', padding:'2px 9px', borderRadius:'5px', background: won?'rgba(34,197,94,0.12)':'rgba(239,68,68,0.12)', border:`1px solid ${won?'rgba(34,197,94,0.3)':'rgba(239,68,68,0.3)'}` }}>{won ? 'CALLED IT!' : 'WRONG CALL'}</div>}
       </div>
-      <div style={{ position:'absolute', bottom:'8px', left:0, right:0, textAlign:'center', fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.5)`, letterSpacing:'0.1em', zIndex:1 }}>LIAR'S DICE</div>
+      <div style={{ position:'absolute', top:'10px', left:0, right:0, textAlign:'center', fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.5)`, letterSpacing:'0.1em', zIndex:1 }}>LIAR'S DICE</div>
     </div>
   )
 }
@@ -450,7 +447,7 @@ function MemoryPreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
           background:correct?'rgba(34,197,94,0.12)':'rgba(239,68,68,0.12)',
           border:`1px solid ${correct?'rgba(34,197,94,0.3)':'rgba(239,68,68,0.3)'}` }}>{correct?'PERFECT':'MISSED'}</div>
       </div>
-      <div style={{ position:'absolute', bottom:'8px', left:0, right:0, textAlign:'center', fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.5)`, letterSpacing:'0.1em', zIndex:1 }}>{phase==='show'?'MEMORIZE':phase==='hide'?'...':phase==='recall'?'RECALL':''}</div>
+      <div style={{ position:'absolute', top:'10px', left:0, right:0, textAlign:'center', fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.5)`, letterSpacing:'0.1em', zIndex:1 }}>{phase==='show'?'MEMORIZE':phase==='hide'?'...':phase==='recall'?'RECALL':''}</div>
     </div>
   )
 }
@@ -514,7 +511,7 @@ function UniquePreview({ glow, glowRgb, isHigh }: { glow:string; glowRgb:string;
         opacity: phase==='winner' ? 1 : 0, transition:'opacity 0.18s' }}>
         <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:900, color:'#22c55e', letterSpacing:'0.1em' }}>UNIQUE WIN!</span>
       </div>
-      <div style={{ position:'absolute', bottom:'8px', left:0, right:0, textAlign:'center', fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.4)`, letterSpacing:'0.1em', zIndex:1 }}>{isHigh?'HIGHEST UNIQUE':'LOWEST UNIQUE'}</div>
+      <div style={{ position:'absolute', top:'10px', left:0, right:0, textAlign:'center', fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.4)`, letterSpacing:'0.1em', zIndex:1 }}>{isHigh?'HIGHEST UNIQUE':'LOWEST UNIQUE'}</div>
     </div>
   )
 }
@@ -1119,66 +1116,50 @@ export default function Home() {
           </div>
         </div>
 
-        {/* MOBILE: floating chat pill */}
+        {/* MOBILE: floating chat bubble */}
         <button className="mob-chat-bubble" onClick={() => setMobileChatOpen(true)}
-          style={{ display:'none', position:'fixed', bottom:'24px', right:'16px', height:'40px', borderRadius:'20px', background:'#0d0d1e', border:'1px solid rgba(124,58,237,0.35)', cursor:'pointer', zIndex:60, alignItems:'center', gap:'8px', padding:'0 14px 0 10px', boxShadow:'0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(124,58,237,0.12)' }}>
-          <span style={{ width:'7px', height:'7px', borderRadius:'50%', background:'#22c55e', flexShrink:0, animation:'pulse-dot 1.6s infinite' }}/>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          style={{ display:'none', position:'fixed', bottom:'20px', right:'16px', width:'52px', height:'52px', borderRadius:'50%', background:'linear-gradient(135deg,#7c3aed,#06b6d4)', border:'none', cursor:'pointer', zIndex:60, alignItems:'center', justifyContent:'center', boxShadow:'0 4px 18px rgba(124,58,237,0.5)' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
             <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
           </svg>
-          <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:700, color:'#a78bfa', letterSpacing:'0.08em' }}>CHAT</span>
-          {onlineCount > 0 && <span style={{ fontSize:'0.48rem', color:'#4b5563', fontFamily:'Orbitron,sans-serif' }}>{onlineCount}</span>}
+          <span style={{ position:'absolute', top:'10px', right:'10px', width:'10px', height:'10px', borderRadius:'50%', background:'#22c55e', border:'2px solid #06060e' }}/>
         </button>
 
         {/* MOBILE: chat drawer */}
         {mobileChatOpen && (
-          <div className="mob-chat" style={{ display:'flex', flexDirection:'column' }}>
-            <div onClick={() => setMobileChatOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:61, backdropFilter:'blur(2px)' }}/>
-            <div style={{ position:'fixed', bottom:0, left:0, right:0, background:'#080810', borderRadius:'20px 20px 0 0', zIndex:62, maxHeight:'68vh', display:'flex', flexDirection:'column', animation:'slide-up .22s cubic-bezier(.4,0,.2,1)' }}>
-              {/* Handle */}
-              <div style={{ padding:'12px 0 8px', display:'flex', justifyContent:'center', flexShrink:0 }}>
-                <div style={{ width:'40px', height:'4px', borderRadius:'2px', background:'rgba(255,255,255,0.08)' }}/>
+          <div className="mob-chat" style={{ display:'contents' }}>
+            <div onClick={() => setMobileChatOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:61 }}/>
+            <div style={{ position:'fixed', bottom:0, left:0, right:0, zIndex:62, maxHeight:'70vh', display:'flex', flexDirection:'column', background:'#09090f', borderRadius:'18px 18px 0 0', borderTop:'1px solid #14142a', animation:'slide-up .2s ease-out' }}>
+              <div style={{ padding:'10px 0 0', display:'flex', justifyContent:'center', flexShrink:0 }}>
+                <div style={{ width:'34px', height:'3px', borderRadius:'99px', background:'#1a1a2e' }}/>
               </div>
-              {/* Header */}
-              <div style={{ display:'flex', alignItems:'center', padding:'0 18px 12px', gap:'10px', flexShrink:0 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:'6px', flex:1 }}>
-                  <span style={{ width:'7px', height:'7px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.6s infinite', flexShrink:0 }}/>
-                  <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', color:'#e2e8f0', fontWeight:700, letterSpacing:'0.1em' }}>GENERAL CHAT</span>
-                </div>
-                <span style={{ fontSize:'0.5rem', color:'#64748b', fontFamily:'Orbitron,sans-serif', background:'rgba(255,255,255,0.04)', padding:'2px 8px', borderRadius:'10px', border:'1px solid rgba(255,255,255,0.06)' }}>{onlineCount || '--'} online</span>
-                <button onClick={() => setMobileChatOpen(false)} style={{ width:'26px', height:'26px', borderRadius:'50%', background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.08)', color:'#64748b', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', flexShrink:0 }}>✕</button>
+              <div style={{ display:'flex', alignItems:'center', padding:'8px 16px 10px', gap:'8px', flexShrink:0, borderBottom:'1px solid #0f0f1e' }}>
+                <span style={{ width:'7px', height:'7px', borderRadius:'50%', background:'#22c55e', flexShrink:0, animation:'pulse-dot 1.6s infinite' }}/>
+                <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.56rem', fontWeight:700, color:'#7c8da0', flex:1 }}>CHAT</span>
+                <span style={{ fontSize:'0.48rem', color:'#2a3040', fontFamily:'Orbitron,sans-serif' }}>{onlineCount || '--'} online</span>
+                <button onClick={() => setMobileChatOpen(false)} style={{ background:'none', border:'none', color:'#3a4050', cursor:'pointer', fontSize:'1rem', lineHeight:1, padding:'0 2px' }}>×</button>
               </div>
-              {/* Divider */}
-              <div style={{ height:'1px', background:'linear-gradient(90deg,transparent,rgba(124,58,237,0.3),rgba(6,182,212,0.2),transparent)', flexShrink:0 }}/>
-              {/* Messages */}
-              <div style={{ flex:1, overflowY:'auto', padding:'12px 16px', display:'flex', flexDirection:'column', gap:'8px' }}>
+              <div style={{ flex:1, overflowY:'auto', padding:'8px 14px 4px', display:'flex', flexDirection:'column', gap:'0' }}>
                 {chat.length === 0
-                  ? <div style={{ textAlign:'center', color:'#1e2030', fontSize:'0.6rem', marginTop:'20px' }}>No messages yet</div>
-                  : chat.slice(-30).map((m, i) => {
+                  ? <p style={{ textAlign:'center', color:'#1a1a2e', fontSize:'0.6rem', margin:'24px 0' }}>No messages yet</p>
+                  : chat.slice(-40).map((m, i) => {
                     const col = CHAT_COLORS[m.username.charCodeAt(0) % CHAT_COLORS.length]
-                    const initials = m.username.slice(0,2).toUpperCase()
                     return (
-                      <div key={i} style={{ display:'flex', gap:'8px', alignItems:'flex-start' }}>
-                        <div style={{ width:'24px', height:'24px', borderRadius:'50%', background:`${col}22`, border:`1px solid ${col}44`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:'1px' }}>
-                          <span style={{ fontSize:'0.42rem', fontWeight:900, color:col, fontFamily:'Orbitron,sans-serif' }}>{initials}</span>
-                        </div>
-                        <div>
-                          <span style={{ fontSize:'0.52rem', color:col, fontWeight:700, display:'block', marginBottom:'2px' }}>{m.username}</span>
-                          <span style={{ fontSize:'0.68rem', color:'#94a3b8', lineHeight:1.4, wordBreak:'break-word' }}>{m.message}</span>
-                        </div>
+                      <div key={i} style={{ padding:'5px 0', borderBottom:'1px solid #0d0d1a' }}>
+                        <span style={{ fontSize:'0.6rem', fontWeight:700, color:col, marginRight:'5px' }}>{m.username}</span>
+                        <span style={{ fontSize:'0.68rem', color:'#566070' }}>{m.message}</span>
                       </div>
                     )
                   })
                 }
               </div>
-              {/* Input */}
-              <div style={{ padding:'10px 14px 20px', flexShrink:0 }}>
-                <div style={{ display:'flex', gap:'8px', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'10px 14px', alignItems:'center' }}>
+              <div style={{ padding:'8px 12px 16px', borderTop:'1px solid #0f0f1e', flexShrink:0 }}>
+                <div style={{ display:'flex', alignItems:'center', background:'#0d0d1e', borderRadius:'10px', overflow:'hidden', border:'1px solid #161628' }}>
                   <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key==='Enter' && sendChat()}
-                    placeholder={address ? 'Say something...' : 'Connect wallet to chat'} disabled={!address}
-                    style={{ flex:1, background:'transparent', border:'none', outline:'none', color:'#e2e8f0', fontSize:'0.78rem', minWidth:0 }}/>
+                    placeholder={address ? 'Message...' : 'Connect wallet to chat'} disabled={!address}
+                    style={{ flex:1, background:'transparent', border:'none', outline:'none', color:'#c8d0dc', fontSize:'0.76rem', padding:'10px 12px', minWidth:0 }}/>
                   <button onClick={sendChat} disabled={!address || !chatInput.trim()}
-                    style={{ background: address && chatInput.trim() ? 'linear-gradient(135deg,#7c3aed,#06b6d4)' : 'transparent', border: address && chatInput.trim() ? 'none' : '1px solid rgba(255,255,255,0.08)', borderRadius:'8px', padding:'6px 14px', color: address && chatInput.trim() ? '#fff' : '#374151', fontSize:'0.62rem', fontWeight:700, fontFamily:'Orbitron,sans-serif', flexShrink:0, transition:'all .15s' }}>
+                    style={{ background: address && chatInput.trim() ? 'linear-gradient(135deg,#7c3aed,#06b6d4)' : 'transparent', border:'none', padding:'10px 16px', color: address && chatInput.trim() ? '#fff' : '#2a3040', fontSize:'0.6rem', fontWeight:700, fontFamily:'Orbitron,sans-serif', cursor: address && chatInput.trim() ? 'pointer' : 'default', flexShrink:0 }}>
                     SEND
                   </button>
                 </div>
