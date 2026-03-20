@@ -272,14 +272,19 @@ function MathPreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
         {ansText}
       </div>
 
-      {/* Result label */}
-      {phase !== 'question' && (
-        <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:900, letterSpacing:'0.14em', color: phase === 'correct' ? '#22c55e' : '#ef4444', padding:'3px 10px', borderRadius:'6px', background: phase === 'correct' ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)', border:`1px solid ${phase === 'correct' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, zIndex:1 }}>
+      {/* Result label — absolute so it never moves the question/answer */}
+      <div style={{ position:'absolute', bottom:'18%', left:0, right:0, display:'flex', justifyContent:'center', zIndex:1,
+        opacity: phase !== 'question' ? 1 : 0, transition:'opacity 0.18s', pointerEvents:'none' }}>
+        <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:900, letterSpacing:'0.14em',
+          color: phase === 'correct' ? '#22c55e' : '#ef4444',
+          padding:'3px 10px', borderRadius:'6px',
+          background: phase === 'correct' ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
+          border:`1px solid ${phase === 'correct' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
           {phase === 'correct' ? 'CORRECT' : 'WRONG'}
         </div>
-      )}
+      </div>
 
-      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.4)`, letterSpacing:'0.1em', zIndex:1 }}>SPEED ROUND</div>
+      <div style={{ position:'absolute', bottom:'8px', left:0, right:0, textAlign:'center', fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.4)`, letterSpacing:'0.1em', zIndex:1 }}>SPEED ROUND</div>
     </div>
   )
 }
@@ -322,8 +327,12 @@ function ReactionPreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
           )
         })}
       </div>
-      {phase === 'tapped' && <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:900, color:'#22c55e', zIndex:1 }}>{ms}ms</div>}
-      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.5)`, letterSpacing:'0.1em', zIndex:1 }}>{phase === 'flash' ? 'TAP!' : 'REACTION GRID'}</div>
+      {/* Reaction ms — absolute so grid never moves */}
+      <div style={{ position:'absolute', bottom:'18%', left:0, right:0, textAlign:'center', zIndex:1, pointerEvents:'none',
+        opacity: phase === 'tapped' ? 1 : 0, transition:'opacity 0.15s' }}>
+        <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:900, color:'#22c55e' }}>{ms}ms</span>
+      </div>
+      <div style={{ position:'absolute', bottom:'8px', left:0, right:0, textAlign:'center', fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.5)`, letterSpacing:'0.1em', zIndex:1 }}>{phase === 'flash' ? 'TAP!' : 'REACTION GRID'}</div>
     </div>
   )
 }
@@ -366,10 +375,13 @@ function DicePreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
           </div>
         ))}
       </div>
-      {phase === 'bid'       && <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.7rem', fontWeight:900, color:`rgba(${glowRgb},0.9)`, zIndex:1 }}>BID: {bid.qty}x{bid.face}s</div>}
-      {phase === 'challenge' && <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.72rem', fontWeight:900, color:'#f97316', zIndex:1, letterSpacing:'0.08em' }}>LIAR!</div>}
-      {phase === 'result'    && <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.58rem', fontWeight:900, letterSpacing:'0.08em', color: won?'#22c55e':'#ef4444', padding:'2px 9px', borderRadius:'5px', background: won?'rgba(34,197,94,0.12)':'rgba(239,68,68,0.12)', border:`1px solid ${won?'rgba(34,197,94,0.3)':'rgba(239,68,68,0.3)'}`, zIndex:1 }}>{won ? 'CALLED IT!' : 'WRONG CALL'}</div>}
-      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.5)`, letterSpacing:'0.1em', zIndex:1 }}>LIAR'S DICE</div>
+      {/* Phase labels — absolute slot, never shift the dice */}
+      <div style={{ position:'absolute', bottom:'18%', left:0, right:0, display:'flex', justifyContent:'center', zIndex:1, pointerEvents:'none' }}>
+        {phase === 'bid'       && <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.7rem', fontWeight:900, color:`rgba(${glowRgb},0.9)` }}>BID: {bid.qty}x{bid.face}s</div>}
+        {phase === 'challenge' && <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.72rem', fontWeight:900, color:'#f97316', letterSpacing:'0.08em' }}>LIAR!</div>}
+        {phase === 'result'    && <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.58rem', fontWeight:900, letterSpacing:'0.08em', color: won?'#22c55e':'#ef4444', padding:'2px 9px', borderRadius:'5px', background: won?'rgba(34,197,94,0.12)':'rgba(239,68,68,0.12)', border:`1px solid ${won?'rgba(34,197,94,0.3)':'rgba(239,68,68,0.3)'}` }}>{won ? 'CALLED IT!' : 'WRONG CALL'}</div>}
+      </div>
+      <div style={{ position:'absolute', bottom:'8px', left:0, right:0, textAlign:'center', fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.5)`, letterSpacing:'0.1em', zIndex:1 }}>LIAR'S DICE</div>
     </div>
   )
 }
@@ -422,8 +434,15 @@ function MemoryPreview({ glow, glowRgb }: { glow:string; glowRgb:string }) {
           return <div key={i} style={{ width:'28px', height:'28px', borderRadius:'7px', background:bg, border:`1px solid ${br}`, transition:'all .2s' }}/>
         })}
       </div>
-      {phase==='result' && <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:900, letterSpacing:'0.1em', color:correct?'#22c55e':'#ef4444', padding:'2px 9px', borderRadius:'5px', background:correct?'rgba(34,197,94,0.12)':'rgba(239,68,68,0.12)', border:`1px solid ${correct?'rgba(34,197,94,0.3)':'rgba(239,68,68,0.3)'}`, zIndex:1 }}>{correct?'PERFECT':'MISSED'}</div>}
-      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.5)`, letterSpacing:'0.1em', zIndex:1 }}>{phase==='show'?'MEMORIZE':phase==='hide'?'...':phase==='recall'?'RECALL':''}</div>
+      {/* Result label — absolute, never shifts the grid */}
+      <div style={{ position:'absolute', bottom:'18%', left:0, right:0, display:'flex', justifyContent:'center', zIndex:1, pointerEvents:'none',
+        opacity: phase==='result' ? 1 : 0, transition:'opacity 0.18s' }}>
+        <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:900, letterSpacing:'0.1em',
+          color:correct?'#22c55e':'#ef4444', padding:'2px 9px', borderRadius:'5px',
+          background:correct?'rgba(34,197,94,0.12)':'rgba(239,68,68,0.12)',
+          border:`1px solid ${correct?'rgba(34,197,94,0.3)':'rgba(239,68,68,0.3)'}` }}>{correct?'PERFECT':'MISSED'}</div>
+      </div>
+      <div style={{ position:'absolute', bottom:'8px', left:0, right:0, textAlign:'center', fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.5)`, letterSpacing:'0.1em', zIndex:1 }}>{phase==='show'?'MEMORIZE':phase==='hide'?'...':phase==='recall'?'RECALL':''}</div>
     </div>
   )
 }
@@ -482,8 +501,12 @@ function UniquePreview({ glow, glowRgb, isHigh }: { glow:string; glowRgb:string;
             })}
           </div>
       }
-      {phase==='winner' && <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:900, color:'#22c55e', letterSpacing:'0.1em', zIndex:1 }}>UNIQUE WIN!</div>}
-      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.4)`, letterSpacing:'0.1em', zIndex:1 }}>{isHigh?'HIGHEST UNIQUE':'LOWEST UNIQUE'}</div>
+      {/* Winner label — absolute, never shifts the grid */}
+      <div style={{ position:'absolute', bottom:'18%', left:0, right:0, textAlign:'center', zIndex:1, pointerEvents:'none',
+        opacity: phase==='winner' ? 1 : 0, transition:'opacity 0.18s' }}>
+        <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:900, color:'#22c55e', letterSpacing:'0.1em' }}>UNIQUE WIN!</span>
+      </div>
+      <div style={{ position:'absolute', bottom:'8px', left:0, right:0, textAlign:'center', fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:`rgba(${glowRgb},0.4)`, letterSpacing:'0.1em', zIndex:1 }}>{isHigh?'HIGHEST UNIQUE':'LOWEST UNIQUE'}</div>
     </div>
   )
 }
