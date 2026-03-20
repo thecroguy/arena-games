@@ -83,7 +83,8 @@ export default function Navbar() {
         position: 'sticky', top: 0, zIndex: 100,
         minWidth: 0, overflow: 'hidden',
       }}>
-        {/* Logo */}
+        {/* Logo + Quest pill (left cluster) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
         <Link to="/" style={{ textDecoration: 'none', flexShrink: 0, display:'flex', alignItems:'center', gap:'9px' }}>
           <style>{`
             @keyframes helm-cycle {
@@ -169,6 +170,24 @@ export default function Navbar() {
           </span>
         </Link>
 
+        {/* Quest pill — sits on the LEFT so drawer opening from RIGHT feels natural */}
+        <button onClick={() => setQuestOpen(true)} style={{
+          background: 'rgba(249,115,22,0.09)', border: '1px solid rgba(249,115,22,0.25)',
+          borderRadius: '8px', padding: '5px 10px', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: '5px', color: '#fb923c',
+          fontFamily: 'Orbitron,sans-serif', fontSize: '0.58rem', fontWeight: 800,
+          letterSpacing: '0.04em', whiteSpace: 'nowrap',
+        }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(249,115,22,0.16)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(249,115,22,0.09)')}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="#fb923c">
+            <path d="M12 2C9 6 7 8 8 12C5 11 4 8 5 5C2 8 1 12 3 16C5 19.5 8.5 22 12 22C15.5 22 19 19.5 21 16C23 12 20 7 17 5C17.5 8 16 10 14 11C15 8 14 5 12 2Z"/>
+          </svg>
+          QUESTS
+        </button>
+        </div>{/* end left cluster */}
+
         {/* Desktop nav */}
         <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }} className="desktop-nav">
           {NAV_LINKS.map(({ to, label }) => {
@@ -185,22 +204,7 @@ export default function Navbar() {
               </Link>
             )
           })}
-          <button onClick={() => setQuestOpen(true)} style={{
-            background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.28)',
-            borderRadius: '8px', padding: '6px 12px', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: '6px', color: '#fb923c',
-            fontFamily: 'Orbitron,sans-serif', fontSize: '0.62rem', fontWeight: 800,
-            letterSpacing: '0.04em', transition: 'all .15s',
-          }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(249,115,22,0.18)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(249,115,22,0.1)')}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2C9 6 7 8 8 12C5 11 4 8 5 5C2 8 1 12 3 16C5 19.5 8.5 22 12 22C15.5 22 19 19.5 21 16C23 12 20 7 17 5C17.5 8 16 10 14 11C15 8 14 5 12 2Z" fill="#fb923c"/>
-            </svg>
-            QUESTS
-          </button>
-          <div style={{ marginLeft: '8px' }}>
+          <div style={{ marginLeft: '4px' }}>
             <ConnectButton chainStatus="icon" accountStatus="address" showBalance={false} />
           </div>
         </div>
