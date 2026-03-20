@@ -563,7 +563,6 @@ const RECENT_WINS = [
 ]
 
 type ChatMsg = { username: string; message: string; ts: number }
-type Room    = { code: string; host: string; hostName: string; players: number; max: number; entry: number; status: 'waiting'|'full'; roomType: 'public'|'duel'|'private'; duelExpiry: number|null }
 
 const ENTRY_FEES = [0.5, 1, 2, 5, 10, 25, 50]
 
