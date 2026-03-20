@@ -587,7 +587,6 @@ export default function Home() {
   const [chat, setChat]         = useState<ChatMsg[]>([])
   const [onlineCount, setOnlineCount] = useState(0)
   const [chatInput, setChatInput] = useState('')
-  const [rooms, setRooms]       = useState<Room[]>([])
   const [playFee, setPlayFee]   = useState(1)
   const [playMax, setPlayMax]   = useState(5)
   const [lobbyFee, setLobbyFee] = useState(1)
@@ -613,15 +612,6 @@ export default function Home() {
     setLobbyMax(Math.max(minP, activeGame.players === '2' ? 2 : 5))
   }, [activeGame])
 
-  useEffect(() => {
-    const s = connectSocket()
-    function load() {
-      s.emit('rooms:list', activeGame.id, (list: Room[]) => setRooms(list || []))
-    }
-    load()
-    s.on('room:update', load)
-    return () => { s.off('room:update', load) }
-  }, [activeGame.id])
 
   useEffect(() => {
     const s = connectSocket()
