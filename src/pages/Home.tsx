@@ -32,7 +32,7 @@ function IconMath({ size = 44, animate = true }: { size?: number; animate?: bool
   return (
     <div style={{
       width: size, height: size, borderRadius: size * 0.22,
-      background: 'linear-gradient(145deg, #8b5cf6 0%, #4c1d95 100%)',
+      background: 'linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%)',
       boxShadow: `0 0 ${animate ? size * 0.38 : size * 0.15}px rgba(124,58,237,${animate ? 0.5 : 0.25})`,
       display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr',
       padding: size * 0.14, gap: size * 0.07, flexShrink: 0,
@@ -40,8 +40,8 @@ function IconMath({ size = 44, animate = true }: { size?: number; animate?: bool
     }}>
       {['+', '−', '×', '='].map((op, i) => (
         <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'center',
-          background: 'rgba(167,139,250,0.18)', borderRadius: size * 0.06,
-          fontSize: fs, fontWeight: 900, color: 'rgba(233,213,255,0.9)',
+          background: 'rgba(255,255,255,0.12)', borderRadius: size * 0.06,
+          fontSize: fs, fontWeight: 900, color: 'rgba(255,255,255,0.92)',
           fontFamily: 'serif', lineHeight: 1,
         }}>{op}</div>
       ))}
@@ -87,34 +87,24 @@ function IconDice({ size = 44, animate = true }: { size?: number; animate?: bool
 }
 
 function IconMemory({ size = 44, animate = true }: { size?: number; animate?: boolean }) {
-  const r = size * 0.11
-  // 5 nodes: top-left, top-right, center, bottom-left, bottom-right
-  const nodes = [
-    { cx: 0.25, cy: 0.22 }, { cx: 0.75, cy: 0.22 },
-    { cx: 0.5,  cy: 0.52 },
-    { cx: 0.25, cy: 0.78 }, { cx: 0.75, cy: 0.78 },
-  ]
-  const edges = [[0,2],[1,2],[2,3],[2,4],[0,1],[3,4]]
   return (
     <div style={{
       width: size, height: size, borderRadius: size * 0.22,
       background: 'linear-gradient(145deg, #a855f7 0%, #581c87 100%)',
       boxShadow: `0 0 ${animate ? size * 0.38 : size * 0.15}px rgba(168,85,247,${animate ? 0.45 : 0.2})`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative', overflow: 'hidden',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      animation: animate ? 'math-pulse 2.4s ease-in-out infinite' : 'none',
     }}>
-      <svg width={size} height={size} viewBox="0 0 1 1" style={{ position:'absolute', inset:0 }}>
-        {edges.map(([a, b], i) => (
-          <line key={i}
-            x1={nodes[a].cx} y1={nodes[a].cy} x2={nodes[b].cx} y2={nodes[b].cy}
-            stroke="rgba(233,213,255,0.3)" strokeWidth="0.04" strokeLinecap="round"
-          />
-        ))}
-        {nodes.map((n, i) => (
-          <circle key={i} cx={n.cx} cy={n.cy} r={r / size}
-            fill={i === 2 ? 'rgba(233,213,255,0.95)' : 'rgba(216,180,254,0.75)'}
-            style={{ animation: animate ? `node-pulse 2.4s ${i * 0.38}s ease-in-out infinite` : 'none' }}
-          />
-        ))}
+      <svg width={size * 0.68} height={size * 0.62} viewBox="0 0 36 32" fill="none">
+        {/* Brain — two lobes with center stem */}
+        <path d="M18 28 C18 28 10 26 7 21 C4 16 5 10 9 7 C11 5 14 5 16 7 C16 4 20 4 20 7 C22 5 25 5 27 7 C31 10 32 16 29 21 C26 26 18 28 18 28Z"
+          fill="rgba(233,213,255,0.88)" style={{ animation: animate ? 'node-pulse 2.4s ease-in-out infinite' : 'none' }} />
+        {/* Center divide */}
+        <line x1="18" y1="7" x2="18" y2="27" stroke="rgba(139,92,246,0.55)" strokeWidth="1.2" strokeLinecap="round"/>
+        {/* Wrinkle lines left */}
+        <path d="M10 14 Q13 12 12 17" stroke="rgba(139,92,246,0.45)" strokeWidth="1" fill="none" strokeLinecap="round"/>
+        {/* Wrinkle lines right */}
+        <path d="M26 14 Q23 12 24 17" stroke="rgba(139,92,246,0.45)" strokeWidth="1" fill="none" strokeLinecap="round"/>
       </svg>
     </div>
   )
