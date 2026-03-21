@@ -11,13 +11,13 @@ const HOUSE_WALLET = import.meta.env.VITE_HOUSE_WALLET as `0x${string}` | undefi
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
 
 const GAME_META: Record<string, { title: string; emoji: string; desc: string; minPlayers: number; maxPlayers: number }> = {
-  'math-arena':     { title: 'Math Arena',      emoji: '✚',  desc: 'Speed math quiz — first correct answer scores. 100% skill, zero luck.',           minPlayers: 2, maxPlayers: 10 },
-  'pattern-memory': { title: 'Pattern Memory',    emoji: '🧠', desc: 'A grid of tiles flashes briefly — memorize which lit up, then tap them all. First correct scores.', minPlayers: 2, maxPlayers: 10 },
-  'reaction-grid':  { title: 'Reaction Grid',   emoji: '⊞',  desc: 'A cell lights up — click it before anyone else. Pure reaction speed.',             minPlayers: 2, maxPlayers: 10 },
+  'math-arena':     { title: 'Math Arena',      emoji: '✚',  desc: 'Speed math quiz, first correct answer scores. 100% skill, zero luck.',           minPlayers: 2, maxPlayers: 10 },
+  'pattern-memory': { title: 'Pattern Memory',    emoji: '🧠', desc: 'A grid of tiles flashes briefly, memorize which lit up, then tap them all. First correct scores.', minPlayers: 2, maxPlayers: 10 },
+  'reaction-grid':  { title: 'Reaction Grid',   emoji: '⊞',  desc: 'A cell lights up, click it before anyone else. Pure reaction speed.',             minPlayers: 2, maxPlayers: 10 },
   'highest-unique': { title: 'Highest Unique',  emoji: '↑',  desc: 'Pick the highest number nobody else picks. Read the crowd and outsmart them.',      minPlayers: 3, maxPlayers: 20 },
   'lowest-unique':  { title: 'Lowest Unique',   emoji: '↓',  desc: 'Pick the lowest number nobody else picks. Contrarian thinking wins.',               minPlayers: 3, maxPlayers: 20 },
-  'liars-dice':     { title: "Liar's Dice",      emoji: '🎲',  desc: 'Each player gets 3 dice. Bid on the total — bluff or call LIAR! to win.',          minPlayers: 2, maxPlayers: 6  },
-  'coin-flip':      { title: 'Coin Flip',        emoji: '🪙',  desc: 'Pure 50/50 — pick Heads or Tails, best of 5 rounds. Luck meets nerve.',             minPlayers: 2, maxPlayers: 2  },
+  'liars-dice':     { title: "Liar's Dice",      emoji: '🎲',  desc: 'Each player gets 3 dice. Bid on the total, bluff or call LIAR! to win.',          minPlayers: 2, maxPlayers: 6  },
+  'coin-flip':      { title: 'Coin Flip',        emoji: '🪙',  desc: 'Pure 50/50, pick Heads or Tails, best of 5 rounds. Luck meets nerve.',             minPlayers: 2, maxPlayers: 2  },
 }
 
 const ENTRY_FEES = [0.5, 1, 2, 5, 10, 25, 50]
@@ -125,7 +125,7 @@ export default function Lobby() {
 
   const balanceFormatted = usdtBalance !== undefined
     ? Number(formatUnits(usdtBalance as bigint, selectedChain.decimals)).toFixed(2)
-    : '—'
+    : '-'
 
   useEffect(() => {
     const chain = getChain(currentChainId)
@@ -138,7 +138,7 @@ export default function Lobby() {
     const state = location.state as { autoJoin?: string; autoFee?: number; autoChainId?: number } | null
     if (!state?.autoJoin || !address || joining || creating) return
     const chain = getChain(state.autoChainId ?? 137) ?? selectedChain
-    setSelectedChain(chain)  // for UI only — handleJoinRoom gets chainOverride directly
+    setSelectedChain(chain)  // for UI only, handleJoinRoom gets chainOverride directly
     window.history.replaceState({}, '')
     handleJoinRoom(state.autoJoin, state.autoFee, chain)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -221,7 +221,7 @@ export default function Lobby() {
     })
     socket.on('room:timeout', () => {
       setLockedInRoom(null); setJoining(null); setCreating(false); setPayStep('idle')
-      showError('Room timed out — no second player joined in time. Your deposit will be refunded. Check Profile → Stuck Deposits.')
+      showError('Room timed out, no second player joined in time. Your deposit will be refunded. Check Profile → Stuck Deposits.')
     })
     socket.on('activity:update', setActivityFeed)
     socket.on('chat:message', (msg: { username: string; message: string; ts: number }) => {
@@ -253,7 +253,7 @@ export default function Lobby() {
     }
   }, [])
 
-  // Auto-scroll chat — fires on new messages, tab switch, drawer open, panel open
+  // Auto-scroll chat, fires on new messages, tab switch, drawer open, panel open
   useEffect(() => {
     const isVisible = (isDesktop && panelOpen && panelTab === 'chat') || (!isDesktop && mobileDrawerOpen && panelTab === 'chat')
     if (isVisible) chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -299,10 +299,10 @@ export default function Lobby() {
         const txHash = await writeContractAsync({ address: escrowAddr, abi: ESCROW_ABI, functionName: 'deposit', args: [roomId, amount], chainId: chain.id, gas: 300000n })
         // Store txHash so Game.tsx rejoin can re-send room:deposit if socket dropped
         localStorage.setItem('ag_pending_deposit', JSON.stringify({ code: roomCode, address, chainId: chain.id, fee, txHash, ts: Date.now() }))
-        // Persist deposit permanently — Profile uses this to auto-scan for refunds even if server missed the event
+        // Persist deposit permanently, Profile uses this to auto-scan for refunds even if server missed the event
         try { const d = JSON.parse(localStorage.getItem('ag_deposits') || '{}'); d[roomCode] = { chainId: chain.id, escrow: escrowAddr, entryFee: fee, ts: Date.now(), address: address?.toLowerCase() }; localStorage.setItem('ag_deposits', JSON.stringify(d)) } catch {}
         return txHash
-      } catch { localStorage.removeItem('ag_pending_deposit'); showError('Deposit failed. Your USDT was not locked — please try again.'); return null }
+      } catch { localStorage.removeItem('ag_pending_deposit'); showError('Deposit failed. Your USDT was not locked, please try again.'); return null }
     } else {
       if (!HOUSE_WALLET) { showError('Payments are not configured for this network yet.'); return null }
       setPayStep('paying')
@@ -379,7 +379,7 @@ export default function Lobby() {
     fetch(`${SERVER_URL}/api/report-deposit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address, room_code: code, tx_hash: txHash, chain_id: chainSnapshot.id, amount_usdt: feeSnapshot }) }).catch(() => {})
     setCreating(false); setPayStep('idle')
     setActiveRoom(code)
-    // Navigate directly into the waiting room — no share card in lobby
+    // Navigate directly into the waiting room, no share card in lobby
     navigate(`/game/${code}`, { state: { host: true, entry: feeSnapshot, maxPlayers: 2, gameMode, chainId: chainSnapshot.id, roomType: 'duel', duelCreatedAt: Date.now() } })
   }
 
@@ -500,7 +500,7 @@ export default function Lobby() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
             {globalChat.length === 0
-              ? <p style={{ color: '#334155', fontSize: '0.78rem', textAlign: 'center', padding: '28px 12px', fontStyle: 'italic' }}>No messages yet — say hi!</p>
+              ? <p style={{ color: '#334155', fontSize: '0.78rem', textAlign: 'center', padding: '28px 12px', fontStyle: 'italic' }}>No messages yet, say hi!</p>
               : globalChat.map((m, i) => {
                   const isMe = !!myName && m.username === myName
                   return (
@@ -689,7 +689,7 @@ export default function Lobby() {
           <>
             <button onClick={findMatch} disabled={!isConnected}
               style={{ width: '100%', background: isConnected ? 'linear-gradient(135deg, #22c55e 0%, #06b6d4 100%)' : '#1a1a2e', border: 'none', borderRadius: '14px', padding: '16px', color: isConnected ? '#041a0f' : '#334155', fontWeight: 900, fontSize: '1.05rem', fontFamily: 'Orbitron, sans-serif', cursor: isConnected ? 'pointer' : 'not-allowed', letterSpacing: '0.05em', marginBottom: '8px', animation: isConnected ? 'btn-glow 2.5s ease-in-out infinite' : 'none', transition: 'transform 0.1s', boxShadow: isConnected ? '0 4px 20px rgba(34,197,94,0.2)' : 'none' }}>
-              ⚡ INSTANT MATCH — ${selectedFee}
+              ⚡ INSTANT MATCH ${selectedFee}
             </button>
             {isConnected && <p style={{ textAlign: 'center', color: '#4a5568', fontSize: '0.73rem' }}>Get paired in 10–30 seconds</p>}
           </>
@@ -705,7 +705,7 @@ export default function Lobby() {
         <button
           onClick={() => setActiveCreateMode(activeCreateMode === 'duel' ? null : 'duel')}
           disabled={!isConnected || gameMode === 'highest-unique' || gameMode === 'lowest-unique'}
-          title={gameMode === 'highest-unique' || gameMode === 'lowest-unique' ? 'Duels unavailable — needs 3+ players' : undefined}
+          title={gameMode === 'highest-unique' || gameMode === 'lowest-unique' ? 'Duels unavailable, needs 3+ players' : undefined}
           className="lobby-create-btn"
           style={{ flex: 1, background: activeCreateMode === 'duel' ? 'rgba(249,115,22,0.22)' : 'rgba(249,115,22,0.07)', border: `1px solid ${activeCreateMode === 'duel' ? 'rgba(249,115,22,0.65)' : 'rgba(249,115,22,0.22)'}`, borderRadius: '12px', padding: '13px', color: (gameMode === 'highest-unique' || gameMode === 'lowest-unique') ? '#334155' : (activeCreateMode === 'duel' ? '#fdba74' : '#c2763e'), fontWeight: 700, fontSize: '0.88rem', cursor: (!isConnected || gameMode === 'highest-unique' || gameMode === 'lowest-unique') ? 'not-allowed' : 'pointer', opacity: (gameMode === 'highest-unique' || gameMode === 'lowest-unique') ? 0.35 : 1, transition: 'all 0.2s', letterSpacing: '0.03em' }}>
           ⚔️ CREATE DUEL
@@ -738,7 +738,7 @@ export default function Lobby() {
             ))}
           </div>
 
-          {/* Max players — rooms only */}
+          {/* Max players, rooms only */}
           {activeCreateMode === 'room' && (
             <>
               <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '8px' }}>MAX PLAYERS ({maxPlayers})</p>
@@ -793,7 +793,7 @@ export default function Lobby() {
         ) : openRooms.length === 0 ? (
           <div style={{ background: 'linear-gradient(135deg,rgba(124,58,237,0.05),rgba(6,182,212,0.03))', border: '1px solid rgba(124,58,237,0.15)', borderRadius: '14px', textAlign: 'center', padding: '32px' }}>
             <div style={{ fontSize: '1.6rem', marginBottom: '8px' }}>⚔️</div>
-            <div style={{ color: '#94a3b8', fontWeight: 700, fontSize: '0.9rem', marginBottom: '4px' }}>No matches yet — be the first</div>
+            <div style={{ color: '#94a3b8', fontWeight: 700, fontSize: '0.9rem', marginBottom: '4px' }}>No matches yet, be the first</div>
             <div style={{ color: '#334155', fontSize: '0.78rem' }}>Create a room and take the full pot</div>
           </div>
         ) : openRooms.map(room => (
@@ -828,7 +828,7 @@ export default function Lobby() {
       <section style={{ marginBottom: '20px' }}>
         <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.82rem', fontWeight: 700, color: '#f97316', letterSpacing: '0.06em', marginBottom: '10px' }}>⚔️ DUEL CHALLENGES</h3>
         {duelRooms.length === 0 ? (
-          <div style={{ background: '#12121a', border: '1px solid rgba(249,115,22,0.15)', borderRadius: '12px', textAlign: 'center', color: '#64748b', padding: '20px', fontSize: '0.83rem' }}>No active duels — create one above and challenge a friend!</div>
+          <div style={{ background: '#12121a', border: '1px solid rgba(249,115,22,0.15)', borderRadius: '12px', textAlign: 'center', color: '#64748b', padding: '20px', fontSize: '0.83rem' }}>No active duels, create one above and challenge a friend!</div>
         ) : duelRooms.map(room => (
           <div key={room.code} style={{ background: '#12121a', border: '1px solid rgba(249,115,22,0.3)', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '8px' }}>
             <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>

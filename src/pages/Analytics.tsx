@@ -102,7 +102,7 @@ export default function Analytics() {
   )
 
   // ── Compute stats ───────────────────────────────────────────────────────────
-  // Deduplicate by room_code (game_history has 1 row per player — use only 'win' rows to avoid double-counting pots)
+  // Deduplicate by room_code (game_history has 1 row per player, use only 'win' rows to avoid double-counting pots)
   const uniqueRooms = new Map<string, Row>()
   for (const r of rows) {
     if (r.result === 'win' && !uniqueRooms.has(r.room_code)) uniqueRooms.set(r.room_code, r)
@@ -124,7 +124,7 @@ export default function Analytics() {
     .map(([mode, s]) => ({ mode, games: s.games, volume: s.volume, pct: totalGames > 0 ? Math.round((s.games / totalGames) * 100) : 0 }))
     .sort((a, b) => b.games - a.games)
 
-  // Daily stats — last 14 days
+  // Daily stats, last 14 days
   const dailyMap = new Map<string, DayStat>()
   const today = new Date(); today.setHours(0, 0, 0, 0)
   for (let i = 13; i >= 0; i--) {
@@ -199,7 +199,7 @@ export default function Analytics() {
 
             {/* Daily activity chart */}
             <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', padding: '20px 24px' }}>
-              <p style={{ color: '#64748b', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', marginBottom: '16px' }}>DAILY ACTIVITY — LAST 14 DAYS</p>
+              <p style={{ color: '#64748b', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', marginBottom: '16px' }}>DAILY ACTIVITY: LAST 14 DAYS</p>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '120px' }}>
                 {dailyStats.map(d => (
                   <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', height: '100%', justifyContent: 'flex-end' }} title={`${d.date}: ${d.games} games · $${d.revenue.toFixed(2)} revenue`}>

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAccount, useWriteContract, useChainId, useSwitchChain, useSignMessage, usePublicClient } from 'wagmi'
 import { parseUnits } from 'viem'
 import { connectSocket } from '../utils/socket'
+import QuestDrawer from '../components/QuestDrawer'
 import { getUsername } from '../utils/profile'
 import { SUPPORTED_CHAINS, type SupportedChain } from '../utils/chains'
 import { getEscrowAddress, getRoomId, ESCROW_ABI, USDT_APPROVE_ABI } from '../utils/escrow'
@@ -582,6 +583,7 @@ export default function Home() {
   const [creating, setCreating]   = useState(false)
   const [payStep, setPayStep]     = useState<'idle'|'switching'|'approving'|'paying'|'creating'>('idle')
   const [createError, setCreateError] = useState('')
+  const [questOpen, setQuestOpen] = useState(false)
   const [selectedChain] = useState<SupportedChain>(SUPPORTED_CHAINS[0])
   const [openSections, setOpenSections] = useState<Record<string,boolean>>({ info:true })
   const [mobileChatOpen, setMobileChatOpen] = useState(false)
@@ -1034,6 +1036,60 @@ export default function Home() {
                 </div>
               )}
 
+              {/* QUEST PROGRESS WIDGET */}
+              <div onClick={() => setQuestOpen(true)} style={{
+                borderRadius: '12px', padding: '14px 16px', cursor: 'pointer',
+                background: 'linear-gradient(120deg, rgba(249,115,22,0.05) 0%, rgba(239,68,68,0.03) 100%)',
+                border: '1px solid rgba(249,115,22,0.15)',
+                transition: 'border-color 0.15s, background 0.15s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(249,115,22,0.3)'; e.currentTarget.style.background = 'rgba(249,115,22,0.08)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(249,115,22,0.15)'; e.currentTarget.style.background = 'linear-gradient(120deg,rgba(249,115,22,0.05) 0%,rgba(239,68,68,0.03) 100%)' }}
+              >
+                {/* Header */}
+                <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'12px' }}>
+                  <div style={{
+                    width:'22px', height:'22px', borderRadius:'6px', flexShrink:0,
+                    background:'linear-gradient(145deg,#f97316,#ef4444)',
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    boxShadow:'0 0 8px rgba(249,115,22,0.4)',
+                  }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="white">
+                      <path d="M12 2C9 6 7 8 8 12C5 11 4 8 5 5C2 8 1 12 3 16C5 19.5 8.5 22 12 22C15.5 22 19 19.5 21 16C23 12 20 7 17 5C17.5 8 16 10 14 11C15 8 14 5 12 2Z"/>
+                    </svg>
+                  </div>
+                  <span style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.68rem', color:'#fb923c', letterSpacing:'0.07em' }}>QUESTS</span>
+                  <span style={{ marginLeft:'auto', fontSize:'0.6rem', color:'#374151', display:'flex', alignItems:'center', gap:'4px' }}>
+                    View all
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l3 3-3 3" stroke="#374151" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </span>
+                </div>
+
+                {/* Entry progress rows */}
+                {[
+                  { label:'$1 Entry', color:'#f59e0b', prog:7, total:8, bonus:1.20 },
+                  { label:'$5 Entry', color:'#a855f7', prog:2, total:5, bonus:2.00 },
+                ].map(e => (
+                  <div key={e.label} style={{ marginBottom:'8px' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'5px' }}>
+                      <span style={{ fontSize:'0.57rem', color:'#4b5563', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.04em' }}>{e.label}</span>
+                      <span style={{ fontSize:'0.58rem', color:e.color, fontWeight:700 }}>
+                        Just {e.total - e.prog} left · unlock ${e.bonus.toFixed(2)}
+                      </span>
+                    </div>
+                    <div style={{ height:'4px', borderRadius:'99px', background:'rgba(255,255,255,0.05)', overflow:'hidden' }}>
+                      <div style={{
+                        height:'100%', borderRadius:'99px',
+                        width:`${Math.min(100, (e.prog / e.total) * 100)}%`,
+                        background:`linear-gradient(90deg, ${e.color}66, ${e.color})`,
+                        boxShadow:`0 0 5px ${e.color}55`,
+                        transition:'width 0.5s cubic-bezier(.4,0,.2,1)',
+                      }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
             </div>
 
           </div>
@@ -1195,6 +1251,7 @@ export default function Home() {
           </div>
         )}
       </div>
+      <QuestDrawer open={questOpen} onClose={() => setQuestOpen(false)} />
     </div>
   )
 }

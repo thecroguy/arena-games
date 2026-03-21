@@ -140,7 +140,7 @@ export default function Profile() {
     setLoading(true)
     Promise.all([fetchPlayerHistory(address), fetchPlayerStats(address)])
       .then(([h, s]) => { setHistory(h); setStats(s) })
-      .catch(() => setError('Stats unavailable — play some games first!'))
+      .catch(() => setError('Stats unavailable, play some games first!'))
       .finally(() => setLoading(false))
   }, [address])
 
@@ -165,7 +165,7 @@ export default function Profile() {
               fetch(`${SERVER_URL}/api/mark-refund-claimed`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roomCode: d.room_code, address }) }).catch(() => {})
               return null
             }
-          } catch { /* RPC fail — show it */ }
+          } catch { /* RPC fail, show it */ }
           return d
         }))
         setStuckDeposits(verified.filter(Boolean) as StuckDeposit[])
@@ -187,7 +187,7 @@ export default function Profile() {
               const c = JSON.parse(localStorage.getItem(key) || '')
               if (!c?.claim_sig) continue
               if (c.winner_address && c.winner_address.toLowerCase() !== address.toLowerCase()) continue
-              if (alreadyClaimedCodes.has(c.room_code)) { localStorage.removeItem(key); continue } // stale — clean up
+              if (alreadyClaimedCodes.has(c.room_code)) { localStorage.removeItem(key); continue } // stale, clean up
               localClaims.push(c)
             } catch {}
           }
@@ -219,7 +219,7 @@ export default function Profile() {
           const deposit = { code, chainId: chainId137, escrow, roomId, createdAt: 0, settled }
           return { deposit, reason: 'found' }
         }
-      } catch { /* wrong chain — try next */ }
+      } catch { /* wrong chain, try next */ }
     }
     return { deposit: null, reason: 'not_found' }
   }
@@ -280,7 +280,7 @@ export default function Profile() {
       setEditingName(false)
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
-      if (!msg.includes('rejected') && !msg.includes('denied')) alert('Failed to save username — please try again')
+      if (!msg.includes('rejected') && !msg.includes('denied')) alert('Failed to save username, please try again')
     }
   }
 
@@ -289,13 +289,13 @@ export default function Profile() {
     const { baseKey, price } = entry
 
     if (price === 0 || isStyleOwned(entry.id, ownedBases)) {
-      // Free or already owned — just switch
+      // Free or already owned, just switch
       setAvatarStyle(entry.id)
       setConfirmEntry(null)
       try {
         const sig = await signMessageAsync({ message: `Arena profile update\n${address.toLowerCase()}` })
         await upsertProfile(address, { avatar_style: entry.id }, sig)
-      } catch { /* sig rejected — visual state already updated */ }
+      } catch { /* sig rejected, visual state already updated */ }
       return
     }
 
@@ -338,7 +338,7 @@ export default function Profile() {
       setOwnedBases(newBases)
       setAvatarStyle(entry.id)
     } catch {
-      setError('Paid but failed to save — refresh and it may appear.')
+      setError('Paid but failed to save, refresh and it may appear.')
     } finally {
       setBuying(null); setBuyStatus('idle'); setConfirmEntry(null)
     }
@@ -351,7 +351,7 @@ export default function Profile() {
     try {
       const sig = await signMessageAsync({ message: `Arena profile update\n${address.toLowerCase()}` })
       await upsertProfile(address, { avatar_style: pendingStyle.id }, sig)
-    } catch { /* sig rejected — visual state already updated */ }
+    } catch { /* sig rejected, visual state already updated */ }
   }
 
   async function claimRefundForDeposit(deposit: StuckDeposit) {
@@ -359,7 +359,7 @@ export default function Profile() {
     try {
       if (chainId !== deposit.chain_id) await switchChainAsync({ chainId: deposit.chain_id })
       if (deposit.refund_sig) {
-        // Server already signed a refund — use claimRefund() (instant, no 24h wait)
+        // Server already signed a refund, use claimRefund() (instant, no 24h wait)
         await writeContractAsync({
           address: deposit.escrow_address as `0x${string}`,
           abi: CLAIM_REFUND_ABI,
@@ -369,7 +369,7 @@ export default function Profile() {
           gas: 300000n,
         })
       } else {
-        // No sig yet — use emergencyRefund() (requires 24h)
+        // No sig yet, use emergencyRefund() (requires 24h)
         await writeContractAsync({
           address: deposit.escrow_address as `0x${string}`,
           abi: EMERGENCY_REFUND_ABI,
@@ -389,7 +389,7 @@ export default function Profile() {
       }).catch(() => {})
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
-      if (msg.includes('TooEarlyForEmergency')) setError('Too early — refund available 24h after deposit. Come back later.')
+      if (msg.includes('TooEarlyForEmergency')) setError('Too early, refund available 24h after deposit. Come back later.')
       else if (!msg.includes('rejected')) setError('Refund failed. Try again.')
     } finally {
       setClaimingRoom(null)
@@ -419,7 +419,7 @@ export default function Profile() {
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
       if (msg.includes('AlreadySettled')) {
-        // Already claimed on-chain — mark it and remove from list
+        // Already claimed on-chain, mark it and remove from list
         setPendingClaims(prev => prev.filter(p => p.room_code !== pending.room_code))
         localStorage.removeItem(`ag_claimsig_${pending.room_code}`)
         fetch(`${SERVER_URL}/api/mark-claimed`, {
@@ -439,7 +439,7 @@ export default function Profile() {
       <div style={{ minHeight: 'calc(100vh - 60px)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '20px', padding: '24px', textAlign: 'center' }}>
         <div style={{ fontSize: '3rem' }}>🔒</div>
         <h2 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '1.2rem' }}>Connect Your Wallet</h2>
-        <p style={{ color: '#94a3b8', maxWidth: '300px', fontSize: '0.95rem' }}>Your wallet address is your account — no signup needed.</p>
+        <p style={{ color: '#94a3b8', maxWidth: '300px', fontSize: '0.95rem' }}>Your wallet address is your account, no signup needed.</p>
         <ConnectButton />
       </div>
     )
@@ -594,14 +594,14 @@ export default function Profile() {
         </>
       ) : (
         <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', padding: '32px', textAlign: 'center', color: '#64748b', marginBottom: '24px', fontSize: '0.95rem' }}>
-          No games played yet —{' '}
+          No games played yet.{' '}
           <button style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontWeight: 700, fontSize: 'inherit' }} onClick={() => navigate('/')}>
             play your first game →
           </button>
         </div>
       )}
 
-      {/* Unclaimed winnings — won but browser closed before claiming */}
+      {/* Unclaimed winnings, won but browser closed before claiming */}
       {pendingClaims.length > 0 && (
         <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: '16px', padding: '20px 24px', marginBottom: '24px' }}>
           <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.7rem', color: '#22c55e', letterSpacing: '0.1em', marginBottom: '4px' }}>
@@ -630,7 +630,7 @@ export default function Profile() {
         </div>
       )}
 
-      {/* Stuck deposits — paid but game never started */}
+      {/* Stuck deposits, paid but game never started */}
       {stuckVerifying && (
         <div style={{ color: '#64748b', fontSize: '0.8rem', textAlign: 'center', padding: '12px 0', marginBottom: '8px' }}>
           Checking deposits…
@@ -661,7 +661,7 @@ export default function Profile() {
                     Deposited {new Date(d.deposited_at).toLocaleString()}
                   </p>
                   <p style={{ color: canInstant ? '#22c55e' : '#94a3b8', fontSize: '0.75rem', marginTop: '2px' }}>
-                    {canInstant ? '✓ Refund ready — click to receive instantly' : emergencyReady ? '✓ Emergency refund ready' : `Emergency refund in ${hLeft}h ${mLeft}m`}
+                    {canInstant ? '✓ Refund ready, click to receive instantly' : emergencyReady ? '✓ Emergency refund ready' : `Emergency refund in ${hLeft}h ${mLeft}m`}
                   </p>
                 </div>
                 <button onClick={() => claimRefundForDeposit(d)} disabled={!canClaim || isClaiming}
@@ -687,7 +687,7 @@ export default function Profile() {
             setManualScanning(true)
             const { reason } = await scanRoomCode(code)
             setManualScanning(false)
-            if (reason === 'settled') setError(`Room ${code} is already settled — funds were distributed or previously claimed.`)
+            if (reason === 'settled') setError(`Room ${code} is already settled, funds were distributed or previously claimed.`)
             else if (reason === 'not_found') setError(`No deposit found for room ${code} on this wallet.`)
             else { setManualRoomCode('') }
           }} disabled={manualScanning}
@@ -702,7 +702,7 @@ export default function Profile() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <div>
             <div style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.7rem', color: '#64748b', letterSpacing: '0.1em', marginBottom: '4px' }}>REFERRAL PROGRAM</div>
-            <div style={{ color: '#94a3b8', fontSize: '0.82rem' }}>Earn 2% of every pot your referrals play — up to 20 games each</div>
+            <div style={{ color: '#94a3b8', fontSize: '0.82rem' }}>Earn 2% of every pot your referrals play, up to 20 games each</div>
           </div>
         </div>
 
@@ -767,12 +767,12 @@ export default function Profile() {
         {referralStats && (
           referralStats.pending_payout ? (
             <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '10px', padding: '14px 18px', color: '#f59e0b', fontSize: '0.85rem' }}>
-              Payout of <strong>${Number(referralStats.pending_payout.amount_usdt).toFixed(2)} USDT</strong> requested — pending manual transfer from the platform.
+              Payout of <strong>${Number(referralStats.pending_payout.amount_usdt).toFixed(2)} USDT</strong> requested, pending manual transfer from the platform.
             </div>
           ) : referralStats.available >= 50 ? (
             <button onClick={requestReferralPayout} disabled={requestingPayout}
               style={{ width: '100%', padding: '12px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: '#fff', fontWeight: 800, fontSize: '0.9rem', cursor: requestingPayout ? 'not-allowed' : 'pointer', opacity: requestingPayout ? 0.6 : 1 }}>
-              {requestingPayout ? 'Requesting…' : `Request Payout — $${referralStats.available.toFixed(2)} USDT`}
+              {requestingPayout ? 'Requesting…' : `Request Payout: $${referralStats.available.toFixed(2)} USDT`}
             </button>
           ) : referralStats.total_earned > 0 ? (
             <div style={{ color: '#475569', fontSize: '0.82rem', textAlign: 'center' }}>
@@ -849,7 +849,7 @@ export default function Profile() {
           ))}
         </div>
 
-        {/* Grid — horizontal scroll (collapsed) or full grid (expanded) */}
+        {/* Grid, horizontal scroll (collapsed) or full grid (expanded) */}
         <div style={expanded
           ? { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 1fr))', gap: '8px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }
           : { display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '6px' }
@@ -907,14 +907,14 @@ export default function Profile() {
           })}
         </div>
 
-        {/* Save bar — appears when a pending selection is made */}
+        {/* Save bar, appears when a pending selection is made */}
         {pendingStyle && (
           <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.25)', borderRadius: '10px', padding: '10px 14px' }}>
             <img src={address ? getAvatarUrl(address, pendingStyle.id) : ''} alt="" width={32} height={32}
               style={{ borderRadius: '50%', border: '2px solid #06b6d4', background: '#1e1e30', flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ color: '#06b6d4', fontWeight: 700, fontSize: '0.78rem' }}>{pendingStyle.baseName}{pendingStyle.bgLabel !== 'Classic' ? ` · ${pendingStyle.bgLabel}` : ''}</p>
-              <p style={{ color: '#64748b', fontSize: '0.7rem' }}>Selected — save to apply</p>
+              <p style={{ color: '#64748b', fontSize: '0.7rem' }}>Selected, save to apply</p>
             </div>
             <button onClick={saveAvatarSelection}
               style={{ background: 'linear-gradient(135deg,#06b6d4,#7c3aed)', border: 'none', borderRadius: '8px', padding: '8px 18px', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
@@ -950,7 +950,7 @@ export default function Profile() {
                     Unlocks <strong style={{ color: '#e2e8f0' }}>all 6 color variants</strong> of this style permanently.
                   </p>
                   <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)', borderRadius: '8px', padding: '10px 14px', marginBottom: '20px', fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5 }}>
-                    🔑 Linked to <strong style={{ color: '#e2e8f0', fontFamily: 'monospace' }}>{address ? shortAddr(address) : ''}</strong> — works on any device
+                    🔑 Linked to <strong style={{ color: '#e2e8f0', fontFamily: 'monospace' }}>{address ? shortAddr(address) : ''}</strong>, works on any device
                   </div>
                   <button onClick={() => handleBuyStyle(confirmEntry)} disabled={!!buying}
                     style={{ width: '100%', background: buying ? '#1e1e30' : 'linear-gradient(135deg,#7c3aed,#06b6d4)', border: 'none', borderRadius: '10px', padding: '13px', color: buying ? '#64748b' : '#fff', fontWeight: 700, cursor: buying ? 'not-allowed' : 'pointer', fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem', marginBottom: '10px' }}>

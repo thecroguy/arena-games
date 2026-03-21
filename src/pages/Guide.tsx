@@ -68,7 +68,7 @@ const STEPS = [
           ))}
         </div>
         <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '10px', padding: '12px 14px', fontSize: '0.82rem', color: '#64748b', lineHeight: 1.6 }}>
-          💡 <strong style={{ color: '#22c55e' }}>Tip:</strong> When withdrawing from an exchange, choose <strong style={{ color: '#e2e8f0' }}>Polygon</strong> or <strong style={{ color: '#e2e8f0' }}>Arbitrum</strong> network — fees are under $0.05.
+          💡 <strong style={{ color: '#22c55e' }}>Tip:</strong> When withdrawing from an exchange, choose <strong style={{ color: '#e2e8f0' }}>Polygon</strong> or <strong style={{ color: '#e2e8f0' }}>Arbitrum</strong> network, fees are under $0.05.
         </div>
       </div>
     ),
@@ -87,7 +87,7 @@ const STEPS = [
             { n: '1', t: 'Click "Connect Wallet" in the navbar' },
             { n: '2', t: 'Choose your wallet (MetaMask, WalletConnect, etc.)' },
             { n: '3', t: 'Approve the connection in your wallet app' },
-            { n: '4', t: 'Your address appears in the top-right — you\'re in!' },
+            { n: '4', t: 'Your address appears in the top-right, you\'re in!' },
           ].map(s => (
             <div key={s.n} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
               <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(6,182,212,0.15)', border: '1px solid rgba(6,182,212,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.75rem', color: '#06b6d4' }}>{s.n}</div>
@@ -129,7 +129,7 @@ const STEPS = [
     content: (
       <div>
         <p style={{ color: '#94a3b8', marginBottom: '16px', lineHeight: 1.6 }}>
-          Go to a game lobby, pick your entry fee, and create or join a room. Your wallet will ask you to confirm a USDT transfer — that's your entry fee going to the pot.
+          Go to a game lobby, pick your entry fee, and create or join a room. Your wallet will ask you to confirm a USDT transfer, that's your entry fee going to the pot.
         </p>
         <div style={{ display: 'grid', gap: '8px' }}>
           {[
@@ -160,7 +160,7 @@ const STEPS = [
         </p>
         <div style={{ display: 'grid', gap: '8px', marginBottom: '16px' }}>
           {[
-            { icon: '⏱️', label: '12 seconds',        desc: 'per question — speed matters' },
+            { icon: '⏱️', label: '12 seconds',        desc: 'per question, speed matters' },
             { icon: '✅', label: 'First correct wins', desc: 'everyone can answer, fastest gets the point' },
             { icon: '🏆', label: '85% of pot',         desc: 'goes to the winner' },
             { icon: '💰', label: '15% platform fee',   desc: 'kept by Join Arena' },
@@ -188,7 +188,7 @@ const FAQS = [
   { q: 'How do I get my winnings?', a: 'Winnings are sent directly to your wallet address after the game ends. No need to withdraw or claim anything.' },
   { q: 'What if the game disconnects?', a: 'If you disconnect mid-game, you forfeit that round but your score is kept. Reconnect using the room code. If the server crashes, contact us for a refund.' },
   { q: 'Do I need to be on a specific network?', a: 'No! Pick any of the 6 supported networks in the lobby. Your wallet will switch automatically when you pay.' },
-  { q: 'Can I play for free first?', a: 'Yes — use Practice vs Bot mode from the home page. No wallet needed, no money involved, full game experience.' },
+  { q: 'Can I play for free first?', a: 'Yes, use Practice vs Bot mode from the home page. No wallet needed, no money involved, full game experience.' },
   { q: 'What is USDT?', a: 'USDT (Tether) is a stablecoin always worth $1 USD. It\'s the most popular crypto dollar and available on every major exchange.' },
 ]
 
@@ -258,7 +258,7 @@ export default function Guide() {
           </div>
           <div style={{ padding: '20px 24px' }}>
             <p style={{ color: '#94a3b8', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '16px' }}>
-              A math question appears (+, −, ×). Every player sees the same question simultaneously. Type your answer and hit Enter as fast as possible — <strong style={{ color: '#e2e8f0' }}>first correct answer wins the round</strong>. 10 rounds total; highest score takes the pot.
+              A math question appears (+, −, ×). Every player sees the same question simultaneously. Type your answer and hit Enter as fast as possible, <strong style={{ color: '#e2e8f0' }}>first correct answer wins the round</strong>. 10 rounds total; highest score takes the pot.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', marginBottom: '12px' }}>
               {[
@@ -274,7 +274,7 @@ export default function Guide() {
               ))}
             </div>
             <div style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.78rem', color: '#94a3b8' }}>
-              💡 <strong style={{ color: '#a78bfa' }}>Pro tip:</strong> Wrong answers have no penalty — submit your best guess even if unsure. Memorise ×9 and ×12 tables.
+              💡 <strong style={{ color: '#a78bfa' }}>Pro tip:</strong> Wrong answers have no penalty, submit your best guess even if unsure. Memorise ×9 and ×12 tables.
             </div>
           </div>
         </div>
@@ -324,7 +324,7 @@ export default function Guide() {
           </div>
           <div style={{ padding: '20px 24px' }}>
             <p style={{ color: '#94a3b8', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '16px' }}>
-              A 4×4 grid appears. One random cell lights up purple. Click it before anyone else. Pure reaction speed — no knowledge required. First click wins the round.
+              A 4×4 grid appears. One random cell lights up purple. Click it before anyone else. Pure reaction speed, no knowledge required. First click wins the round.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', marginBottom: '12px' }}>
               {[
@@ -340,7 +340,7 @@ export default function Guide() {
               ))}
             </div>
             <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.78rem', color: '#94a3b8' }}>
-              💡 <strong style={{ color: '#22c55e' }}>Pro tip:</strong> Keep your mouse near the center of the grid. Desktop has ~50ms lower latency than mobile — play on a laptop if you can.
+              💡 <strong style={{ color: '#22c55e' }}>Pro tip:</strong> Keep your mouse near the center of the grid. Desktop has ~50ms lower latency than mobile, play on a laptop if you can.
             </div>
           </div>
         </div>
@@ -357,7 +357,7 @@ export default function Guide() {
           </div>
           <div style={{ padding: '20px 24px' }}>
             <p style={{ color: '#94a3b8', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '16px' }}>
-              Each round, everyone secretly picks a number between 1 and the player count. After time is up, picks are revealed. The player who picked the <strong style={{ color: '#f59e0b' }}>highest number that nobody else also picked</strong> wins the round. Read the crowd — avoid obvious picks.
+              Each round, everyone secretly picks a number between 1 and the player count. After time is up, picks are revealed. The player who picked the <strong style={{ color: '#f59e0b' }}>highest number that nobody else also picked</strong> wins the round. Read the crowd, avoid obvious picks.
             </p>
             <div style={{ background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: '10px', padding: '14px', marginBottom: '12px' }}>
               <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.68rem', color: '#64748b', letterSpacing: '0.08em', marginBottom: '10px' }}>EXAMPLE (4 players)</p>
@@ -369,10 +369,10 @@ export default function Guide() {
                   </div>
                 ))}
               </div>
-              <p style={{ color: '#94a3b8', fontSize: '0.78rem' }}>→ Alice & Bob both picked 4 (eliminated). Carol picked 3 uniquely — <strong style={{ color: '#22c55e' }}>Carol wins!</strong></p>
+              <p style={{ color: '#94a3b8', fontSize: '0.78rem' }}>→ Alice & Bob both picked 4 (eliminated). Carol picked 3 uniquely, <strong style={{ color: '#22c55e' }}>Carol wins!</strong></p>
             </div>
             <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.78rem', color: '#94a3b8' }}>
-              💡 <strong style={{ color: '#f59e0b' }}>Pro tip:</strong> In large rooms, avoid the maximum number — everyone wants it. Second-highest is often the sweet spot.
+              💡 <strong style={{ color: '#f59e0b' }}>Pro tip:</strong> In large rooms, avoid the maximum number, everyone wants it. Second-highest is often the sweet spot.
             </div>
           </div>
         </div>
@@ -401,10 +401,10 @@ export default function Guide() {
                   </div>
                 ))}
               </div>
-              <p style={{ color: '#94a3b8', fontSize: '0.78rem' }}>→ Alice & Bob both picked 1 (eliminated). Carol picked 2 uniquely — <strong style={{ color: '#22c55e' }}>Carol wins!</strong></p>
+              <p style={{ color: '#94a3b8', fontSize: '0.78rem' }}>→ Alice & Bob both picked 1 (eliminated). Carol picked 2 uniquely, <strong style={{ color: '#22c55e' }}>Carol wins!</strong></p>
             </div>
             <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.78rem', color: '#94a3b8' }}>
-              💡 <strong style={{ color: '#ef4444' }}>Pro tip:</strong> Everyone's instinct is to pick 1. Pick 2 or 3 — the sweet spot where uniqueness is far more likely.
+              💡 <strong style={{ color: '#ef4444' }}>Pro tip:</strong> Everyone's instinct is to pick 1. Pick 2 or 3, the sweet spot where uniqueness is far more likely.
             </div>
           </div>
         </div>
@@ -421,7 +421,7 @@ export default function Guide() {
           </div>
           <div style={{ padding: '20px 24px' }}>
             <p style={{ color: '#94a3b8', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '16px' }}>
-              Each player gets <strong style={{ color: '#f97316' }}>3 private dice</strong>. On your turn, bid "there are at least X dice showing face Y across all players' dice." Each bid must be higher than the last. At any point, <strong style={{ color: '#f97316' }}>CALL LIAR!</strong> on the current bid — all dice are revealed. If the bid was too high, the bidder loses. If the count holds, the challenger loses.
+              Each player gets <strong style={{ color: '#f97316' }}>3 private dice</strong>. On your turn, bid "there are at least X dice showing face Y across all players' dice." Each bid must be higher than the last. At any point, <strong style={{ color: '#f97316' }}>CALL LIAR!</strong> on the current bid, all dice are revealed. If the bid was too high, the bidder loses. If the count holds, the challenger loses.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', marginBottom: '12px' }}>
               {[
@@ -437,7 +437,7 @@ export default function Guide() {
               ))}
             </div>
             <div style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.78rem', color: '#94a3b8' }}>
-              💡 <strong style={{ color: '#f97316' }}>Pro tip:</strong> Use your own dice as a baseline — if you have two 4s, there's likely more 4s at the table. Call LIAR! when the bid exceeds the total dice count or feels statistically impossible.
+              💡 <strong style={{ color: '#f97316' }}>Pro tip:</strong> Use your own dice as a baseline, if you have two 4s, there's likely more 4s at the table. Call LIAR! when the bid exceeds the total dice count or feels statistically impossible.
             </div>
           </div>
         </div>

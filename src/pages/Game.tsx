@@ -119,13 +119,13 @@ function DuelCountdownTimer({ expiryMs }: { expiryMs: number }) {
 
 // ── Game help text ─────────────────────────────────────────────────────────
 const GAME_HELP: Record<string, { title: string; rules: string[] }> = {
-  'math-arena':     { title: 'Math Arena',      rules: ['A math equation appears each round.', 'Type the correct answer and press Enter or GO.', 'First player to answer correctly scores a point.', '10 rounds — most points wins the pot.'] },
-  'pattern-memory': { title: 'Pattern Memory',    rules: ['A grid of tiles appears — some flash briefly.', 'Memorize which tiles lit up before they go dark.', 'Tap all the correct tiles from memory.', 'First to select all correct tiles scores. Most points wins.'] },
-  'reaction-grid':  { title: 'Reaction Grid',   rules: ['A 4×4 grid appears — one cell lights up.', 'Click the highlighted cell as fast as possible.', 'First click wins the round point.', '15 rounds — most points wins the pot.'] },
-  'highest-unique': { title: 'Highest Unique',  rules: ['Pick any number 1–100 each round.', 'The player with the highest UNIQUE number scores.', 'If two players pick the same number, both lose.', '8 rounds — most round wins takes the pot.'] },
-  'lowest-unique':  { title: 'Lowest Unique',   rules: ['Pick any number 1–50 each round.', 'The player with the lowest UNIQUE number scores.', 'If two players pick the same number, both lose.', '8 rounds — most round wins takes the pot.'] },
-  'liars-dice':     { title: "Liar's Dice",      rules: ['Each player gets 3 dice — you can only see yours.', 'Take turns bidding: "At least X dice show face Y across all dice."', 'Each bid must be higher (more dice, or same count + higher face).', 'Call LIAR! to challenge — if the bid was valid, YOU lose. If it was a bluff, THEY lose.'] },
-  'coin-flip':      { title: 'Coin Flip',        rules: ['Pick HEADS or TAILS each round before time runs out.', 'The coin lands randomly — both players who guess right score a point.', '5 rounds — most points wins the pot.', 'If tied after 5 rounds, a random winner is chosen.'] },
+  'math-arena':     { title: 'Math Arena',      rules: ['A math equation appears each round.', 'Type the correct answer and press Enter or GO.', 'First player to answer correctly scores a point.', '10 rounds, most points wins the pot.'] },
+  'pattern-memory': { title: 'Pattern Memory',    rules: ['A grid of tiles appears, some flash briefly.', 'Memorize which tiles lit up before they go dark.', 'Tap all the correct tiles from memory.', 'First to select all correct tiles scores. Most points wins.'] },
+  'reaction-grid':  { title: 'Reaction Grid',   rules: ['A 4×4 grid appears, one cell lights up.', 'Click the highlighted cell as fast as possible.', 'First click wins the round point.', '15 rounds, most points wins the pot.'] },
+  'highest-unique': { title: 'Highest Unique',  rules: ['Pick any number 1–100 each round.', 'The player with the highest UNIQUE number scores.', 'If two players pick the same number, both lose.', '8 rounds, most round wins takes the pot.'] },
+  'lowest-unique':  { title: 'Lowest Unique',   rules: ['Pick any number 1–50 each round.', 'The player with the lowest UNIQUE number scores.', 'If two players pick the same number, both lose.', '8 rounds, most round wins takes the pot.'] },
+  'liars-dice':     { title: "Liar's Dice",      rules: ['Each player gets 3 dice, you can only see yours.', 'Take turns bidding: "At least X dice show face Y across all dice."', 'Each bid must be higher (more dice, or same count + higher face).', 'Call LIAR! to challenge, if the bid was valid, YOU lose. If it was a bluff, THEY lose.'] },
+  'coin-flip':      { title: 'Coin Flip',        rules: ['Pick HEADS or TAILS each round before time runs out.', 'The coin lands randomly, both players who guess right score a point.', '5 rounds, most points wins the pot.', 'If tied after 5 rounds, a random winner is chosen.'] },
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -141,7 +141,7 @@ export default function Game() {
   const gameModeLS     = location.state?.gameMode ?? 'math-arena'
   const duelCreatedAt  = location.state?.duelCreatedAt as number | undefined
 
-  // All room properties are server-authoritative — populated from room:join/room:update
+  // All room properties are server-authoritative, populated from room:join/room:update
   // Seeded with location.state so the UI is correct on the very first render too
   const [isHost,     setIsHost]     = useState<boolean>(location.state?.host    ?? false)
   const [entryFee,   setEntryFee]   = useState<number>(location.state?.entry   ?? 1)
@@ -460,7 +460,7 @@ export default function Game() {
       setTimeLeft(t => { if (t <= 1) { clearInterval(timerRef.current!); endBotRound(q); return 0 } return t - 1 })
     }, 1000)
 
-    // Bot reaction delay — faster for grid, slower for memory
+    // Bot reaction delay, faster for grid, slower for memory
     const delay = gm === 'reaction-grid'
       ? 300 + Math.random() * 900
       : gm === 'pattern-memory'
@@ -650,7 +650,7 @@ export default function Game() {
 
     let rejoinInFlight = false
     async function rejoin() {
-      if (rejoinInFlight) return   // prevent concurrent calls — race condition causes duplicate player
+      if (rejoinInFlight) return   // prevent concurrent calls, race condition causes duplicate player
       rejoinInFlight = true
       const addr = addrRef.current
       if (!addr) { rejoinInFlight = false; return }
@@ -762,9 +762,9 @@ export default function Game() {
     socket.on('game:over', (data: { winner: string; pot: string; payoutMode?: string; claimSig?: string; scores: Array<{ address: string; score: number; rank: number }> }) => {
       if (timerRef.current) clearInterval(timerRef.current)
       setPhase('finished'); setGameOver(data)
-      // Game over = room is settled — remove from stuck deposit scan so Profile doesn't flag it
+      // Game over = room is settled, remove from stuck deposit scan so Profile doesn't flag it
       if (roomCode) { try { const d = JSON.parse(localStorage.getItem('ag_deposits') || '{}'); delete d[roomCode]; localStorage.setItem('ag_deposits', JSON.stringify(d)) } catch {} }
-      // Save claim sig to localStorage — Profile will show the claim button even if user navigates away before claiming
+      // Save claim sig to localStorage, Profile will show the claim button even if user navigates away before claiming
       if (data.payoutMode === 'escrow' && data.claimSig && data.winner?.toLowerCase() === myAddr && roomCode) {
         try {
           const escrowAddr = getEscrowAddress(roomChainId)
@@ -888,7 +888,7 @@ export default function Game() {
         args: [getRoomId(roomCode ?? ''), refundSig as `0x${string}`],
       })
       setClaimState('done')
-      // Remove from stuck deposit scan — refund is now claimed on-chain
+      // Remove from stuck deposit scan, refund is now claimed on-chain
       if (roomCode) { try { const d = JSON.parse(localStorage.getItem('ag_deposits') || '{}'); delete d[roomCode]; localStorage.setItem('ag_deposits', JSON.stringify(d)) } catch {} }
     } catch {
       setClaimState('error')
@@ -900,7 +900,7 @@ export default function Game() {
   async function payAndJoin() {
     if (!address) return
     setError(''); setJoinPayStep('approving')
-    // authSig already cached from rejoin() on page load — no MetaMask sign here
+    // authSig already cached from rejoin() on page load, no MetaMask sign here
     const chain = getChain(roomChainId)
     if (!chain) { setError('Unsupported chain'); setJoinPayStep('idle'); return }
     if (currentChainId !== chain.id) {
@@ -910,7 +910,7 @@ export default function Game() {
     const amount = BigInt(Math.round(entryFee * 1e6))
     const escrowAddr = getEscrowAddress(chain.id)
     if (!escrowAddr) { setError('Payments not configured for this network'); setJoinPayStep('idle'); return }
-    // Check existing allowance — skip approve tx if already sufficient
+    // Check existing allowance, skip approve tx if already sufficient
     let needsApprove = true
     if (publicClient) {
       try {
@@ -919,7 +919,7 @@ export default function Game() {
       } catch { /* if read fails, fall through to approve */ }
     }
     if (needsApprove) {
-      // Approve max uint256 once — future deposits skip this step entirely (1-click from then on)
+      // Approve max uint256 once, future deposits skip this step entirely (1-click from then on)
       const MAX_UINT256 = 2n ** 256n - 1n
       try {
         await writeContractAsync({ address: chain.usdt, abi: USDT_APPROVE_ABI, functionName: 'approve', args: [escrowAddr, MAX_UINT256], chainId: chain.id, gas: 100000n })
@@ -933,17 +933,17 @@ export default function Game() {
       txHash = await writeContractAsync({ address: escrowAddr, abi: ESCROW_ABI, functionName: 'deposit', args: [roomId, amount], chainId: chain.id, gas: 300000n })
       // Store txHash so rejoin() can re-send room:deposit if socket drops between here and server ack
       localStorage.setItem('ag_pending_deposit', JSON.stringify({ code: roomCode, address, chainId: chain.id, fee: entryFee, txHash, ts: Date.now() }))
-      // Persist deposit permanently — Profile uses this to auto-scan for refunds even if server missed the event
+      // Persist deposit permanently, Profile uses this to auto-scan for refunds even if server missed the event
       try { const d = JSON.parse(localStorage.getItem('ag_deposits') || '{}'); d[roomCode!] = { chainId: chain.id, escrow: escrowAddr, entryFee, ts: Date.now(), address: myAddr?.toLowerCase() }; localStorage.setItem('ag_deposits', JSON.stringify(d)) } catch {}
-    } catch { localStorage.removeItem('ag_pending_deposit'); setError('Deposit failed — try again'); setJoinPayStep('idle'); return }
-    // room:join was already called by rejoin() on mount — just confirm the deposit
+    } catch { localStorage.removeItem('ag_pending_deposit'); setError('Deposit failed, try again'); setJoinPayStep('idle'); return }
+    // room:join was already called by rejoin() on mount, just confirm the deposit
     setJoinPayStep('joining')
     const socket = connectSocket()
     socket.emit('room:deposit', { code: roomCode, txHash, address }, () => {
-      localStorage.removeItem('ag_pending_deposit') // server confirmed — no need to retry on rejoin
+      localStorage.removeItem('ag_pending_deposit') // server confirmed, no need to retry on rejoin
     })
     fetch(`${SERVER_URL}/api/report-deposit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address, room_code: roomCode, tx_hash: txHash, chain_id: chain.id, amount_usdt: entryFee }) }).catch(() => {})
-    setIsJoining(false) // deposit done — hide Pay button immediately
+    setIsJoining(false) // deposit done, hide Pay button immediately
     setJoinPayStep('idle')
   }
 
@@ -1029,7 +1029,7 @@ export default function Game() {
   // ── Disconnect banner ─────────────────────────────────────────────────
   const disconnectBanner = disconnectedPlayers.length > 0 ? (
     <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '8px', padding: '8px 14px', marginBottom: '10px', color: '#f87171', fontSize: '0.8rem', textAlign: 'center' }}>
-      ⚠️ {disconnectedPlayers.map(a => displayName(a)).join(', ')} disconnected — 30s to reconnect
+      ⚠️ {disconnectedPlayers.map(a => displayName(a)).join(', ')} disconnected, 30s to reconnect
     </div>
   ) : null
 
@@ -1061,14 +1061,14 @@ export default function Game() {
           ) : (
             <div style={{ marginBottom: '16px' }}>
               <div style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.25)', borderRadius: '8px', padding: '8px 14px', marginBottom: '10px', fontSize: '0.78rem', color: '#a78bfa' }}>
-                Your ${entryFee} USDT is locked in the contract — click below to claim it back.
+                Your ${entryFee} USDT is locked in the contract, click below to claim it back.
                 <br /><span style={{ color: '#475569' }}>You pay ~$0.01 gas to reclaim 100% of your entry fee.</span>
               </div>
               <button onClick={handleClaimRefund} disabled={claimState === 'pending'}
                 style={{ width: '100%', background: claimState === 'pending' ? '#1e1e30' : 'linear-gradient(135deg, #7c3aed, #06b6d4)', border: 'none', borderRadius: '10px', padding: '13px', color: claimState === 'pending' ? '#64748b' : '#fff', fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.9rem', cursor: claimState === 'pending' ? 'not-allowed' : 'pointer', marginBottom: '6px' }}>
                 {claimState === 'pending' ? 'Confirm in wallet…' : `Claim Refund $${entryFee} USDT`}
               </button>
-              {claimState === 'error' && <p style={{ color: '#ef4444', fontSize: '0.78rem', margin: 0 }}>Transaction failed — please try again.</p>}
+              {claimState === 'error' && <p style={{ color: '#ef4444', fontSize: '0.78rem', margin: 0 }}>Transaction failed, please try again.</p>}
             </div>
           )
         )}
@@ -1092,9 +1092,9 @@ export default function Game() {
             ? players.length < 2
               ? '⚔️ Waiting for challenger…'
               : players.every(p => (p as PlayerState & { deposited?: boolean }).deposited)
-                ? '⚔️ Both locked in — ready to start!'
-                : '⚔️ Challenger in — waiting for funds to lock…'
-            : `${players.length} player${players.length !== 1 ? 's' : ''} — waiting for more…`}
+                ? '⚔️ Both locked in, ready to start!'
+                : '⚔️ Challenger in, waiting for funds to lock…'
+            : `${players.length} player${players.length !== 1 ? 's' : ''}, waiting for more…`}
         </p>
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '24px' }}>
           {players.map(p => (
@@ -1114,7 +1114,7 @@ export default function Game() {
           const gameTitle = GAME_HELP[gameMode]?.title || gameMode
           return (
             <div style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.3)', borderRadius: '14px', padding: '14px 18px', marginBottom: '16px', textAlign: 'left' }}>
-              <p style={{ color: '#f97316', fontWeight: 800, fontFamily: 'Orbitron, sans-serif', fontSize: '0.85rem', margin: '0 0 8px' }}>⚔️ ${pot} DUEL — {gameTitle}</p>
+              <p style={{ color: '#f97316', fontWeight: 800, fontFamily: 'Orbitron, sans-serif', fontSize: '0.85rem', margin: '0 0 8px' }}>⚔️ ${pot} DUEL, {gameTitle}</p>
               <p style={{ color: '#64748b', fontSize: '0.8rem', margin: 0 }}>Winner takes <strong style={{ color: '#e2e8f0' }}>${win} USDT</strong> · Lock your funds to confirm you're in</p>
             </div>
           )
@@ -1125,7 +1125,7 @@ export default function Game() {
           const win = fmt(entryFee * 2 * 0.85)
           const gameTitle = GAME_HELP[gameMode]?.title || gameMode
           const duelUrl = `https://joinarena.space/r/${roomCode}`
-          const tweetText = `⚔️ $${pot} POT DUEL — ${gameTitle}\n\nEntry fee: $${fmt(entryFee)} USDT each\nWinner takes $${win} USDT\nExpires in 15 min ⏱\n\nThink you can beat me?\n${duelUrl}`
+          const tweetText = `⚔️ $${pot} POT DUEL, ${gameTitle}\n\nEntry fee: $${fmt(entryFee)} USDT each\nWinner takes $${win} USDT\nExpires in 15 min ⏱\n\nThink you can beat me?\n${duelUrl}`
           return (
             <div style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.4)', borderRadius: '14px', padding: '18px', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
@@ -1152,7 +1152,7 @@ export default function Game() {
           )
         })() : isDuel && isHost && players.length >= 2 ? (
           <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '10px', padding: '10px 16px', marginBottom: '12px', fontSize: '0.85rem', color: '#22c55e', textAlign: 'center' }}>
-            ⚔️ Challenger in — waiting for them to lock funds
+            ⚔️ Challenger in, waiting for them to lock funds
           </div>
         ) : !isDuel && isHost ? (
           <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '10px', padding: '12px 18px', marginBottom: '12px', fontSize: '0.85rem', color: '#64748b' }}>
@@ -1189,7 +1189,7 @@ export default function Game() {
           const myP = players.find(p => p.address === myAddr) as (PlayerState & { deposited?: boolean }) | undefined
           if (myP?.deposited) return (
             <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '10px', padding: '12px 16px', marginBottom: '12px', color: '#22c55e', fontSize: '0.88rem', textAlign: 'center' }}>
-              ✓ Funds locked — waiting for host to start
+              ✓ Funds locked, waiting for host to start
             </div>
           )
           const labels = { idle: `Pay $${entryFee} USDT to Lock In`, approving: 'Confirm in MetaMask → Return here', paying: 'Confirm in MetaMask → Return here', joining: 'Locking in…' }
@@ -1212,7 +1212,7 @@ export default function Game() {
           return <p style={{ color: '#f59e0b', fontSize: '0.85rem' }}>Waiting for all players to lock funds…</p>
         })()}
 
-        {/* Cancel game — available to any player in waiting room */}
+        {/* Cancel game, available to any player in waiting room */}
         {!connecting && players.some(p => p.address === myAddr) && (() => {
           const myDeposited = (players.find(p => p.address === myAddr) as PlayerState & { deposited?: boolean })?.deposited
           const anyDeposited = players.some(p => (p as PlayerState & { deposited?: boolean }).deposited)
@@ -1230,7 +1230,7 @@ export default function Game() {
         {/* Queue chat */}
         <div style={{ maxHeight: 180, overflowY: 'auto', background: '#0a0a0f', border: '1px solid #1e1e30', borderRadius: 10, padding: 10, marginTop: 12, textAlign: 'left' }}>
           {chatMessages.length === 0 && (
-            <p style={{ color: '#475569', fontSize: '0.78rem', margin: 0, textAlign: 'center' }}>No messages yet — say hi!</p>
+            <p style={{ color: '#475569', fontSize: '0.78rem', margin: 0, textAlign: 'center' }}>No messages yet, say hi!</p>
           )}
           {chatMessages.map((msg, i) => (
             <div key={i} style={{ fontSize: '0.82rem', color: '#94a3b8', marginBottom: 4, wordBreak: 'break-word' }}>
@@ -1291,7 +1291,7 @@ export default function Game() {
             <p style={{ color: gameOver.winner === myAddr ? '#22c55e' : '#94a3b8', fontWeight: 700, fontSize: '1.1rem', marginBottom: '12px' }}>
               {gameOver.winner === myAddr ? `+$${gameOver.pot} USDT` : 'Better luck next time'}
             </p>
-            {/* Payout status — fully transparent */}
+            {/* Payout status, fully transparent */}
             {gameOver.payoutMode === 'escrow' && gameOver.claimSig ? (
               gameOver.winner === myAddr ? (
                 <div style={{ marginBottom: '20px' }}>
@@ -1310,14 +1310,14 @@ export default function Game() {
                         style={{ width: '100%', background: claimState === 'pending' ? '#1e1e30' : 'linear-gradient(135deg, #22c55e, #16a34a)', border: 'none', borderRadius: '10px', padding: '14px', color: claimState === 'pending' ? '#64748b' : '#fff', fontFamily: 'Orbitron, sans-serif', fontWeight: 700, fontSize: '0.95rem', cursor: claimState === 'pending' ? 'not-allowed' : 'pointer', marginBottom: '6px' }}>
                         {claimState === 'pending' ? 'Confirm in wallet…' : `Claim $${gameOver.pot} USDT →`}
                       </button>
-                      {claimState === 'error' && <p style={{ color: '#ef4444', fontSize: '0.78rem', margin: 0 }}>Transaction failed — please try again.</p>}
+                      {claimState === 'error' && <p style={{ color: '#ef4444', fontSize: '0.78rem', margin: 0 }}>Transaction failed, please try again.</p>}
                     </>
                   )}
                 </div>
               ) : (
                 <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '8px', padding: '8px 14px', marginBottom: '20px', fontSize: '0.78rem', color: '#86efac' }}>
                   🏆 Winner is claiming ${gameOver.pot} USDT from the smart contract.
-                  <br /><span style={{ color: '#475569' }}>Funds locked in escrow — auto-released on claim</span>
+                  <br /><span style={{ color: '#475569' }}>Funds locked in escrow, auto-released on claim</span>
                 </div>
               )
             ) : !isBotMode && (
@@ -1328,7 +1328,7 @@ export default function Game() {
             )}
           </>
         )}
-        {isBotMode && <p style={{ color: '#64748b', marginBottom: '24px', fontSize: '0.9rem' }}>Practice complete — play for real to win USDT</p>}
+        {isBotMode && <p style={{ color: '#64748b', marginBottom: '24px', fontSize: '0.9rem' }}>Practice complete, play for real to win USDT</p>}
         <div style={{ background: '#12121a', border: '1px solid #1e1e30', borderRadius: '14px', overflow: 'hidden', marginBottom: '20px' }}>
           {gameOver.scores.map((p, i) => (
             <div key={p.address} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: i < gameOver.scores.length - 1 ? '1px solid #0d0d14' : 'none', background: p.address === myAddr ? 'rgba(124,58,237,0.08)' : 'transparent' }}>
@@ -1382,7 +1382,7 @@ export default function Game() {
 
       {isBotMode && (
         <div style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: '8px', padding: '6px 14px', marginBottom: '16px', fontSize: '0.8rem', color: '#a78bfa', textAlign: 'center', fontWeight: 600 }}>
-          Practice Mode — no real money
+          Practice Mode, no real money
         </div>
       )}
 
@@ -1564,7 +1564,7 @@ export default function Game() {
                 </div>
               </div>
 
-              {/* Opponents dice — only shown at round end */}
+              {/* Opponents dice, only shown at round end */}
               {phase === 'round_end' && bluffResult && Object.entries(bluffResult.allDice).filter(([a]) => a !== myAddr).map(([addr, dice]) => (
                 <div key={addr} style={{ marginBottom: '14px' }}>
                   <p style={{ color: '#64748b', fontSize: '0.65rem', fontFamily: 'Orbitron, sans-serif', letterSpacing: '0.08em', marginBottom: '8px' }}>{displayName(addr).toUpperCase()}'S DICE</p>
@@ -1583,7 +1583,7 @@ export default function Game() {
                       {bluffBid.count} × <DiceFace value={bluffBid.face} size={32} color="#f97316" style={{ display: 'inline-block', verticalAlign: 'middle' } as React.CSSProperties} />
                     </p>
                     <p style={{ color: '#64748b', fontSize: '0.72rem' }}>
-                      "At least {bluffBid.count} die/dice showing {bluffBid.face}" — {displayName(bluffBid.bidder)}
+                      "At least {bluffBid.count} die/dice showing {bluffBid.face}", {displayName(bluffBid.bidder)}
                     </p>
                     {phase === 'round_end' && bluffResult?.bid && (
                       <p style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: '8px' }}>
@@ -1591,23 +1591,23 @@ export default function Game() {
                         <strong style={{ color: (bluffResult.actualCount ?? 0) >= bluffResult.bid.count ? '#22c55e' : '#ef4444' }}>
                           {bluffResult.actualCount}
                         </strong>
-                        {' '}— {(bluffResult.actualCount ?? 0) >= bluffResult.bid.count ? '✓ bid was honest' : '✗ bid was a BLUFF'}
+                        :  {(bluffResult.actualCount ?? 0) >= bluffResult.bid.count ? '✓ bid was honest' : '✗ bid was a BLUFF'}
                       </p>
                     )}
                   </>
                 ) : (
-                  <p style={{ color: '#475569', fontSize: '0.88rem' }}>No bid yet — make the opening bid!</p>
+                  <p style={{ color: '#475569', fontSize: '0.88rem' }}>No bid yet, make the opening bid!</p>
                 )}
               </div>
 
               {/* Round result */}
               {phase === 'round_end' && bluffResult && (
                 <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.92rem', fontWeight: 700, color: bluffResult.winner ? '#22c55e' : '#f59e0b', marginBottom: '10px', textAlign: 'center' }}>
-                  {bluffResult.winner ? `${displayName(bluffResult.winner)} wins this round!` : 'No winner — no bid made'}
+                  {bluffResult.winner ? `${displayName(bluffResult.winner)} wins this round!` : 'No winner, no bid made'}
                 </p>
               )}
 
-              {/* Bid controls — player's turn only */}
+              {/* Bid controls, player's turn only */}
               {phase === 'playing' && bluffTurnOrder[bluffTurnIdx] === myAddr && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -1703,7 +1703,7 @@ export default function Game() {
                             background: correct ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.1)',
                             color: correct ? '#22c55e' : '#ef4444',
                             border:`1px solid ${correct ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.25)'}` }}>
-                            {displayName(p.address)}: {p.pick === 1 ? 'HEADS' : p.pick === 0 ? 'TAILS' : '—'} {correct ? '✓' : '✗'}
+                            {displayName(p.address)}: {p.pick === 1 ? 'HEADS' : p.pick === 0 ? 'TAILS' : '-'} {correct ? '✓' : '✗'}
                           </span>
                         )
                       })}
@@ -1737,7 +1737,7 @@ export default function Game() {
               {phase === 'playing' && !coinflipResult && (
                 coinflipPick !== null ? (
                   <div style={{ textAlign:'center', padding:'16px 32px', background:'rgba(124,58,237,0.12)', border:'1px solid rgba(124,58,237,0.3)', borderRadius:'14px', fontFamily:'Orbitron,sans-serif', fontWeight:700, fontSize:'1rem', color:'#a78bfa' }}>
-                    Locked: {coinflipPick === 1 ? '👑 HEADS' : '🛡 TAILS'} — waiting…
+                    Locked: {coinflipPick === 1 ? '👑 HEADS' : '🛡 TAILS'}, waiting…
                   </div>
                 ) : (
                   <div style={{ display:'flex', gap:'16px', justifyContent:'center' }}>
@@ -1803,14 +1803,14 @@ export default function Game() {
                   <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem', color: sealedResult.winnerAddress ? '#22c55e' : '#f59e0b' }}>
                     {sealedResult.winnerAddress
                       ? `${displayName(sealedResult.winnerAddress)} scores!`
-                      : (sealedResult.reason || 'No unique picks — no point')}
+                      : (sealedResult.reason || 'No unique picks, no point')}
                   </p>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                   {myPlayer?.answered ? (
                     <div style={{ padding: '16px 32px', background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: '12px', color: '#a78bfa', fontWeight: 700, fontSize: '1rem', fontFamily: 'Orbitron, sans-serif' }}>
-                      Submitted — waiting for others…
+                      Submitted, waiting for others…
                     </div>
                   ) : (
                     <>
@@ -1863,7 +1863,7 @@ export default function Game() {
       {!isSealedGame && !isGridGame && !isBluffGame && (
         <p style={{ textAlign: 'center', color: '#475569', fontSize: '0.78rem', marginTop: '10px' }}>
           {isPatternGame
-            ? 'Tiles flash for 3 seconds — tap from memory then submit'
+            ? 'Tiles flash for 3 seconds, tap from memory then submit'
             : <>Press <kbd style={{ background: '#1e1e30', borderRadius: '4px', padding: '1px 5px', fontSize: '0.72rem' }}>Enter</kbd> to submit</>
           }
         </p>

@@ -52,7 +52,7 @@ export default function Leaderboard() {
       .finally(() => setLoading(false))
   }, [period])
 
-  // Live leaderboard updates — apply win deltas from server/fake activity
+  // Live leaderboard updates, apply win deltas from server/fake activity
   useEffect(() => {
     const socket = connectSocket()
     function onDelta({ username, net }: { username: string; net: number }) {
@@ -111,7 +111,7 @@ export default function Leaderboard() {
       {lastWin && (
         <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '10px', padding: '10px 18px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.88rem' }}>
           <span style={{ color: '#22c55e', fontWeight: 700, fontSize: '1rem' }}>⚡</span>
-          <span style={{ color: '#94a3b8' }}><strong style={{ color: '#e2e8f0' }}>{lastWin.name}</strong> just won <strong style={{ color: '#22c55e' }}>${lastWin.net.toFixed(2)}</strong> — leaderboard updated</span>
+          <span style={{ color: '#94a3b8' }}><strong style={{ color: '#e2e8f0' }}>{lastWin.name}</strong> just won <strong style={{ color: '#22c55e' }}>${lastWin.net.toFixed(2)}</strong>, leaderboard updated</span>
         </div>
       )}
 
