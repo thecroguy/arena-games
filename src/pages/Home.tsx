@@ -1036,58 +1036,61 @@ export default function Home() {
                 </div>
               )}
 
-              {/* QUEST PROGRESS WIDGET */}
-              <div onClick={() => setQuestOpen(true)} style={{
-                borderRadius: '12px', padding: '14px 16px', cursor: 'pointer',
-                background: 'linear-gradient(120deg, rgba(249,115,22,0.05) 0%, rgba(239,68,68,0.03) 100%)',
-                border: '1px solid rgba(249,115,22,0.15)',
-                transition: 'border-color 0.15s, background 0.15s',
-              }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(249,115,22,0.3)'; e.currentTarget.style.background = 'rgba(249,115,22,0.08)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(249,115,22,0.15)'; e.currentTarget.style.background = 'linear-gradient(120deg,rgba(249,115,22,0.05) 0%,rgba(239,68,68,0.03) 100%)' }}
-              >
-                {/* Header */}
-                <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'12px' }}>
-                  <div style={{
-                    width:'22px', height:'22px', borderRadius:'6px', flexShrink:0,
-                    background:'linear-gradient(145deg,#f97316,#ef4444)',
-                    display:'flex', alignItems:'center', justifyContent:'center',
-                    boxShadow:'0 0 8px rgba(249,115,22,0.4)',
-                  }}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="white">
-                      <path d="M12 2C9 6 7 8 8 12C5 11 4 8 5 5C2 8 1 12 3 16C5 19.5 8.5 22 12 22C15.5 22 19 19.5 21 16C23 12 20 7 17 5C17.5 8 16 10 14 11C15 8 14 5 12 2Z"/>
-                    </svg>
+              {/* QUEST BONUS CARD */}
+              <div onClick={() => setQuestOpen(true)} className="quest-card" style={{
+                borderRadius:'14px', cursor:'pointer', overflow:'hidden', position:'relative',
+                background:'linear-gradient(135deg, #150a00 0%, #100808 50%, #0e0a18 100%)',
+                border:'1px solid rgba(249,115,22,0.3)',
+                boxShadow:'0 0 24px rgba(249,115,22,0.08), inset 0 1px 0 rgba(255,255,255,0.04)',
+              }}>
+                <style>{`
+                  @keyframes q-fire { 0%,100%{filter:brightness(1) drop-shadow(0 0 4px #f97316)} 50%{filter:brightness(1.5) drop-shadow(0 0 10px #f97316)} }
+                  @keyframes q-bar  { from{opacity:0.5} to{opacity:1} }
+                  .quest-card:hover { border-color:rgba(249,115,22,0.55)!important; box-shadow:0 0 32px rgba(249,115,22,0.16),inset 0 1px 0 rgba(255,255,255,0.06)!important; }
+                `}</style>
+
+                {/* Ambient top glow line */}
+                <div style={{ position:'absolute', top:0, left:0, right:0, height:'1px', background:'linear-gradient(90deg,transparent,rgba(249,115,22,0.6),transparent)' }} />
+
+                {/* Top row: label + reward spotlight */}
+                <div style={{ display:'flex', alignItems:'center', padding:'13px 16px 10px', gap:'10px' }}>
+                  {/* Fire icon */}
+                  <div style={{ width:'28px', height:'28px', borderRadius:'8px', flexShrink:0, background:'linear-gradient(145deg,#f97316,#dc2626)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 0 12px rgba(249,115,22,0.45)', animation:'q-fire 2s ease-in-out infinite' }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M12 2C9 6 7 8 8 12C5 11 4 8 5 5C2 8 1 12 3 16C5 19.5 8.5 22 12 22C15.5 22 19 19.5 21 16C23 12 20 7 17 5C17.5 8 16 10 14 11C15 8 14 5 12 2Z"/></svg>
                   </div>
-                  <span style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.68rem', color:'#fb923c', letterSpacing:'0.07em' }}>QUESTS</span>
-                  <span style={{ marginLeft:'auto', fontSize:'0.6rem', color:'#374151', display:'flex', alignItems:'center', gap:'4px' }}>
-                    View all
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l3 3-3 3" stroke="#374151" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </span>
+
+                  {/* Label + subtitle */}
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.7rem', color:'#fb923c', letterSpacing:'0.08em' }}>QUESTS</div>
+                    <div style={{ fontSize:'0.58rem', color:'#4b5563', marginTop:'1px' }}>Play matches, earn bonuses</div>
+                  </div>
+
+                  {/* Reward spotlight */}
+                  <div style={{ textAlign:'right', flexShrink:0 }}>
+                    <div style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'1.1rem', color:'#fbbf24', lineHeight:1, textShadow:'0 0 16px rgba(251,191,36,0.6)' }}>$1.20</div>
+                    <div style={{ fontSize:'0.48rem', color:'#64748b', marginTop:'2px', letterSpacing:'0.06em', fontFamily:'Orbitron,sans-serif' }}>NEXT UNLOCK</div>
+                  </div>
                 </div>
 
-                {/* Entry progress rows */}
-                {[
-                  { label:'$1 Entry', color:'#f59e0b', prog:7, total:8, bonus:1.20 },
-                  { label:'$5 Entry', color:'#a855f7', prog:2, total:5, bonus:2.00 },
-                ].map(e => (
-                  <div key={e.label} style={{ marginBottom:'8px' }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'5px' }}>
-                      <span style={{ fontSize:'0.57rem', color:'#4b5563', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.04em' }}>{e.label}</span>
-                      <span style={{ fontSize:'0.58rem', color:e.color, fontWeight:700 }}>
-                        Just {e.total - e.prog} left · unlock ${e.bonus.toFixed(2)}
-                      </span>
-                    </div>
-                    <div style={{ height:'4px', borderRadius:'99px', background:'rgba(255,255,255,0.05)', overflow:'hidden' }}>
-                      <div style={{
-                        height:'100%', borderRadius:'99px',
-                        width:`${Math.min(100, (e.prog / e.total) * 100)}%`,
-                        background:`linear-gradient(90deg, ${e.color}66, ${e.color})`,
-                        boxShadow:`0 0 5px ${e.color}55`,
-                        transition:'width 0.5s cubic-bezier(.4,0,.2,1)',
-                      }} />
-                    </div>
+                {/* Progress bar section */}
+                <div style={{ padding:'0 16px 13px' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'6px' }}>
+                    <span style={{ fontSize:'0.62rem', color:'#6b7280' }}>Just 1 match left to unlock your reward</span>
+                    <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:700, color:'#f59e0b' }}>7 / 8</span>
                   </div>
-                ))}
+                  <div style={{ height:'7px', borderRadius:'99px', background:'rgba(255,255,255,0.05)', overflow:'hidden' }}>
+                    <div style={{ height:'100%', width:'87.5%', borderRadius:'99px', background:'linear-gradient(90deg,#f59e0b55,#f59e0b,#fbbf24)', boxShadow:'0 0 12px #f59e0baa', animation:'q-bar 1.6s ease-in-out infinite alternate' }} />
+                  </div>
+
+                  {/* $5 entry mini row */}
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px', marginTop:'10px', padding:'7px 10px', borderRadius:'8px', background:'rgba(168,85,247,0.06)', border:'1px solid rgba(168,85,247,0.14)' }}>
+                    <span style={{ fontSize:'0.55rem', fontFamily:'Orbitron,sans-serif', color:'#7c3aed', fontWeight:700, letterSpacing:'0.05em', flexShrink:0 }}>$5 ENTRY</span>
+                    <div style={{ flex:1, height:'4px', borderRadius:'99px', background:'rgba(255,255,255,0.05)', overflow:'hidden' }}>
+                      <div style={{ height:'100%', width:'40%', borderRadius:'99px', background:'linear-gradient(90deg,#a855f755,#a855f7)', boxShadow:'0 0 6px #a855f766' }} />
+                    </div>
+                    <span style={{ fontSize:'0.58rem', color:'#a855f7', fontWeight:700, flexShrink:0, fontFamily:'Orbitron,sans-serif' }}>$2.00</span>
+                  </div>
+                </div>
               </div>
 
             </div>
