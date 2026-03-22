@@ -540,15 +540,25 @@ const GAMES = [
 ]
 
 const RECENT_WINS = [
-  { user:'Kira_X',    gid:'coin-flip',      amount:'+$18.70', t:'2s ago'  },
-  { user:'0xShadow',  gid:'liars-dice',     amount:'+$85.00', t:'14s ago' },
-  { user:'NovaBet',   gid:'math-arena',     amount:'+$42.50', t:'31s ago' },
-  { user:'CryptoAce', gid:'reaction-grid',  amount:'+$21.25', t:'1m ago'  },
-  { user:'Apex_V',    gid:'liars-dice',     amount:'+$127.50',t:'2m ago'  },
-  { user:'Riven88',   gid:'highest-unique', amount:'+$63.75', t:'3m ago'  },
-  { user:'Mxlk',      gid:'pattern-memory', amount:'+$17.00', t:'4m ago'  },
-  { user:'SolKing',   gid:'math-arena',     amount:'+$25.50', t:'5m ago'  },
+  { user:'Kira_X',      gid:'coin-flip',      amount:'+$18.70',  t:'2s'  },
+  { user:'0xShadow',    gid:'liars-dice',     amount:'+$85.00',  t:'9s'  },
+  { user:'NovaBet',     gid:'math-arena',     amount:'+$42.50',  t:'17s' },
+  { user:'CryptoAce',   gid:'reaction-grid',  amount:'+$21.25',  t:'28s' },
+  { user:'Apex_V',      gid:'liars-dice',     amount:'+$127.50', t:'45s' },
+  { user:'Riven88',     gid:'highest-unique', amount:'+$63.75',  t:'1m'  },
+  { user:'Mxlk',        gid:'pattern-memory', amount:'+$17.00',  t:'2m'  },
+  { user:'SolKing',     gid:'math-arena',     amount:'+$25.50',  t:'3m'  },
+  { user:'DarkPanda79', gid:'coin-flip',      amount:'+$9.00',   t:'3m'  },
+  { user:'SkyBolt',     gid:'liars-dice',     amount:'+$255.00', t:'4m'  },
+  { user:'LunarAce',    gid:'reaction-grid',  amount:'+$34.00',  t:'5m'  },
+  { user:'ViperX',      gid:'pattern-memory', amount:'+$51.00',  t:'6m'  },
 ]
+
+// Fake waiting player counts per game (replace with socket data)
+const WAITING: Record<string, number> = {
+  'coin-flip': 4, 'liars-dice': 2, 'math-arena': 3,
+  'reaction-grid': 1, 'pattern-memory': 5, 'highest-unique': 7, 'lowest-unique': 3,
+}
 
 type ChatMsg = { username: string; message: string; ts: number }
 
@@ -590,6 +600,7 @@ export default function Home() {
   const [mobileChatOpen, setMobileChatOpen] = useState(false)
   const [winIdx, setWinIdx]     = useState(0)
   const [showWin, setShowWin]   = useState(false)
+  const [liveTick, setLiveTick] = useState(0)
   const chatEndRef  = useRef<HTMLDivElement>(null)
 
   function toggleSection(key: string) {
@@ -728,7 +739,7 @@ export default function Home() {
           .right-feed { display:none!important; }
           .mob-chat   { display:flex!important; }
           .mob-chat-bubble { display:flex!important; }
-          .game-main-card { flex-direction:column-reverse!important; min-height:unset!important; }
+          .game-main-card { flex-direction:column-reverse!important; min-height:unset!important; flex:none!important; }
           .game-card-preview { height:240px!important; width:100%!important; flex:none!important; overflow:hidden!important; }
           .game-card-info { flex:none!important; width:100%!important; }
           .mob-scroll-pad { padding-bottom:80px!important; height:auto!important; overflow-y:visible!important; flex:none!important; }
@@ -949,7 +960,7 @@ export default function Home() {
           <div className="mob-scroll-pad" style={{ flex:1, overflowY:'auto', padding:'14px 14px', display:'flex', flexDirection:'column', gap:'14px', minHeight:0 }}>
 
             {/* Featured game card — unified background, no split */}
-            <div key={g.id} className="game-main-card" style={{ position:'relative', borderRadius:'18px', overflow:'hidden', border:`1px solid rgba(${g.glowRgb},0.22)`, background:`linear-gradient(120deg, #0d0d1a 0%, #0b0b16 55%, rgba(${g.glowRgb},0.06) 100%)`, animation:'slide-in .2s ease-out', flexShrink:0, minHeight:'320px', display:'flex' }}>
+            <div key={g.id} className="game-main-card" style={{ position:'relative', borderRadius:'18px', overflow:'hidden', border:`1px solid rgba(${g.glowRgb},0.22)`, background:`linear-gradient(120deg, #0d0d1a 0%, #0b0b16 55%, rgba(${g.glowRgb},0.06) 100%)`, animation:'slide-in .2s ease-out', flex:1, minHeight:'320px', display:'flex' }}>
               {/* Top glow line */}
               <div style={{ position:'absolute', top:0, left:0, right:0, height:'2px', background:`linear-gradient(90deg,transparent,${g.glow},transparent)`, animation:'border-glow 2.5s ease-in-out infinite', zIndex:3 }} />
               {/* Ambient glow from right side */}
@@ -1048,7 +1059,7 @@ export default function Home() {
             </div>
 
             {/* INLINE LOBBY */}
-            <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+            <div style={{ display:'flex', flexDirection:'column', gap:'10px', flexShrink:0 }}>
 
               {/* DUEL / ROOM — two expand buttons */}
               <div style={{ display:'flex', gap:'6px' }}>
