@@ -589,7 +589,6 @@ export default function Home() {
   const [payStep, setPayStep]     = useState<'idle'|'switching'|'approving'|'paying'|'creating'>('idle')
   const [createError, setCreateError] = useState('')
   const [questOpen, setQuestOpen] = useState(false)
-  const [questTab, setQuestTab]   = useState(1)
   const [selectedChain] = useState<SupportedChain>(SUPPORTED_CHAINS[0])
   const [openSections, setOpenSections] = useState<Record<string,boolean>>({ info:true })
   const [mobileChatOpen, setMobileChatOpen] = useState(false)
