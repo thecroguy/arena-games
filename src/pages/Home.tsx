@@ -830,12 +830,12 @@ export default function Home() {
 
           {/* Header */}
           <div style={{ padding:'11px 13px 10px', borderBottom:'1px solid #0d0d1e', display:'flex', alignItems:'center', gap:'8px', flexShrink:0 }}>
-            <div style={{ width:'24px', height:'24px', borderRadius:'7px', flexShrink:0, background:'linear-gradient(145deg,#f97316,#dc2626)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 0 10px rgba(249,115,22,0.4)', animation:'fire-q 2s ease-in-out infinite' }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><path d="M12 2C9 6 7 8 8 12C5 11 4 8 5 5C2 8 1 12 3 16C5 19.5 8.5 22 12 22C15.5 22 19 19.5 21 16C23 12 20 7 17 5C17.5 8 16 10 14 11C15 8 14 5 12 2Z"/></svg>
+            <div style={{ width:'22px', height:'22px', borderRadius:'6px', flexShrink:0, background:'linear-gradient(145deg,#f97316,#dc2626)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 0 8px rgba(249,115,22,0.35)', animation:'fire-q 2.4s ease-in-out infinite' }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="white"><path d="M12 2C9 6 7 8 8 12C5 11 4 8 5 5C2 8 1 12 3 16C5 19.5 8.5 22 12 22C15.5 22 19 19.5 21 16C23 12 20 7 17 5C17.5 8 16 10 14 11C15 8 14 5 12 2Z"/></svg>
             </div>
-            <span style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.64rem', color:'#fb923c', letterSpacing:'0.07em', flex:1 }}>QUESTS</span>
-            <button onClick={() => setQuestOpen(true)} style={{ background:'none', border:'none', padding:0, cursor:'pointer', color:'#374151', display:'flex', alignItems:'center' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M15 3h6v6M14 10l7-7M9 21H3v-6M10 14l-7 7" stroke="#374151" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <span style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.62rem', color:'#fb923c', letterSpacing:'0.07em', flex:1 }}>QUESTS</span>
+            <button onClick={() => setQuestOpen(true)} style={{ background:'none', border:'none', padding:0, cursor:'pointer', color:'#2d2d40', display:'flex', alignItems:'center' }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M15 3h6v6M14 10l7-7M9 21H3v-6M10 14l-7 7" stroke="#2d2d40" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </button>
           </div>
 
@@ -844,79 +844,81 @@ export default function Home() {
             {[{entry:1,label:'$1',color:'#f59e0b',rgb:'245,158,11'},{entry:5,label:'$5',color:'#a855f7',rgb:'168,85,247'}].map(l => {
               const act = questTab === l.entry
               return (
-                <button key={l.entry} onClick={() => setQuestTab(l.entry)} style={{ flex:1, padding:'5px 0', borderRadius:'7px', fontFamily:'Orbitron,sans-serif', fontSize:'0.52rem', fontWeight:800, letterSpacing:'0.04em', border:`1px solid ${act ? `rgba(${l.rgb},0.38)` : 'rgba(255,255,255,0.06)'}`, background: act ? `rgba(${l.rgb},0.12)` : 'rgba(255,255,255,0.03)', color: act ? l.color : '#2d2d40', cursor:'pointer', transition:'all .14s' }}>
+                <button key={l.entry} onClick={() => setQuestTab(l.entry)} style={{ flex:1, padding:'5px 0', borderRadius:'7px', fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:800, letterSpacing:'0.04em', border:`1px solid ${act ? `rgba(${l.rgb},0.35)` : 'rgba(255,255,255,0.05)'}`, background: act ? `rgba(${l.rgb},0.1)` : 'rgba(255,255,255,0.02)', color: act ? l.color : '#2d2d40', cursor:'pointer', transition:'all .14s' }}>
                   {l.label} ENTRY
                 </button>
               )
             })}
           </div>
 
-          {/* Current tier progress */}
+          {/* Progress */}
           {(() => {
-            const QUEST_DATA: Record<number,{color:string;prog:number;total:number;bonus:number;needed:number}> = {
-              1: { color:'#f59e0b', prog:7, total:8,  bonus:1.20, needed:1 },
-              5: { color:'#a855f7', prog:2, total:5,  bonus:2.00, needed:3 },
+            const QUEST_DATA: Record<number,{color:string;prog:number;total:number;needed:number;tier:string}> = {
+              1: { color:'#f59e0b', prog:7, total:8, needed:1, tier:'SILVER' },
+              5: { color:'#a855f7', prog:2, total:5, needed:3, tier:'BRONZE' },
             }
             const q = QUEST_DATA[questTab]
             const pct = Math.min(100, (q.prog / q.total) * 100)
+            const tiers = questTab===1
+              ? [{m:5,l:'BRONZE'},{m:15,l:'SILVER'},{m:30,l:'GOLD'},{m:50,l:'ELITE'}]
+              : [{m:5,l:'BRONZE'},{m:15,l:'SILVER'},{m:30,l:'GOLD'},{m:50,l:'ELITE'}]
+            const tc: Record<string,string> = { BRONZE:'#f59e0b', SILVER:'#94a3b8', GOLD:'#fbbf24', ELITE:'#a78bfa' }
             return (
-              <div style={{ padding:'12px 12px 0' }}>
-                {/* NEXT REWARD spotlight */}
-                <div style={{ padding:'10px 11px', borderRadius:'10px', background:`rgba(${questTab===1?'245,158,11':'168,85,247'},0.07)`, border:`1px solid rgba(${questTab===1?'245,158,11':'168,85,247'},0.18)`, marginBottom:'10px' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:'7px' }}>
-                    <div>
-                      <div style={{ fontSize:'0.48rem', color:'#374151', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.08em', marginBottom:'2px' }}>NEXT REWARD</div>
-                      <div style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'1.1rem', color:q.color, lineHeight:1, textShadow:`0 0 14px ${q.color}88` }}>${q.bonus.toFixed(2)}</div>
-                    </div>
-                    <div style={{ textAlign:'right' }}>
-                      <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.58rem', fontWeight:700, color:q.color }}>{q.prog}/{q.total}</div>
-                      <div style={{ fontSize:'0.5rem', color:'#374151' }}>matches</div>
-                    </div>
+              <div style={{ padding:'10px 10px 0', display:'flex', flexDirection:'column', gap:'8px' }}>
+
+                {/* Current progress bar */}
+                <div style={{ padding:'9px 10px', borderRadius:'9px', background:`rgba(${questTab===1?'245,158,11':'168,85,247'},0.05)`, border:`1px solid rgba(${questTab===1?'245,158,11':'168,85,247'},0.14)` }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'6px' }}>
+                    <span style={{ fontSize:'0.52rem', color:'#374151', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.06em' }}>PROGRESS</span>
+                    <span style={{ fontSize:'0.52rem', fontFamily:'Orbitron,sans-serif', fontWeight:700, color:q.color }}>{q.prog}/{q.total}</span>
                   </div>
-                  <div style={{ height:'5px', borderRadius:'99px', background:'rgba(255,255,255,0.06)', overflow:'hidden' }}>
-                    <div style={{ height:'100%', width:`${pct}%`, borderRadius:'99px', background:`linear-gradient(90deg,${q.color}66,${q.color})`, boxShadow:`0 0 8px ${q.color}88`, transition:'width 0.5s' }} />
+                  <div style={{ height:'5px', borderRadius:'99px', background:'rgba(255,255,255,0.05)', overflow:'hidden' }}>
+                    <div style={{ height:'100%', width:`${pct}%`, borderRadius:'99px', background:`linear-gradient(90deg,${q.color}55,${q.color})`, boxShadow:`0 0 7px ${q.color}77`, transition:'width 0.5s' }} />
                   </div>
-                  <div style={{ display:'flex', justifyContent:'space-between', marginTop:'5px' }}>
-                    <span style={{ fontSize:'0.55rem', color:'#4b5563' }}>Just {q.needed} left</span>
-                    <span style={{ fontSize:'0.55rem', color:q.color, fontWeight:700 }}>unlock ${q.bonus.toFixed(2)}</span>
+                  <div style={{ marginTop:'5px', fontSize:'0.55rem', color:'#374151' }}>
+                    Just {q.needed} more {q.needed === 1 ? 'match' : 'matches'} to reach {q.tier}
                   </div>
                 </div>
 
-                {/* Tier list (compact) */}
-                {[
-                  questTab===1
-                    ? [{m:5,b:0.50,l:'BRONZE'},{m:15,b:1.20,l:'SILVER'},{m:30,b:2.00,l:'GOLD'},{m:50,b:3.00,l:'ELITE'}]
-                    : [{m:5,b:2.00,l:'BRONZE'},{m:15,b:6.00,l:'SILVER'},{m:30,b:10.00,l:'GOLD'},{m:50,b:15.00,l:'ELITE'}]
-                ][0].map((t, i, arr) => {
-                  const prev = i===0 ? 0 : arr[i-1].m
-                  const done = q.prog >= t.m
-                  const active = !done && q.prog >= prev
-                  const future = !done && !active
-                  const tc: Record<string,string> = { BRONZE:'#f59e0b', SILVER:'#94a3b8', GOLD:'#fbbf24', ELITE:'#a78bfa' }
-                  return (
-                    <div key={t.l} style={{ display:'flex', alignItems:'center', gap:'7px', padding:'6px 0', borderBottom:'1px solid #0a0a12', opacity: future ? 0.38 : 1 }}>
-                      <span style={{ fontSize:'0.42rem', fontWeight:800, padding:'2px 5px', borderRadius:'3px', fontFamily:'Orbitron,sans-serif', background:`${tc[t.l]}16`, color:tc[t.l], border:`1px solid ${tc[t.l]}25`, flexShrink:0 }}>{t.l}</span>
-                      <span style={{ fontSize:'0.55rem', color:'#2d2d40', flex:1 }}>{t.m} matches</span>
-                      {done
-                        ? <span style={{ fontSize:'0.55rem', color:'#22c55e', fontWeight:700 }}>Done</span>
-                        : <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.7rem', fontWeight:900, color: active ? q.color : '#1e2030' }}>${t.b.toFixed(2)}</span>
-                      }
-                    </div>
-                  )
-                })}
+                {/* Tier steps — labels only, no amounts */}
+                <div style={{ display:'flex', flexDirection:'column', gap:'1px' }}>
+                  {tiers.map((t, i, arr) => {
+                    const prev = i===0 ? 0 : arr[i-1].m
+                    const done = q.prog >= t.m
+                    const active = !done && q.prog >= prev
+                    const future = !done && !active
+                    return (
+                      <div key={t.l} style={{ display:'flex', alignItems:'center', gap:'7px', padding:'5px 2px', opacity: future ? 0.28 : 1 }}>
+                        <div style={{ width:'16px', height:'16px', borderRadius:'50%', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', background: done ? 'rgba(34,197,94,0.12)' : active ? `rgba(${questTab===1?'245,158,11':'168,85,247'},0.12)` : 'rgba(255,255,255,0.03)', border: done ? '1px solid rgba(34,197,94,0.3)' : active ? `1px solid ${q.color}44` : '1px solid #0d0d1e' }}>
+                          {done
+                            ? <svg width="7" height="7" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 3" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
+                            : <div style={{ width:'4px', height:'4px', borderRadius:'50%', background: active ? q.color : '#1e2030' }} />
+                          }
+                        </div>
+                        <span style={{ fontSize:'0.5rem', fontWeight:800, fontFamily:'Orbitron,sans-serif', color: done ? '#22c55e' : active ? tc[t.l] : '#1e2030', letterSpacing:'0.05em' }}>{t.l}</span>
+                        <span style={{ fontSize:'0.5rem', color:'#1e2030', marginLeft:'auto' }}>{t.m}m</span>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )
           })()}
 
-          {/* Rules footer */}
-          <div style={{ margin:'12px 10px 14px', padding:'10px 11px', borderRadius:'10px', background:'#0b0b17', border:'1px solid #0d0d1e', flexShrink:0 }}>
-            <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', color:'#1a1a2e', letterSpacing:'0.1em', marginBottom:'6px' }}>BONUS RULES</div>
-            {['Non-withdrawable: entry fees only.','24-48h expiry after unlock.','No stacking per entry level.','Resets monthly.'].map(r => (
-              <div key={r} style={{ display:'flex', gap:'6px', alignItems:'flex-start', marginBottom:'4px' }}>
-                <div style={{ width:'3px', height:'3px', borderRadius:'50%', background:'#1e2030', marginTop:'5px', flexShrink:0 }} />
-                <span style={{ fontSize:'0.58rem', color:'#1e2030', lineHeight:1.4 }}>{r}</span>
-              </div>
-            ))}
+          {/* Referral highlight */}
+          <div style={{ margin:'10px 10px 0', padding:'9px 11px', borderRadius:'9px', background:'rgba(6,182,212,0.05)', border:'1px solid rgba(6,182,212,0.15)', flexShrink:0 }}>
+            <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', fontWeight:800, color:'#06b6d4', letterSpacing:'0.07em', marginBottom:'4px' }}>REFER A FRIEND</div>
+            <div style={{ fontSize:'0.6rem', color:'#374151', lineHeight:1.4, marginBottom:'7px' }}>Invite players and earn bonus matches for every friend who joins.</div>
+            <button onClick={() => setQuestOpen(true)} style={{ width:'100%', padding:'5px 0', borderRadius:'7px', background:'rgba(6,182,212,0.08)', border:'1px solid rgba(6,182,212,0.2)', color:'#06b6d4', fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:800, letterSpacing:'0.05em', cursor:'pointer' }}>
+              Get Referral Link
+            </button>
+          </div>
+
+          {/* Subtle rules */}
+          <div style={{ padding:'10px 12px 14px', flexShrink:0 }}>
+            <div style={{ fontSize:'0.55rem', color:'#1a1a2e', lineHeight:1.6 }}>
+              Bonuses are non-withdrawable, expire in 48h, and reset monthly.
+            </div>
           </div>
         </div>
 
@@ -961,7 +963,7 @@ export default function Home() {
               <div style={{ position:'absolute', right:0, top:0, bottom:0, width:'45%', background:`radial-gradient(ellipse at 80% 50%, rgba(${g.glowRgb},0.12) 0%, transparent 70%)`, pointerEvents:'none', zIndex:0 }} />
 
               {/* LEFT: info */}
-              <div className="game-card-info" style={{ flex:'0 0 50%', padding:'20px 22px', display:'flex', flexDirection:'column', justifyContent:'space-between', position:'relative', zIndex:2, minWidth:0 }}>
+              <div className="game-card-info" style={{ flex:'0 0 50%', padding:'20px 22px', display:'flex', flexDirection:'column', gap:'12px', justifyContent:'flex-start', position:'relative', zIndex:2, minWidth:0 }}>
                 {/* Title row */}
                 <div>
                   <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'6px', flexWrap:'wrap' }}>
@@ -976,7 +978,7 @@ export default function Home() {
                     {g.tags.map(t => <span key={t} style={{ fontSize:'0.48rem', fontWeight:700, padding:'2px 6px', borderRadius:'20px', background:`rgba(${g.glowRgb},0.1)`, color:g.glow, border:`1px solid rgba(${g.glowRgb},0.18)` }}>{t}</span>)}
                     {g.hot && <span style={{ fontSize:'0.48rem', fontWeight:700, padding:'2px 6px', borderRadius:'20px', background: g.badge==='HOT' ? 'rgba(239,68,68,0.12)' : 'rgba(249,115,22,0.12)', color: g.badge==='HOT' ? '#ef4444' : '#fb923c', border:`1px solid ${g.badge==='HOT' ? 'rgba(239,68,68,0.22)' : 'rgba(249,115,22,0.25)'}`, animation:'hot-badge 1.6s infinite' }}>{g.badge}</span>}
                   </div>
-                  <p style={{ color:'#4b5563', fontSize:'0.74rem', lineHeight:1.5, margin:'0 0 10px' }}>{g.desc}</p>
+                  <p style={{ color:'#4b5563', fontSize:'0.74rem', lineHeight:1.5, margin:0 }}>{g.desc}</p>
                 </div>
 
                 {/* Fee selector for PLAY NOW */}
