@@ -554,11 +554,6 @@ const RECENT_WINS = [
   { user:'ViperX',      gid:'pattern-memory', amount:'+$51.00',  t:'6m'  },
 ]
 
-// Fake waiting player counts per game (replace with socket data)
-const WAITING: Record<string, number> = {
-  'coin-flip': 4, 'liars-dice': 2, 'math-arena': 3,
-  'reaction-grid': 1, 'pattern-memory': 5, 'highest-unique': 7, 'lowest-unique': 3,
-}
 
 type ChatMsg = { username: string; message: string; ts: number }
 
@@ -600,7 +595,6 @@ export default function Home() {
   const [mobileChatOpen, setMobileChatOpen] = useState(false)
   const [winIdx, setWinIdx]     = useState(0)
   const [showWin, setShowWin]   = useState(false)
-  const [liveTick, setLiveTick] = useState(0)
   const chatEndRef  = useRef<HTMLDivElement>(null)
 
   function toggleSection(key: string) {
