@@ -828,96 +828,74 @@ export default function Home() {
         <div className="quest-panel" style={{ width:'200px', flexShrink:0, borderRight:'1px solid #0d0d1e', display:'flex', flexDirection:'column', background:'#06060e', overflowY:'auto' }}>
           <style>{`.quest-panel{display:flex!important;} @media(max-width:1100px){.quest-panel{display:none!important;}}`}</style>
 
-          {/* Header */}
+          {/* Header — no expand button */}
           <div style={{ padding:'11px 13px 10px', borderBottom:'1px solid #0d0d1e', display:'flex', alignItems:'center', gap:'8px', flexShrink:0 }}>
             <div style={{ width:'22px', height:'22px', borderRadius:'6px', flexShrink:0, background:'linear-gradient(145deg,#f97316,#dc2626)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 0 8px rgba(249,115,22,0.35)', animation:'fire-q 2.4s ease-in-out infinite' }}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="white"><path d="M12 2C9 6 7 8 8 12C5 11 4 8 5 5C2 8 1 12 3 16C5 19.5 8.5 22 12 22C15.5 22 19 19.5 21 16C23 12 20 7 17 5C17.5 8 16 10 14 11C15 8 14 5 12 2Z"/></svg>
             </div>
-            <span style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.62rem', color:'#fb923c', letterSpacing:'0.07em', flex:1 }}>QUESTS</span>
-            <button onClick={() => setQuestOpen(true)} style={{ background:'none', border:'none', padding:0, cursor:'pointer', color:'#2d2d40', display:'flex', alignItems:'center' }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M15 3h6v6M14 10l7-7M9 21H3v-6M10 14l-7 7" stroke="#2d2d40" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </button>
+            <div style={{ flex:1 }}>
+              <div style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.62rem', color:'#fb923c', letterSpacing:'0.07em' }}>BONUS QUESTS</div>
+              <div style={{ fontSize:'0.5rem', color:'#2d2d40', marginTop:'1px' }}>joinarena.space</div>
+            </div>
           </div>
 
-          {/* Entry tabs */}
-          <div style={{ display:'flex', gap:'4px', padding:'10px 10px 0', flexShrink:0 }}>
-            {[{entry:1,label:'$1',color:'#f59e0b',rgb:'245,158,11'},{entry:5,label:'$5',color:'#a855f7',rgb:'168,85,247'}].map(l => {
-              const act = questTab === l.entry
-              return (
-                <button key={l.entry} onClick={() => setQuestTab(l.entry)} style={{ flex:1, padding:'5px 0', borderRadius:'7px', fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:800, letterSpacing:'0.04em', border:`1px solid ${act ? `rgba(${l.rgb},0.35)` : 'rgba(255,255,255,0.05)'}`, background: act ? `rgba(${l.rgb},0.1)` : 'rgba(255,255,255,0.02)', color: act ? l.color : '#2d2d40', cursor:'pointer', transition:'all .14s' }}>
-                  {l.label} ENTRY
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Progress */}
+          {/* Both entry levels — no tabs, shown together */}
           {(() => {
-            const QUEST_DATA: Record<number,{color:string;prog:number;total:number;needed:number;tier:string}> = {
-              1: { color:'#f59e0b', prog:7, total:8, needed:1, tier:'SILVER' },
-              5: { color:'#a855f7', prog:2, total:5, needed:3, tier:'BRONZE' },
-            }
-            const q = QUEST_DATA[questTab]
-            const pct = Math.min(100, (q.prog / q.total) * 100)
-            const tiers = questTab===1
-              ? [{m:5,l:'BRONZE'},{m:15,l:'SILVER'},{m:30,l:'GOLD'},{m:50,l:'ELITE'}]
-              : [{m:5,l:'BRONZE'},{m:15,l:'SILVER'},{m:30,l:'GOLD'},{m:50,l:'ELITE'}]
-            const tc: Record<string,string> = { BRONZE:'#f59e0b', SILVER:'#94a3b8', GOLD:'#fbbf24', ELITE:'#a78bfa' }
+            const LEVELS = [
+              { label:'$1 ENTRY', color:'#f59e0b', rgb:'245,158,11', prog:7, tiers:[{m:5,b:0.50},{m:15,b:1.20},{m:30,b:2.00},{m:50,b:3.00}] },
+              { label:'$5 ENTRY', color:'#a855f7', rgb:'168,85,247', prog:2, tiers:[{m:5,b:2.00},{m:15,b:6.00},{m:30,b:10.00},{m:50,b:15.00}] },
+            ]
             return (
-              <div style={{ padding:'10px 10px 0', display:'flex', flexDirection:'column', gap:'8px' }}>
+              <div style={{ padding:'10px 10px 0', display:'flex', flexDirection:'column', gap:'10px' }}>
+                {LEVELS.map(lv => {
+                  const tierIdx = lv.tiers.findIndex(t => lv.prog < t.m)
+                  const allDone = tierIdx === -1
+                  const nextTier = allDone ? null : lv.tiers[tierIdx]
+                  const prevM = tierIdx > 0 ? lv.tiers[tierIdx-1].m : 0
+                  const total = nextTier ? nextTier.m - prevM : 1
+                  const prog  = nextTier ? Math.max(0, lv.prog - prevM) : total
+                  const needed = nextTier ? nextTier.m - lv.prog : 0
+                  const pct = Math.min(100, (prog / total) * 100)
 
-                {/* Current progress bar */}
-                <div style={{ padding:'9px 10px', borderRadius:'9px', background:`rgba(${questTab===1?'245,158,11':'168,85,247'},0.05)`, border:`1px solid rgba(${questTab===1?'245,158,11':'168,85,247'},0.14)` }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'6px' }}>
-                    <span style={{ fontSize:'0.52rem', color:'#374151', fontFamily:'Orbitron,sans-serif', letterSpacing:'0.06em' }}>PROGRESS</span>
-                    <span style={{ fontSize:'0.52rem', fontFamily:'Orbitron,sans-serif', fontWeight:700, color:q.color }}>{q.prog}/{q.total}</span>
-                  </div>
-                  <div style={{ height:'5px', borderRadius:'99px', background:'rgba(255,255,255,0.05)', overflow:'hidden' }}>
-                    <div style={{ height:'100%', width:`${pct}%`, borderRadius:'99px', background:`linear-gradient(90deg,${q.color}55,${q.color})`, boxShadow:`0 0 7px ${q.color}77`, transition:'width 0.5s' }} />
-                  </div>
-                  <div style={{ marginTop:'5px', fontSize:'0.55rem', color:'#374151' }}>
-                    Just {q.needed} more {q.needed === 1 ? 'match' : 'matches'} to reach {q.tier}
-                  </div>
-                </div>
-
-                {/* Tier steps — labels only, no amounts */}
-                <div style={{ display:'flex', flexDirection:'column', gap:'1px' }}>
-                  {tiers.map((t, i, arr) => {
-                    const prev = i===0 ? 0 : arr[i-1].m
-                    const done = q.prog >= t.m
-                    const active = !done && q.prog >= prev
-                    const future = !done && !active
-                    return (
-                      <div key={t.l} style={{ display:'flex', alignItems:'center', gap:'7px', padding:'5px 2px', opacity: future ? 0.28 : 1 }}>
-                        <div style={{ width:'16px', height:'16px', borderRadius:'50%', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', background: done ? 'rgba(34,197,94,0.12)' : active ? `rgba(${questTab===1?'245,158,11':'168,85,247'},0.12)` : 'rgba(255,255,255,0.03)', border: done ? '1px solid rgba(34,197,94,0.3)' : active ? `1px solid ${q.color}44` : '1px solid #0d0d1e' }}>
-                          {done
-                            ? <svg width="7" height="7" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 3" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
-                            : <div style={{ width:'4px', height:'4px', borderRadius:'50%', background: active ? q.color : '#1e2030' }} />
-                          }
-                        </div>
-                        <span style={{ fontSize:'0.5rem', fontWeight:800, fontFamily:'Orbitron,sans-serif', color: done ? '#22c55e' : active ? tc[t.l] : '#1e2030', letterSpacing:'0.05em' }}>{t.l}</span>
-                        <span style={{ fontSize:'0.5rem', color:'#1e2030', marginLeft:'auto' }}>{t.m}m</span>
+                  return (
+                    <div key={lv.label} style={{ padding:'9px 10px', borderRadius:'9px', background:`rgba(${lv.rgb},0.05)`, border:`1px solid rgba(${lv.rgb},0.14)` }}>
+                      {/* Label */}
+                      <div style={{ marginBottom:'6px' }}>
+                        <span style={{ fontSize:'0.5rem', fontFamily:'Orbitron,sans-serif', fontWeight:800, color:lv.color, letterSpacing:'0.05em' }}>{lv.label}</span>
                       </div>
-                    )
-                  })}
-                </div>
+                      {/* Progress bar */}
+                      <div style={{ height:'5px', borderRadius:'99px', background:'rgba(255,255,255,0.05)', overflow:'hidden', marginBottom:'5px' }}>
+                        <div style={{ height:'100%', width:`${pct}%`, borderRadius:'99px', background:`linear-gradient(90deg,${lv.color}55,${lv.color})`, boxShadow:`0 0 7px ${lv.color}66`, transition:'width 0.5s' }} />
+                      </div>
+                      {/* Urgency sentence */}
+                      <div style={{ fontSize:'0.55rem', color:'#374151', lineHeight:1.4 }}>
+                        {allDone
+                          ? <span style={{ color:'#22c55e' }}>All tiers complete</span>
+                          : <>Just {needed} more {needed===1?'match':'matches'} to get <span style={{ color:lv.color, fontWeight:700 }}>${nextTier!.b.toFixed(2)}</span></>
+                        }
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )
           })()}
 
-          {/* Referral highlight */}
-          <div style={{ margin:'10px 10px 0', padding:'9px 11px', borderRadius:'9px', background:'rgba(6,182,212,0.05)', border:'1px solid rgba(6,182,212,0.15)', flexShrink:0 }}>
-            <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', fontWeight:800, color:'#06b6d4', letterSpacing:'0.07em', marginBottom:'4px' }}>REFER A FRIEND</div>
-            <div style={{ fontSize:'0.6rem', color:'#374151', lineHeight:1.4, marginBottom:'7px' }}>Invite players and earn bonus matches for every friend who joins.</div>
-            <button onClick={() => setQuestOpen(true)} style={{ width:'100%', padding:'5px 0', borderRadius:'7px', background:'rgba(6,182,212,0.08)', border:'1px solid rgba(6,182,212,0.2)', color:'#06b6d4', fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:800, letterSpacing:'0.05em', cursor:'pointer' }}>
+          {/* Referral — explains the platform */}
+          <div style={{ margin:'10px 10px 0', padding:'9px 11px', borderRadius:'9px', background:'rgba(6,182,212,0.04)', border:'1px solid rgba(6,182,212,0.12)', flexShrink:0 }}>
+            <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', fontWeight:800, color:'#06b6d4', letterSpacing:'0.06em', marginBottom:'5px' }}>REFER AND EARN</div>
+            <div style={{ fontSize:'0.58rem', color:'#374151', lineHeight:1.5, marginBottom:'7px' }}>
+              Earn bonus matches for every friend you bring in.
+            </div>
+            <button style={{ width:'100%', padding:'5px 0', borderRadius:'7px', background:'rgba(6,182,212,0.07)', border:'1px solid rgba(6,182,212,0.18)', color:'#06b6d4', fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:800, letterSpacing:'0.05em', cursor:'pointer' }}>
               Get Referral Link
             </button>
           </div>
 
-          {/* Subtle rules */}
-          <div style={{ padding:'10px 12px 14px', flexShrink:0 }}>
-            <div style={{ fontSize:'0.55rem', color:'#1a1a2e', lineHeight:1.6 }}>
-              Bonuses are non-withdrawable, expire in 48h, and reset monthly.
+          {/* Rules dim text */}
+          <div style={{ padding:'8px 12px 14px', flexShrink:0 }}>
+            <div style={{ fontSize:'0.52rem', color:'#1a1a2e', lineHeight:1.6 }}>
+              Bonuses are non-withdrawable and expire in 48h.
             </div>
           </div>
         </div>
