@@ -8,6 +8,9 @@ import Leaderboard from './pages/Leaderboard'
 import Guide from './pages/Guide'
 import DuelJoin from './pages/DuelJoin'
 import Navbar from './components/Navbar'
+import { About, FaqPage, Fairness, Privacy, Terms, AmlPolicy } from './pages/InfoPages'
+import HelpCenter from './pages/HelpCenter'
+import Contact from './pages/Contact'
 import { useProfileSync } from './hooks/useProfileSync'
 
 const SERVER_URL = import.meta.env.VITE_SOCKET_URL || ''
@@ -66,6 +69,14 @@ function AppInner() {
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/guide" element={<Guide />} />
           <Route path="/r/:roomCode" element={<DuelJoin />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/fairness" element={<Fairness />} />
+          <Route path="/faq" element={<FaqPage />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/aml" element={<AmlPolicy />} />
+          <Route path="/help" element={<HelpCenter />} />
+          <Route path="/contact" element={<Contact />} />
         </Routes>
       </main>
     </div>
