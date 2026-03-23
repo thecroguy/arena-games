@@ -539,20 +539,6 @@ const GAMES = [
   { id:'lowest-unique',  title:'Lowest Unique',  short:'LO UNIQUE',   desc:'Pick the lowest number that nobody else picks. Contrarian thinking wins here.',     tags:['Bluff'],            players:'3-20', maxPot:'$765', activePlayers:39, glow:'#ec4899', glowRgb:'236,72,153', bgFrom:'#ec4899', bgTo:'#7c3aed', hot:false, badge:''         },
 ]
 
-const RECENT_WINS = [
-  { user:'Kira_X',      gid:'coin-flip',      amount:'+$18.70',  t:'2s'  },
-  { user:'0xShadow',    gid:'liars-dice',     amount:'+$85.00',  t:'9s'  },
-  { user:'NovaBet',     gid:'math-arena',     amount:'+$42.50',  t:'17s' },
-  { user:'CryptoAce',   gid:'reaction-grid',  amount:'+$21.25',  t:'28s' },
-  { user:'Apex_V',      gid:'liars-dice',     amount:'+$127.50', t:'45s' },
-  { user:'Riven88',     gid:'highest-unique', amount:'+$63.75',  t:'1m'  },
-  { user:'Mxlk',        gid:'pattern-memory', amount:'+$17.00',  t:'2m'  },
-  { user:'SolKing',     gid:'math-arena',     amount:'+$25.50',  t:'3m'  },
-  { user:'DarkPanda79', gid:'coin-flip',      amount:'+$9.00',   t:'3m'  },
-  { user:'SkyBolt',     gid:'liars-dice',     amount:'+$255.00', t:'4m'  },
-  { user:'LunarAce',    gid:'reaction-grid',  amount:'+$34.00',  t:'5m'  },
-  { user:'ViperX',      gid:'pattern-memory', amount:'+$51.00',  t:'6m'  },
-]
 
 
 type ChatMsg = { username: string; message: string; ts: number }
@@ -592,8 +578,6 @@ export default function Home() {
   const [selectedChain] = useState<SupportedChain>(SUPPORTED_CHAINS[0])
   const [openSections, setOpenSections] = useState<Record<string,boolean>>({ info:true })
   const [mobileChatOpen, setMobileChatOpen] = useState(false)
-  const [winIdx, setWinIdx]     = useState(0)
-  const [showWin, setShowWin]   = useState(false)
   const chatEndRef  = useRef<HTMLDivElement>(null)
 
   function toggleSection(key: string) {
@@ -616,15 +600,6 @@ export default function Home() {
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chat])
 
-  // Win toast on featured card — cycles through recent wins
-  useEffect(() => {
-    const iv = setInterval(() => {
-      setWinIdx(i => (i + 1) % RECENT_WINS.length)
-      setShowWin(true)
-      setTimeout(() => setShowWin(false), 2400)
-    }, 5000)
-    return () => clearInterval(iv)
-  }, [])
 
   async function getAuthSig() {
     if (!address) return null
@@ -1017,12 +992,6 @@ export default function Home() {
               {/* RIGHT: live preview — no separate background, floats on card */}
               <div className="game-card-preview" style={{ flex:1, position:'relative', overflow:'hidden', zIndex:1 }}>
                 <CardPreview id={g.id} glow={g.glow} glowRgb={g.glowRgb} />
-                {/* Win toast */}
-                <div style={{ position:'absolute', bottom:'10px', right:'10px', display:'inline-flex', alignItems:'center', gap:'6px', padding:'5px 9px', background:`rgba(${g.glowRgb},0.08)`, backdropFilter:'blur(6px)', borderRadius:'8px', border:`1px solid rgba(${g.glowRgb},0.18)`, zIndex:6, transition:'opacity .35s, transform .35s', opacity:showWin?1:0, transform:showWin?'translateY(0)':'translateY(6px)', pointerEvents:'none' }}>
-                  <GameIcon id={RECENT_WINS[winIdx].gid} size={20} animate={false} />
-                  <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.55rem', fontWeight:700, color:'#64748b', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{RECENT_WINS[winIdx].user}</span>
-                  <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:900, color:'#22c55e', flexShrink:0 }}>{RECENT_WINS[winIdx].amount}</span>
-                </div>
               </div>
             </div>
 
