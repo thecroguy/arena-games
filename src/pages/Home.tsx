@@ -834,18 +834,18 @@ export default function Home() {
             </div>
             <div style={{ flex:1 }}>
               <div style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.62rem', color:'#fb923c', letterSpacing:'0.07em' }}>BONUS QUESTS</div>
-              <div style={{ fontSize:'0.5rem', color:'#2d2d40', marginTop:'1px' }}>joinarena.space</div>
+              <div style={{ fontSize:'0.5rem', color:'#4b5563', marginTop:'1px' }}>Play matches, earn bonuses</div>
             </div>
           </div>
 
-          {/* Both entry levels — no tabs, shown together */}
+          {/* Both entry levels — same amber color, no tabs */}
           {(() => {
             const LEVELS = [
-              { label:'$1 ENTRY', color:'#f59e0b', rgb:'245,158,11', prog:7, tiers:[{m:5,b:0.50},{m:15,b:1.20},{m:30,b:2.00},{m:50,b:3.00}] },
-              { label:'$5 ENTRY', color:'#a855f7', rgb:'168,85,247', prog:2, tiers:[{m:5,b:2.00},{m:15,b:6.00},{m:30,b:10.00},{m:50,b:15.00}] },
+              { label:'$1 ENTRY', prog:7, tiers:[{m:5,b:0.50},{m:15,b:1.20},{m:30,b:2.00},{m:50,b:3.00}] },
+              { label:'$5 ENTRY', prog:2, tiers:[{m:5,b:2.00},{m:15,b:6.00},{m:30,b:10.00},{m:50,b:15.00}] },
             ]
             return (
-              <div style={{ padding:'10px 10px 0', display:'flex', flexDirection:'column', gap:'10px' }}>
+              <div style={{ padding:'10px 10px 0', display:'flex', flexDirection:'column', gap:'8px' }}>
                 {LEVELS.map(lv => {
                   const tierIdx = lv.tiers.findIndex(t => lv.prog < t.m)
                   const allDone = tierIdx === -1
@@ -857,20 +857,15 @@ export default function Home() {
                   const pct = Math.min(100, (prog / total) * 100)
 
                   return (
-                    <div key={lv.label} style={{ padding:'9px 10px', borderRadius:'9px', background:`rgba(${lv.rgb},0.05)`, border:`1px solid rgba(${lv.rgb},0.14)` }}>
-                      {/* Label */}
-                      <div style={{ marginBottom:'6px' }}>
-                        <span style={{ fontSize:'0.5rem', fontFamily:'Orbitron,sans-serif', fontWeight:800, color:lv.color, letterSpacing:'0.05em' }}>{lv.label}</span>
+                    <div key={lv.label} style={{ padding:'9px 10px', borderRadius:'9px', background:'rgba(245,158,11,0.06)', border:'1px solid rgba(245,158,11,0.16)' }}>
+                      <div style={{ fontSize:'0.48rem', fontFamily:'Orbitron,sans-serif', fontWeight:800, color:'#f59e0b', letterSpacing:'0.05em', marginBottom:'6px' }}>{lv.label}</div>
+                      <div style={{ height:'5px', borderRadius:'99px', background:'rgba(255,255,255,0.07)', overflow:'hidden', marginBottom:'6px' }}>
+                        <div style={{ height:'100%', width:`${pct}%`, borderRadius:'99px', background:'linear-gradient(90deg,#f59e0b66,#f59e0b)', boxShadow:'0 0 7px #f59e0b88', transition:'width 0.5s' }} />
                       </div>
-                      {/* Progress bar */}
-                      <div style={{ height:'5px', borderRadius:'99px', background:'rgba(255,255,255,0.05)', overflow:'hidden', marginBottom:'5px' }}>
-                        <div style={{ height:'100%', width:`${pct}%`, borderRadius:'99px', background:`linear-gradient(90deg,${lv.color}55,${lv.color})`, boxShadow:`0 0 7px ${lv.color}66`, transition:'width 0.5s' }} />
-                      </div>
-                      {/* Urgency sentence */}
-                      <div style={{ fontSize:'0.55rem', color:'#374151', lineHeight:1.4 }}>
+                      <div style={{ fontSize:'0.6rem', color:'#94a3b8', lineHeight:1.4 }}>
                         {allDone
                           ? <span style={{ color:'#22c55e' }}>All tiers complete</span>
-                          : <>Just {needed} more {needed===1?'match':'matches'} to get <span style={{ color:lv.color, fontWeight:700 }}>${nextTier!.b.toFixed(2)}</span></>
+                          : <>Just {needed} more {needed===1?'match':'matches'} to get <span style={{ color:'#fbbf24', fontWeight:700 }}>${nextTier!.b.toFixed(2)}</span></>
                         }
                       </div>
                     </div>
@@ -880,20 +875,20 @@ export default function Home() {
             )
           })()}
 
-          {/* Referral — explains the platform */}
-          <div style={{ margin:'10px 10px 0', padding:'9px 11px', borderRadius:'9px', background:'rgba(6,182,212,0.04)', border:'1px solid rgba(6,182,212,0.12)', flexShrink:0 }}>
-            <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', fontWeight:800, color:'#06b6d4', letterSpacing:'0.06em', marginBottom:'5px' }}>REFER AND EARN</div>
-            <div style={{ fontSize:'0.58rem', color:'#374151', lineHeight:1.5, marginBottom:'7px' }}>
-              Earn bonus matches for every friend you bring in.
+          {/* Referral */}
+          <div style={{ margin:'10px 10px 0', padding:'9px 11px', borderRadius:'9px', background:'rgba(245,158,11,0.04)', border:'1px solid rgba(245,158,11,0.12)', flexShrink:0 }}>
+            <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.48rem', fontWeight:800, color:'#f59e0b', letterSpacing:'0.06em', marginBottom:'4px' }}>REFER AND EARN</div>
+            <div style={{ fontSize:'0.6rem', color:'#94a3b8', lineHeight:1.5, marginBottom:'8px' }}>
+              Bring a friend, earn bonus matches on every game they play.
             </div>
-            <button style={{ width:'100%', padding:'5px 0', borderRadius:'7px', background:'rgba(6,182,212,0.07)', border:'1px solid rgba(6,182,212,0.18)', color:'#06b6d4', fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:800, letterSpacing:'0.05em', cursor:'pointer' }}>
+            <button onClick={() => { window.location.href = '/profile' }} style={{ width:'100%', padding:'6px 0', borderRadius:'7px', background:'linear-gradient(135deg,rgba(249,115,22,0.14),rgba(245,158,11,0.1))', border:'1px solid rgba(245,158,11,0.28)', color:'#f59e0b', fontFamily:'Orbitron,sans-serif', fontSize:'0.5rem', fontWeight:800, letterSpacing:'0.05em', cursor:'pointer' }}>
               Get Referral Link
             </button>
           </div>
 
-          {/* Rules dim text */}
+          {/* Rules */}
           <div style={{ padding:'8px 12px 14px', flexShrink:0 }}>
-            <div style={{ fontSize:'0.52rem', color:'#1a1a2e', lineHeight:1.6 }}>
+            <div style={{ fontSize:'0.56rem', color:'#4b5563', lineHeight:1.6 }}>
               Bonuses are non-withdrawable and expire in 48h.
             </div>
           </div>
