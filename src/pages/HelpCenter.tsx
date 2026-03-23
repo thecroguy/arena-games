@@ -80,31 +80,43 @@ interface ArticleItemProps {
 
 function ArticleItem({ title, answer, isOpen, onToggle, badge, badgeColor }: ArticleItemProps) {
   return (
-    <div style={{
-      background: '#ffffff', border: `1px solid ${isOpen ? '#fcd34d' : '#e5e7eb'}`,
-      borderRadius: '10px', overflow: 'hidden',
-      boxShadow: isOpen ? '0 2px 12px rgba(245,158,11,0.1)' : '0 1px 3px rgba(0,0,0,0.04)',
-      transition: 'border-color .15s',
-    }}>
-      <button onClick={onToggle} style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', textAlign: 'left' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
-          {badge && (
-            <span style={{ fontSize: '0.6rem', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: `${badgeColor}18`, color: badgeColor, border: `1px solid ${badgeColor}30`, whiteSpace: 'nowrap', flexShrink: 0 }}>{badge}</span>
+    <div className={`hc-card ${isOpen ? 'hc-card-open' : ''}`}
+      style={{ boxShadow: isOpen ? '0 2px 12px rgba(245,158,11,0.1)' : '0 1px 3px rgba(0,0,0,0.04)' }}>
+      <button onClick={onToggle} style={{ width:'100%', background:'transparent', border:'none', cursor:'pointer', padding:'15px 18px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px', textAlign:'left' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:'10px', flex:1, minWidth:0 }}>
+          {badge && badgeColor && (
+            <span className="hc-badge" style={{ background:`${badgeColor}16`, color:badgeColor, border:`1px solid ${badgeColor}28`, whiteSpace:'nowrap', flexShrink:0 }}>{badge}</span>
           )}
-          <span style={{ fontSize: '0.88rem', color: '#111827', fontWeight: 600, lineHeight: 1.4 }}>{title}</span>
+          <span className="hc-q">{title}</span>
         </div>
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ flexShrink: 0, transition: 'transform .2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-          <path d="M4.5 6.75L9 11.25l4.5-4.5" stroke={isOpen ? '#f59e0b' : '#9ca3af'} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ flexShrink:0, transition:'transform .22s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+          <path d="M5 7.5l5 5 5-5" stroke={isOpen ? '#f59e0b' : '#94a3b8'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </button>
       {isOpen && (
-        <div style={{ padding: '0 18px 16px', borderTop: '1px solid #fef3c7' }}>
-          <p style={{ color: '#374151', fontSize: '0.85rem', lineHeight: 1.85, margin: '12px 0 0' }}>{answer}</p>
+        <div style={{ padding:'0 18px 18px', borderTop:'1px solid #fef3c7', background:'#fafafa' }}>
+          <p className="hc-a" style={{ margin:'14px 0 0' }}>{answer}</p>
         </div>
       )}
     </div>
   )
 }
+
+const HC_CSS = `
+  .hc-page, .hc-page * { box-sizing: border-box; }
+  .hc-page { background: #f8fafc !important; }
+  .hc-card { background: #ffffff !important; border: 1px solid #e2e8f0 !important; border-radius: 12px !important; overflow: hidden !important; transition: border-color .15s !important; }
+  .hc-card-open { border-color: #fcd34d !important; box-shadow: 0 2px 16px rgba(245,158,11,0.12) !important; }
+  .hc-q { color: #0f172a !important; font-size: 0.88rem !important; font-weight: 600 !important; line-height: 1.45 !important; font-family: system-ui,sans-serif !important; }
+  .hc-a { color: #475569 !important; font-size: 0.84rem !important; line-height: 1.85 !important; font-family: system-ui,sans-serif !important; }
+  .hc-badge { font-size: 0.6rem !important; font-weight: 700 !important; padding: 2px 8px !important; border-radius: 5px !important; }
+  .hc-cat-label { color: #0f172a !important; font-family: system-ui,sans-serif !important; font-weight: 800 !important; font-size: 0.8rem !important; letter-spacing: 0.08em !important; text-transform: uppercase !important; }
+  .hc-count { background: #f1f5f9 !important; color: #64748b !important; border: 1px solid #e2e8f0 !important; font-size: 0.72rem !important; border-radius: 20px !important; padding: 2px 10px !important; }
+  .hc-search { background: rgba(255,255,255,0.1) !important; border: 1px solid rgba(255,255,255,0.18) !important; color: #f8fafc !important; outline: none !important; }
+  .hc-search::placeholder { color: rgba(248,250,252,0.45) !important; }
+  .hc-cta-title { color: #92400e !important; font-size: 0.8rem !important; font-weight: 800 !important; letter-spacing: 0.08em !important; text-transform: uppercase !important; font-family: system-ui,sans-serif !important; }
+  .hc-cta-sub { color: #6b7280 !important; font-size: 0.85rem !important; font-family: system-ui,sans-serif !important; }
+`
 
 export default function HelpCenter() {
   const nav = useNavigate()
@@ -118,7 +130,8 @@ export default function HelpCenter() {
     : []
 
   return (
-    <div style={{ background: '#f9fafb', minHeight: '100vh', fontFamily: 'system-ui, sans-serif' }}>
+    <div className="hc-page" style={{ minHeight: '100vh', fontFamily: 'system-ui, sans-serif' }}>
+      <style>{HC_CSS}</style>
 
       {/* Hero */}
       <div style={{ background: 'linear-gradient(135deg, #1a0a2e 0%, #0a1628 50%, #06060e 100%)', padding: '48px 20px 56px' }}>
@@ -138,10 +151,9 @@ export default function HelpCenter() {
               <circle cx="11" cy="11" r="8" stroke="#64748b" strokeWidth="2"/>
               <path d="M21 21l-4.35-4.35" stroke="#64748b" strokeWidth="2" strokeLinecap="round"/>
             </svg>
-            <input
-              type="text" placeholder="Search for help..." value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '12px', padding: '14px 20px 14px 48px', color: '#e2e8f0', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+            <input type="text" placeholder="Search for help..." value={search}
+              onChange={e => setSearch(e.target.value)} className="hc-search"
+              style={{ width:'100%', borderRadius:'12px', padding:'14px 20px 14px 48px', fontSize:'0.95rem', boxSizing:'border-box', fontFamily:'inherit' }}
             />
           </div>
         </div>
@@ -175,9 +187,9 @@ export default function HelpCenter() {
                       <path d={cat.icon} stroke={cat.color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </div>
-                  <h2 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 800, fontSize: '0.78rem', color: '#1f2937', letterSpacing: '0.07em', textTransform: 'uppercase', margin: 0, flex: 1 }}>{cat.name}</h2>
-                  <div style={{ height: '1px', flex: 1, background: '#e5e7eb' }} />
-                  <span style={{ fontSize: '0.72rem', color: '#9ca3af', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '20px', padding: '2px 10px' }}>{cat.articles.length}</span>
+                  <h2 className="hc-cat-label" style={{ margin:0, flex:1 }}>{cat.name}</h2>
+                  <div style={{ height:'1px', flex:1, background:'#e2e8f0' }} />
+                  <span className="hc-count">{cat.articles.length}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {cat.articles.map(a => {
@@ -192,8 +204,8 @@ export default function HelpCenter() {
 
         {/* Footer CTA */}
         <div style={{ marginTop: '48px', padding: '24px', background: 'linear-gradient(135deg, #fffbeb, #fff7ed)', border: '1px solid #fde68a', borderRadius: '14px', textAlign: 'center' }}>
-          <div style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 800, fontSize: '0.82rem', color: '#92400e', letterSpacing: '0.06em', marginBottom: '8px' }}>STILL NEED HELP?</div>
-          <p style={{ color: '#6b7280', fontSize: '0.85rem', marginBottom: '16px' }}>Our ARIA assistant can answer most questions instantly.</p>
+          <div className="hc-cta-title" style={{ marginBottom:'8px' }}>STILL NEED HELP?</div>
+          <p className="hc-cta-sub" style={{ marginBottom:'16px' }}>Our ARIA assistant can answer most questions instantly.</p>
           <button onClick={() => nav('/contact')} style={{ background: 'linear-gradient(135deg,#f97316,#ef4444)', color: 'white', border: 'none', borderRadius: '9px', padding: '10px 24px', fontFamily: 'Orbitron, sans-serif', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.06em', cursor: 'pointer', boxShadow: '0 4px 14px rgba(249,115,22,0.35)' }}>
             Contact Support
           </button>

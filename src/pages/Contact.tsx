@@ -50,6 +50,30 @@ function getResponse(input: string): string {
 
 const QUICK_REPLIES = ['How do I deposit?', 'How do bonuses work?', 'My transaction failed', 'Game rules']
 
+const CONTACT_CSS = `
+  .ct-page, .ct-page * { box-sizing: border-box; }
+  .ct-page { background: #f8fafc !important; }
+  .ct-card { background: #ffffff !important; border: 1px solid #e2e8f0 !important; }
+  .ct-left-text { color: #374151 !important; font-size: 0.83rem !important; font-family: system-ui,sans-serif !important; }
+  .ct-left-label { color: #9ca3af !important; font-size: 0.66rem !important; font-weight: 700 !important; letter-spacing: 0.1em !important; text-transform: uppercase !important; font-family: system-ui,sans-serif !important; }
+  .ct-left-name { color: #111827 !important; font-weight: 800 !important; font-size: 0.9rem !important; font-family: system-ui,sans-serif !important; }
+  .ct-left-sub { color: #6b7280 !important; font-size: 0.78rem !important; line-height: 1.55 !important; font-family: system-ui,sans-serif !important; }
+  .ct-online { color: #16a34a !important; font-size: 0.75rem !important; font-weight: 600 !important; font-family: system-ui,sans-serif !important; }
+  .ct-email { color: #1e40af !important; font-weight: 600 !important; font-size: 0.8rem !important; font-family: system-ui,sans-serif !important; }
+  .ct-res-link { color: #374151 !important; font-size: 0.83rem !important; font-family: system-ui,sans-serif !important; border-bottom: 1px solid #f3f4f6 !important; }
+  .ct-res-link:hover { color: #f59e0b !important; }
+  .ct-msg-aria { background: #f1f5f9 !important; border: 1px solid #e2e8f0 !important; color: #1e293b !important; font-size: 0.84rem !important; line-height: 1.7 !important; font-family: system-ui,sans-serif !important; }
+  .ct-msg-user { background: linear-gradient(135deg,#f97316,#ef4444) !important; color: #ffffff !important; font-size: 0.84rem !important; line-height: 1.7 !important; font-family: system-ui,sans-serif !important; }
+  .ct-input { background: #f8fafc !important; border: 1px solid #e2e8f0 !important; color: #111827 !important; font-family: system-ui,sans-serif !important; outline: none !important; }
+  .ct-input::placeholder { color: #9ca3af !important; }
+  .ct-quick { background: #f1f5f9 !important; border: 1px solid #e2e8f0 !important; color: #374151 !important; font-family: system-ui,sans-serif !important; font-size: 0.78rem !important; font-weight: 500 !important; }
+  .ct-quick:hover { background: #fef3c7 !important; border-color: #fcd34d !important; color: #92400e !important; }
+  .ct-chat-name { color: #111827 !important; font-weight: 700 !important; font-size: 0.9rem !important; font-family: system-ui,sans-serif !important; }
+  .ct-hero-title { color: #ffffff !important; font-weight: 900 !important; font-family: system-ui,sans-serif !important; font-size: clamp(1.2rem,3vw,1.7rem) !important; letter-spacing: -0.01em !important; }
+  .ct-hero-sub { color: #94a3b8 !important; font-size: 0.88rem !important; font-family: system-ui,sans-serif !important; }
+  .ct-typing { width: 6px !important; height: 6px !important; border-radius: 50% !important; background: #94a3b8 !important; }
+`
+
 export default function Contact() {
   const nav = useNavigate()
   const [messages, setMessages] = useState<Message[]>([
@@ -79,7 +103,8 @@ export default function Contact() {
   }
 
   return (
-    <div style={{ background: '#f9fafb', minHeight: '100vh', fontFamily: 'system-ui, sans-serif' }}>
+    <div className="ct-page" style={{ minHeight: '100vh', fontFamily: 'system-ui, sans-serif' }}>
+      <style>{CONTACT_CSS}</style>
 
       {/* Hero */}
       <div style={{ background: 'linear-gradient(135deg,#1a0a2e 0%,#0a1628 50%,#06060e 100%)', padding: '36px 20px 44px' }}>
@@ -90,8 +115,8 @@ export default function Contact() {
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             Back
           </button>
-          <h1 style={{ fontFamily: 'Orbitron,sans-serif', fontWeight: 900, fontSize: 'clamp(1.2rem,3vw,1.7rem)', color: '#ffffff', letterSpacing: '0.02em', marginBottom: '8px' }}>Contact and Support</h1>
-          <p style={{ color: '#64748b', fontSize: '0.88rem', margin: 0 }}>ARIA can answer most questions instantly. For complex issues, email support@joinarena.space.</p>
+          <h1 className="ct-hero-title" style={{ marginBottom:'8px' }}>Contact and Support</h1>
+          <p className="ct-hero-sub" style={{ margin:0 }}>ARIA can answer most questions instantly. For complex issues, email support@joinarena.space.</p>
         </div>
       </div>
 
@@ -100,86 +125,75 @@ export default function Contact() {
         <style>{`@media(max-width:680px){.contact-left{display:none!important;}}`}</style>
 
         {/* Left info */}
-        <div className="contact-left" style={{ width: '220px', flexShrink: 0 }}>
-          <div style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '14px' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '11px', background: 'linear-gradient(145deg,#7c3aed,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px', boxShadow: '0 4px 12px rgba(124,58,237,0.3)' }}>
-              <span style={{ fontFamily: 'Orbitron,sans-serif', fontSize: '0.72rem', fontWeight: 900, color: 'white' }}>AR</span>
+        <div className="contact-left" style={{ width:'220px', flexShrink:0 }}>
+          <div className="ct-card" style={{ borderRadius:'14px', padding:'20px', boxShadow:'0 1px 6px rgba(0,0,0,0.07)', marginBottom:'12px' }}>
+            <div style={{ width:'42px', height:'42px', borderRadius:'12px', background:'linear-gradient(145deg,#7c3aed,#a855f7)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:'14px', boxShadow:'0 4px 14px rgba(124,58,237,0.3)' }}>
+              <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.7rem', fontWeight:900, color:'white' }}>AR</span>
             </div>
-            <div style={{ fontFamily: 'Orbitron,sans-serif', fontWeight: 800, fontSize: '0.72rem', color: '#111827', letterSpacing: '0.06em', marginBottom: '4px' }}>ARIA</div>
-            <div style={{ fontSize: '0.78rem', color: '#6b7280', lineHeight: 1.5, marginBottom: '14px' }}>Arena Games AI assistant. Available 24 hours a day, 7 days a week.</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
-              <span style={{ fontSize: '0.75rem', color: '#22c55e', fontWeight: 600 }}>Online now</span>
+            <div className="ct-left-name" style={{ marginBottom:'5px' }}>ARIA</div>
+            <div className="ct-left-sub" style={{ marginBottom:'14px' }}>Arena Games AI assistant. Available 24 hours a day, 7 days a week.</div>
+            <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
+              <div style={{ width:'7px', height:'7px', borderRadius:'50%', background:'#22c55e', boxShadow:'0 0 6px #22c55e' }} />
+              <span className="ct-online">Online now</span>
             </div>
           </div>
 
-          <div style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '14px', padding: '18px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize: '0.68rem', fontFamily: 'Orbitron,sans-serif', fontWeight: 700, color: '#9ca3af', letterSpacing: '0.1em', marginBottom: '14px', textTransform: 'uppercase' }}>Resources</div>
-            {[
-              { label: 'Help Center', path: '/help' },
-              { label: 'FAQ', path: '/faq' },
-              { label: 'Fairness Policy', path: '/fairness' },
-            ].map(r => (
-              <button key={r.path} onClick={() => nav(r.path)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 0', background: 'none', border: 'none', cursor: 'pointer', color: '#374151', fontSize: '0.83rem', width: '100%', borderBottom: '1px solid #f3f4f6' }}
-                onMouseEnter={e => (e.currentTarget.style.color = '#f59e0b')}
-                onMouseLeave={e => (e.currentTarget.style.color = '#374151')}>
+          <div className="ct-card" style={{ borderRadius:'14px', padding:'18px', boxShadow:'0 1px 6px rgba(0,0,0,0.07)' }}>
+            <div className="ct-left-label" style={{ marginBottom:'14px' }}>Resources</div>
+            {[{ label:'Help Center', path:'/help' },{ label:'FAQ', path:'/faq' },{ label:'Fairness Policy', path:'/fairness' }].map(r => (
+              <button key={r.path} onClick={() => nav(r.path)} className="ct-res-link"
+                style={{ display:'flex', alignItems:'center', gap:'8px', padding:'8px 0', background:'none', border:'none', cursor:'pointer', width:'100%' }}>
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 {r.label}
               </button>
             ))}
-            <div style={{ marginTop: '14px', fontSize: '0.76rem', color: '#9ca3af', lineHeight: 1.5 }}>
-              Email:<br />
-              <span style={{ color: '#374151', fontWeight: 600 }}>support@joinarena.space</span>
+            <div style={{ marginTop:'14px', fontSize:'0.73rem', color:'#9ca3af', lineHeight:1.6, fontFamily:'system-ui,sans-serif' }}>
+              Email support:<br />
+              <span className="ct-email">support@joinarena.space</span>
             </div>
           </div>
         </div>
 
         {/* Chat */}
-        <div style={{ flex: 1, minWidth: '280px', background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '16px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.07)', height: '560px' }}>
+        <div className="ct-card" style={{ flex:1, minWidth:'280px', borderRadius:'16px', display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'0 4px 24px rgba(0,0,0,0.09)', height:'560px' }}>
 
           {/* Chat header */}
-          <div style={{ padding: '14px 18px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(145deg,#7c3aed,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 10px rgba(124,58,237,0.3)' }}>
-              <span style={{ fontFamily: 'Orbitron,sans-serif', fontSize: '0.62rem', fontWeight: 900, color: 'white' }}>AR</span>
+          <div style={{ padding:'14px 18px', borderBottom:'1px solid #f1f5f9', display:'flex', alignItems:'center', gap:'12px', flexShrink:0, background:'#ffffff' }}>
+            <div style={{ width:'38px', height:'38px', borderRadius:'11px', background:'linear-gradient(145deg,#7c3aed,#a855f7)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:'0 2px 12px rgba(124,58,237,0.3)' }}>
+              <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.62rem', fontWeight:900, color:'white' }}>AR</span>
             </div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827' }}>ARIA</div>
-              <div style={{ fontSize: '0.72rem', color: '#22c55e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+              <div className="ct-chat-name">ARIA</div>
+              <div className="ct-online" style={{ display:'flex', alignItems:'center', gap:'5px' }}>
+                <span style={{ width:'6px', height:'6px', borderRadius:'50%', background:'#22c55e', display:'inline-block' }} />
                 Online
               </div>
             </div>
           </div>
 
           {/* Messages */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ flex:1, overflowY:'auto', padding:'18px 16px', display:'flex', flexDirection:'column', gap:'14px', background:'#f8fafc' }}>
             {messages.map(m => (
-              <div key={m.id} style={{ display: 'flex', justifyContent: m.from === 'user' ? 'flex-end' : 'flex-start', alignItems: 'flex-end', gap: '8px' }}>
+              <div key={m.id} style={{ display:'flex', justifyContent: m.from==='user' ? 'flex-end' : 'flex-start', alignItems:'flex-end', gap:'8px' }}>
                 {m.from === 'aria' && (
-                  <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'linear-gradient(145deg,#7c3aed,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <span style={{ fontFamily: 'Orbitron,sans-serif', fontSize: '0.46rem', fontWeight: 900, color: 'white' }}>AR</span>
+                  <div style={{ width:'28px', height:'28px', borderRadius:'8px', background:'linear-gradient(145deg,#7c3aed,#a855f7)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:'0 2px 8px rgba(124,58,237,0.3)' }}>
+                    <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', fontWeight:900, color:'white' }}>AR</span>
                   </div>
                 )}
-                <div style={{
-                  maxWidth: '72%', padding: '10px 14px', borderRadius: m.from === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-                  background: m.from === 'user' ? 'linear-gradient(135deg,#f97316,#ef4444)' : '#f8f9fa',
-                  border: m.from === 'aria' ? '1px solid #e5e7eb' : 'none',
-                  color: m.from === 'user' ? '#ffffff' : '#1f2937',
-                  fontSize: '0.84rem', lineHeight: 1.7,
-                  boxShadow: m.from === 'user' ? '0 2px 8px rgba(249,115,22,0.3)' : '0 1px 3px rgba(0,0,0,0.06)',
-                }}>
+                <div className={m.from==='user' ? 'ct-msg-user' : 'ct-msg-aria'}
+                  style={{ maxWidth:'74%', padding:'11px 15px', borderRadius: m.from==='user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px', boxShadow: m.from==='user' ? '0 2px 10px rgba(249,115,22,0.28)' : '0 1px 4px rgba(0,0,0,0.06)' }}>
                   {m.text}
                 </div>
               </div>
             ))}
             {typing && (
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'linear-gradient(145deg,#7c3aed,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span style={{ fontFamily: 'Orbitron,sans-serif', fontSize: '0.46rem', fontWeight: 900, color: 'white' }}>AR</span>
+              <div style={{ display:'flex', alignItems:'flex-end', gap:'8px' }}>
+                <div style={{ width:'28px', height:'28px', borderRadius:'8px', background:'linear-gradient(145deg,#7c3aed,#a855f7)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                  <span style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.44rem', fontWeight:900, color:'white' }}>AR</span>
                 </div>
-                <div style={{ padding: '10px 16px', background: '#f8f9fa', border: '1px solid #e5e7eb', borderRadius: '14px 14px 14px 4px', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                <div style={{ padding:'11px 16px', background:'#ffffff', border:'1px solid #e2e8f0', borderRadius:'16px 16px 16px 4px', display:'flex', gap:'5px', alignItems:'center', boxShadow:'0 1px 4px rgba(0,0,0,0.05)' }}>
                   {[0,1,2].map(i => (
-                    <div key={i} style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#9ca3af', animation: `typing-dot 1.2s ease-in-out ${i*0.2}s infinite` }} />
+                    <div className="ct-typing" key={i} style={{ animation:`typing-dot 1.2s ease-in-out ${i*0.2}s infinite` }} />
                   ))}
                 </div>
               </div>
@@ -187,13 +201,12 @@ export default function Contact() {
             <div ref={bottomRef} />
           </div>
 
-          {/* Quick replies — only show if just the greeting message */}
+          {/* Quick replies */}
           {messages.length === 1 && !typing && (
-            <div style={{ padding: '0 16px 12px', display: 'flex', flexWrap: 'wrap', gap: '6px', flexShrink: 0 }}>
+            <div style={{ padding:'0 14px 12px', display:'flex', flexWrap:'wrap', gap:'6px', flexShrink:0, background:'#f8fafc' }}>
               {QUICK_REPLIES.map(q => (
-                <button key={q} onClick={() => send(q)} style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '20px', padding: '6px 13px', fontSize: '0.78rem', color: '#374151', cursor: 'pointer', fontWeight: 500, transition: 'all .14s' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#fef3c7'; e.currentTarget.style.borderColor = '#fcd34d'; e.currentTarget.style.color = '#92400e' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.color = '#374151' }}>
+                <button key={q} onClick={() => send(q)} className="ct-quick"
+                  style={{ borderRadius:'20px', padding:'6px 13px', cursor:'pointer', border:'1px solid', transition:'all .14s' }}>
                   {q}
                 </button>
               ))}
@@ -201,14 +214,14 @@ export default function Contact() {
           )}
 
           {/* Input */}
-          <div style={{ padding: '12px 16px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: '10px', flexShrink: 0, alignItems: 'center' }}>
-            <input
-              value={input} onChange={e => setInput(e.target.value)}
+          <div style={{ padding:'12px 14px', borderTop:'1px solid #f1f5f9', display:'flex', gap:'10px', flexShrink:0, alignItems:'center', background:'#ffffff' }}>
+            <input value={input} onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && send(input)}
-              placeholder="Ask ARIA anything..."
-              style={{ flex: 1, background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '10px 14px', fontSize: '0.85rem', color: '#111827', outline: 'none', fontFamily: 'inherit' }}
+              placeholder="Ask ARIA anything..." className="ct-input"
+              style={{ flex:1, borderRadius:'10px', padding:'10px 14px', fontSize:'0.85rem', transition:'border-color .14s' }}
             />
-            <button onClick={() => send(input)} disabled={!input.trim()} style={{ background: input.trim() ? 'linear-gradient(135deg,#f97316,#ef4444)' : '#f3f4f6', border: 'none', borderRadius: '10px', padding: '10px 18px', cursor: input.trim() ? 'pointer' : 'default', color: input.trim() ? 'white' : '#9ca3af', fontFamily: 'Orbitron,sans-serif', fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.05em', transition: 'all .14s', boxShadow: input.trim() ? '0 2px 10px rgba(249,115,22,0.3)' : 'none' }}>
+            <button onClick={() => send(input)} disabled={!input.trim()}
+              style={{ background: input.trim() ? 'linear-gradient(135deg,#f97316,#ef4444)' : '#f1f5f9', border:'none', borderRadius:'10px', padding:'10px 20px', cursor: input.trim() ? 'pointer' : 'default', color: input.trim() ? 'white' : '#9ca3af', fontFamily:'Orbitron,sans-serif', fontSize:'0.6rem', fontWeight:800, letterSpacing:'0.05em', transition:'all .14s', boxShadow: input.trim() ? '0 2px 10px rgba(249,115,22,0.3)' : 'none' }}>
               SEND
             </button>
           </div>
