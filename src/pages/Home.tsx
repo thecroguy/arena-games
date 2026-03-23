@@ -752,12 +752,12 @@ export default function Home() {
           <div style={{ padding:'10px 14px', borderBottom:'1px solid #0d0d1e', display:'flex', alignItems:'center', gap:'7px', flexShrink:0 }}>
             <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:'#22c55e', display:'block', animation:'pulse-dot 1.6s infinite' }} />
             <span style={{ fontSize:'0.58rem', fontFamily:'Orbitron,sans-serif', color:'#64748b', fontWeight:700, letterSpacing:'0.1em', flex:1 }}>GENERAL CHAT</span>
-            <span style={{ fontSize:'0.58rem', color:'#1e2030', fontFamily:'Orbitron,sans-serif' }}>{onlineCount || '--'}</span>
+            <span style={{ fontSize:'0.58rem', color:'#4b5563', fontFamily:'Orbitron,sans-serif' }}>{onlineCount || '--'}</span>
           </div>
 
           <div style={{ flex:1, overflowY:'auto', padding:'10px 12px', display:'flex', flexDirection:'column', gap:'6px' }}>
             {chat.length === 0
-              ? <div style={{ textAlign:'center', color:'#1e2030', fontSize:'0.72rem', marginTop:'24px' }}>Connecting...</div>
+              ? <div style={{ textAlign:'center', color:'#4b5563', fontSize:'0.72rem', marginTop:'24px' }}>Connecting...</div>
               : chat.map((m, i) => {
                   const isMe = m.username === myName
                   const col  = CHAT_COLORS[m.username.charCodeAt(0) % CHAT_COLORS.length]
@@ -834,7 +834,7 @@ export default function Home() {
             </div>
             <div style={{ flex:1 }}>
               <div style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.62rem', color:'#fb923c', letterSpacing:'0.07em' }}>BONUS QUESTS</div>
-              <div style={{ fontSize:'0.5rem', color:'#4b5563', marginTop:'1px' }}>Play matches, earn bonuses</div>
+              <div style={{ fontSize:'0.5rem', color:'#64748b', marginTop:'1px' }}>Play matches, earn bonuses</div>
             </div>
           </div>
 
@@ -888,8 +888,8 @@ export default function Home() {
 
           {/* Rules */}
           <div style={{ padding:'8px 12px 14px', flexShrink:0 }}>
-            <div style={{ fontSize:'0.56rem', color:'#4b5563', lineHeight:1.6 }}>
-              Bonuses are non-withdrawable and expire in 48h.
+            <div style={{ fontSize:'0.56rem', color:'#64748b', lineHeight:1.6 }}>
+              Non-withdrawable. Used for match entry only.
             </div>
           </div>
         </div>
@@ -950,7 +950,7 @@ export default function Home() {
                     {g.tags.map(t => <span key={t} style={{ fontSize:'0.48rem', fontWeight:700, padding:'2px 6px', borderRadius:'20px', background:`rgba(${g.glowRgb},0.1)`, color:g.glow, border:`1px solid rgba(${g.glowRgb},0.18)` }}>{t}</span>)}
                     {g.hot && <span style={{ fontSize:'0.48rem', fontWeight:700, padding:'2px 6px', borderRadius:'20px', background: g.badge==='HOT' ? 'rgba(239,68,68,0.12)' : 'rgba(249,115,22,0.12)', color: g.badge==='HOT' ? '#ef4444' : '#fb923c', border:`1px solid ${g.badge==='HOT' ? 'rgba(239,68,68,0.22)' : 'rgba(249,115,22,0.25)'}`, animation:'hot-badge 1.6s infinite' }}>{g.badge}</span>}
                   </div>
-                  <p style={{ color:'#4b5563', fontSize:'0.74rem', lineHeight:1.5, margin:0 }}>{g.desc}</p>
+                  <p style={{ color:'#64748b', fontSize:'0.74rem', lineHeight:1.5, margin:0 }}>{g.desc}</p>
                 </div>
 
                 {/* Fee selector for PLAY NOW */}
@@ -1120,7 +1120,7 @@ export default function Home() {
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontFamily:'Orbitron,sans-serif', fontWeight:900, fontSize:'0.66rem', color:'#fb923c', letterSpacing:'0.07em' }}>QUESTS</div>
-                  <div style={{ fontSize:'0.6rem', color:'#4b5563', marginTop:'1px' }}>Just 1 match left to unlock $1.20</div>
+                  <div style={{ fontSize:'0.6rem', color:'#64748b', marginTop:'1px' }}>Just 1 match left to unlock $1.20</div>
                 </div>
                 <div style={{ height:'5px', width:'80px', borderRadius:'99px', background:'rgba(255,255,255,0.06)', overflow:'hidden', flexShrink:0 }}>
                   <div style={{ height:'100%', width:'87.5%', borderRadius:'99px', background:'linear-gradient(90deg,#f59e0b66,#f59e0b)', boxShadow:'0 0 8px #f59e0b88' }} />
@@ -1137,7 +1137,7 @@ export default function Home() {
         <div className="right-feed" style={{ width:'210px', flexShrink:0, borderLeft:'1px solid #0d0d1e', display:'flex', flexDirection:'column', background:'#06060e', overflowY:'auto' }}>
           {/* Platform stats */}
           <div style={{ padding:'14px 14px 10px', borderBottom:'1px solid #0d0d1e', flexShrink:0 }}>
-            <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.46rem', color:'#1e2030', letterSpacing:'0.14em', marginBottom:'10px' }}>PLATFORM</div>
+            <div style={{ fontFamily:'Orbitron,sans-serif', fontSize:'0.46rem', color:'#374151', letterSpacing:'0.14em', marginBottom:'10px' }}>PLATFORM</div>
             {[
               { l:'Online',   v: onlineCount ? String(onlineCount) : '247', c:'#22c55e' },
               { l:'Wagered',  v:'$284K',  c:'#a78bfa' },
@@ -1207,7 +1207,7 @@ export default function Home() {
 
           {/* Footer note */}
           <div style={{ padding:'14px', marginTop:'auto', flexShrink:0 }}>
-            <p style={{ fontSize:'0.52rem', color:'#1e2030', lineHeight:1.6, margin:0 }}>
+            <p style={{ fontSize:'0.52rem', color:'#374151', lineHeight:1.6, margin:0 }}>
               By playing you confirm you are not in a restricted jurisdiction. Play responsibly.
             </p>
           </div>
