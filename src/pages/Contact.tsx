@@ -1,22 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-function useLightTheme() {
-  useEffect(() => {
-    const prev = { bg: document.body.style.background, color: document.body.style.color }
-    const root = document.getElementById('root')
-    const prevRoot = root ? root.style.background : ''
-    document.body.style.background = '#f8fafc'
-    document.body.style.color = '#1e293b'
-    if (root) root.style.background = '#f8fafc'
-    return () => {
-      document.body.style.background = prev.bg
-      document.body.style.color = prev.color
-      if (root) root.style.background = prevRoot
-    }
-  }, [])
-}
-
 interface Message { id: number; from: 'aria' | 'user'; text: string }
 
 const RULES: { keywords: string[]; response: string }[] = [
@@ -25,7 +9,7 @@ const RULES: { keywords: string[]; response: string }[] = [
   { keywords: ['withdraw', 'withdrawal', 'cash out', 'cashout', 'payout'],
     response: 'Withdrawals are automatic. When a game ends, the smart contract sends winnings directly to your wallet within seconds. No buttons to click, no request needed. If you won, the funds arrive in your wallet automatically.' },
   { keywords: ['bonus', 'quest', 'reward', 'credit'],
-    response: 'Bonuses are earned by hitting match milestones at a given entry fee. For example: 15 matches at $1 entry unlocks $1.20 in bonus credits. These credits can be used as entry fees for future games but cannot be withdrawn. They expire 48 hours after unlocking.' },
+    response: 'Bonuses are earned by hitting match milestones at a given entry fee. For example: 15 matches at $1 entry unlocks $1.20 in bonus credits. These credits can be used as entry fees but cannot be withdrawn. They expire 48 hours after unlocking.' },
   { keywords: ['referral', 'refer', 'invite', 'friend'],
     response: 'Go to your Profile page and copy your unique referral link. Share it with friends. When someone plays their first match through your link, you earn bonus match credits. There is no limit on referrals.' },
   { keywords: ['coin flip', 'coinflip'],
@@ -40,7 +24,7 @@ const RULES: { keywords: string[]; response: string }[] = [
     response: 'In Pattern Memory, a grid of tiles flashes a sequence. After the sequence ends, players must click the tiles in the exact order shown. The fastest and most accurate player wins.' },
   { keywords: ['reaction', 'reaction grid'],
     response: 'In Reaction Grid, one cell in a grid lights up at a time. The first player to click the highlighted cell wins the round point. Pure speed and reflexes.' },
-  { keywords: ['network', 'polygon', 'matic', 'chain', 'chain id'],
+  { keywords: ['network', 'polygon', 'matic', 'chain'],
     response: 'Arena Games runs on Polygon Mainnet (Chain ID 137). You need a small amount of MATIC for gas fees (usually less than $0.01 per transaction) and USDT on Polygon for entry fees. The app will prompt you to switch networks automatically.' },
   { keywords: ['disconnect', 'disconnected', 'kicked', 'internet'],
     response: 'If a player disconnects within the first 10 seconds of a game, both players receive a full refund from the escrow contract. After the 10-second window, the disconnecting player forfeits the match.' },
@@ -50,7 +34,7 @@ const RULES: { keywords: string[]; response: string }[] = [
     response: 'Funds are held in an audited smart contract on Polygon. Arena Games never has custody of your USDT. The contract code is publicly readable on Polygonscan. We cannot move your funds. You confirm every transaction in your own wallet.' },
   { keywords: ['dispute', 'wrong', 'result', 'incorrect', 'error', 'bug'],
     response: 'If you believe a game result is incorrect, email support@joinarena.space with your room code and wallet address. We keep signed game logs for 90 days and will investigate within 48 hours.' },
-  { keywords: ['hello', 'hi', 'hey', 'help', 'start', 'assist'],
+  { keywords: ['hello', 'hi', 'hey', 'help', 'start'],
     response: 'Hello! I am ARIA, the Arena Games AI assistant. I can answer questions about deposits, withdrawals, game rules, bonuses, referrals, and technical issues. What would you like to know?' },
   { keywords: ['human', 'agent', 'person', 'real person', 'email'],
     response: 'For issues that need a human, email us at support@joinarena.space. Include your wallet address and room code if relevant. We respond within 24 hours.' },
@@ -69,10 +53,10 @@ const QUICK_REPLIES = ['How do I deposit?', 'How do bonuses work?', 'My transact
 function AriaAvatar({ size = 36 }: { size?: number }) {
   return (
     <div style={{
-      width: size, height: size, borderRadius: size * 0.3,
+      width: size, height: size, borderRadius: Math.round(size * 0.28),
       background: 'linear-gradient(145deg, #7c3aed, #a855f7)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      flexShrink: 0, boxShadow: '0 2px 10px rgba(124,58,237,0.3)',
+      flexShrink: 0, boxShadow: `0 2px 12px rgba(124,58,237,0.35)`,
     }}>
       <span style={{ fontFamily: 'Orbitron,sans-serif', fontSize: size * 0.21, fontWeight: 900, color: 'white' }}>AR</span>
     </div>
@@ -80,7 +64,6 @@ function AriaAvatar({ size = 36 }: { size?: number }) {
 }
 
 export default function Contact() {
-  useLightTheme()
   const nav = useNavigate()
   const [messages, setMessages] = useState<Message[]>([
     { id: 0, from: 'aria', text: 'Hello! I am ARIA, the Arena Games AI assistant. I can help with deposits, withdrawals, game rules, bonuses, referrals, and technical questions. What can I help you with today?' },
@@ -97,280 +80,255 @@ export default function Contact() {
   function send(text: string) {
     const t = text.trim()
     if (!t) return
-    const userMsg: Message = { id: nextId.current++, from: 'user', text: t }
-    setMessages(prev => [...prev, userMsg])
+    setMessages(prev => [...prev, { id: nextId.current++, from: 'user', text: t }])
     setInput('')
     setTyping(true)
     setTimeout(() => {
-      const ariaMsg: Message = { id: nextId.current++, from: 'aria', text: getResponse(t) }
-      setMessages(prev => [...prev, ariaMsg])
+      setMessages(prev => [...prev, { id: nextId.current++, from: 'aria', text: getResponse(t) }])
       setTyping(false)
     }, 650)
   }
 
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div style={{ minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <style>{`
         @keyframes typing-dot {
-          0%,80%,100%{transform:scale(1);opacity:.4}
-          40%{transform:scale(1.3);opacity:1}
+          0%,80%,100%{transform:scale(1);opacity:.3}
+          40%{transform:scale(1.4);opacity:1}
         }
-        @media(max-width:680px){ .contact-left { display:none !important; } }
+        @media(max-width:700px){ .contact-sidebar { display:none !important; } }
       `}</style>
 
-      <div style={{ maxWidth: '920px', margin: '0 auto', padding: '40px 20px 80px' }}>
+      {/* Hero */}
+      <div style={{
+        background: 'linear-gradient(135deg, #0f0820 0%, #080d1a 60%, #06060e 100%)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        padding: '44px 20px 48px',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        <div style={{ position: 'absolute', top: '-80px', right: '10%', width: '250px', height: '250px', background: 'radial-gradient(circle, rgba(124,58,237,0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ maxWidth: '960px', margin: '0 auto', position: 'relative' }}>
+          <button onClick={() => nav(-1)} style={{
+            display: 'inline-flex', alignItems: 'center', gap: '7px',
+            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '9px', padding: '8px 16px', cursor: 'pointer',
+            color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600, marginBottom: '28px', transition: 'all .14s',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.09)'; e.currentTarget.style.color = '#e2e8f0' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#94a3b8' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 12.5L5.5 8 10 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            Back
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <AriaAvatar size={52} />
+            <div>
+              <div style={{
+                display: 'inline-block', background: 'rgba(124,58,237,0.12)',
+                border: '1px solid rgba(124,58,237,0.25)', borderRadius: '8px',
+                padding: '3px 12px', fontSize: '0.6rem', fontWeight: 800,
+                letterSpacing: '0.1em', color: '#c4b5fd', textTransform: 'uppercase', marginBottom: '8px',
+              }}>Support</div>
+              <h1 style={{
+                fontFamily: 'Orbitron, sans-serif', fontWeight: 900,
+                fontSize: 'clamp(1.3rem, 3.5vw, 1.9rem)',
+                color: '#f1f5f9', margin: '0 0 6px',
+              }}>Talk to ARIA</h1>
+              <p style={{ color: '#64748b', fontSize: '0.88rem', margin: 0 }}>
+                ARIA answers most questions instantly. Complex issues: support@joinarena.space
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        {/* Back button */}
-        <button onClick={() => nav(-1)} style={{
-          display: 'inline-flex', alignItems: 'center', gap: '7px',
-          background: 'white', border: '1px solid #e2e8f0',
-          borderRadius: '10px', padding: '8px 16px',
-          cursor: 'pointer', color: '#64748b',
-          fontSize: '0.83rem', fontWeight: 600,
-          marginBottom: '28px',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-          transition: 'all .14s',
-        }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.color = '#1e293b' }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#64748b' }}
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M10 12.5L5.5 8 10 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          Back
-        </button>
+      {/* Content */}
+      <div style={{ maxWidth: '960px', margin: '0 auto', padding: '32px 20px 60px', display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
 
-        {/* Page header card */}
-        <div style={{
-          background: 'white', borderRadius: '20px',
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
-          overflow: 'hidden', marginBottom: '28px',
-        }}>
-          <div style={{ height: '4px', background: 'linear-gradient(90deg, #7c3aed, #a855f7)' }} />
-          <div style={{ padding: '28px 32px' }}>
-            <div style={{
-              display: 'inline-block',
-              background: 'rgba(124,58,237,0.07)',
-              border: '1px solid rgba(124,58,237,0.18)',
-              borderRadius: '8px', padding: '4px 12px',
-              fontSize: '0.65rem', fontWeight: 800,
-              letterSpacing: '0.1em', color: '#5b21b6',
-              textTransform: 'uppercase', marginBottom: '12px',
-            }}>Support</div>
-            <h1 style={{
-              fontFamily: 'Orbitron, sans-serif', fontWeight: 900,
-              fontSize: 'clamp(1.2rem, 3vw, 1.7rem)',
-              color: '#0f172a', margin: '0 0 8px',
-            }}>Talk to ARIA</h1>
-            <p style={{ color: '#64748b', fontSize: '0.88rem', margin: 0, lineHeight: 1.6 }}>
-              ARIA answers most questions instantly. For complex issues, email support@joinarena.space.
-            </p>
+        {/* Sidebar */}
+        <div className="contact-sidebar" style={{ width: '220px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
+          {/* ARIA info card */}
+          <div style={{
+            background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: '16px', padding: '20px',
+          }}>
+            <AriaAvatar size={44} />
+            <div style={{ marginTop: '14px', color: '#f1f5f9', fontWeight: 700, fontSize: '0.9rem', marginBottom: '6px' }}>ARIA</div>
+            <div style={{ color: '#64748b', fontSize: '0.78rem', lineHeight: 1.6, marginBottom: '14px' }}>
+              Arena Games AI assistant. Available 24 hours a day, 7 days a week.
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e' }} />
+              <span style={{ color: '#4ade80', fontSize: '0.74rem', fontWeight: 600 }}>Online now</span>
+            </div>
+          </div>
+
+          {/* Resources card */}
+          <div style={{
+            background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: '16px', padding: '18px',
+          }}>
+            <div style={{ color: '#475569', fontSize: '0.64rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Resources</div>
+            {[
+              { label: 'Help Center', path: '/help' },
+              { label: 'FAQ', path: '/faq' },
+              { label: 'Fairness Policy', path: '/fairness' },
+            ].map(r => (
+              <button key={r.path} onClick={() => nav(r.path)} style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '9px 0', background: 'none', border: 'none',
+                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                cursor: 'pointer', width: '100%',
+                color: '#94a3b8', fontSize: '0.83rem', transition: 'color .14s',
+              }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#fbbf24')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#94a3b8')}
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                {r.label}
+              </button>
+            ))}
+            <div style={{ marginTop: '14px', fontSize: '0.72rem', color: '#475569', lineHeight: 1.7 }}>
+              Email support:<br />
+              <span style={{ color: '#818cf8', fontWeight: 600, fontSize: '0.78rem' }}>support@joinarena.space</span>
+            </div>
           </div>
         </div>
 
-        {/* Two columns */}
-        <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+        {/* Chat window */}
+        <div style={{
+          flex: 1, minWidth: 0,
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: '18px', display: 'flex', flexDirection: 'column',
+          overflow: 'hidden', height: '560px',
+          boxShadow: '0 8px 40px rgba(0,0,0,0.3)',
+        }}>
 
-          {/* Left sidebar */}
-          <div className="contact-left" style={{ width: '220px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-
-            {/* ARIA card */}
-            <div style={{
-              background: 'white', borderRadius: '16px',
-              border: '1px solid #e2e8f0',
-              boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-              padding: '20px',
-            }}>
-              <AriaAvatar size={44} />
-              <div style={{ marginTop: '14px', color: '#0f172a', fontWeight: 800, fontSize: '0.92rem', marginBottom: '6px' }}>ARIA</div>
-              <div style={{ color: '#64748b', fontSize: '0.78rem', lineHeight: 1.6, marginBottom: '14px' }}>
-                Arena Games AI assistant. Available 24 hours a day, 7 days a week.
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
-                <span style={{ color: '#16a34a', fontSize: '0.75rem', fontWeight: 600 }}>Online now</span>
-              </div>
-            </div>
-
-            {/* Resources card */}
-            <div style={{
-              background: 'white', borderRadius: '16px',
-              border: '1px solid #e2e8f0',
-              boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-              padding: '18px',
-            }}>
-              <div style={{
-                color: '#94a3b8', fontSize: '0.66rem', fontWeight: 700,
-                letterSpacing: '0.1em', textTransform: 'uppercase',
-                marginBottom: '12px',
-              }}>Resources</div>
-              {[
-                { label: 'Help Center', path: '/help' },
-                { label: 'FAQ', path: '/faq' },
-                { label: 'Fairness Policy', path: '/fairness' },
-              ].map(r => (
-                <button key={r.path} onClick={() => nav(r.path)} style={{
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  padding: '9px 0', background: 'none', border: 'none',
-                  borderBottom: '1px solid #f3f4f6',
-                  cursor: 'pointer', width: '100%',
-                  color: '#374151', fontSize: '0.83rem',
-                  transition: 'color .14s',
-                }}
-                  onMouseEnter={e => (e.currentTarget.style.color = '#f59e0b')}
-                  onMouseLeave={e => (e.currentTarget.style.color = '#374151')}
-                >
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  {r.label}
-                </button>
-              ))}
-              <div style={{ marginTop: '12px', fontSize: '0.73rem', color: '#94a3b8', lineHeight: 1.6 }}>
-                Email support:<br />
-                <span style={{ color: '#1e40af', fontWeight: 600, fontSize: '0.8rem' }}>support@joinarena.space</span>
+          {/* Chat header */}
+          <div style={{
+            padding: '14px 18px',
+            borderBottom: '1px solid rgba(255,255,255,0.07)',
+            display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0,
+            background: 'rgba(255,255,255,0.02)',
+          }}>
+            <AriaAvatar size={38} />
+            <div>
+              <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: '0.9rem' }}>ARIA</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#4ade80', fontSize: '0.73rem', fontWeight: 600 }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block', boxShadow: '0 0 6px #22c55e' }} />
+                Online
               </div>
             </div>
           </div>
 
-          {/* Chat window */}
+          {/* Messages */}
           <div style={{
-            flex: 1, minWidth: 0,
-            background: 'white',
-            borderRadius: '18px',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.07)',
-            display: 'flex', flexDirection: 'column',
-            overflow: 'hidden', height: '560px',
+            flex: 1, overflowY: 'auto', padding: '20px 16px',
+            display: 'flex', flexDirection: 'column', gap: '16px',
           }}>
-
-            {/* Chat header */}
-            <div style={{
-              padding: '14px 18px', borderBottom: '1px solid #f1f5f9',
-              display: 'flex', alignItems: 'center', gap: '12px',
-              flexShrink: 0, background: 'white',
-            }}>
-              <AriaAvatar size={38} />
-              <div>
-                <div style={{ color: '#0f172a', fontWeight: 700, fontSize: '0.9rem' }}>ARIA</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#16a34a', fontSize: '0.74rem', fontWeight: 600 }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-                  Online
+            {messages.map(m => (
+              <div key={m.id} style={{
+                display: 'flex',
+                justifyContent: m.from === 'user' ? 'flex-end' : 'flex-start',
+                alignItems: 'flex-end', gap: '10px',
+              }}>
+                {m.from === 'aria' && <AriaAvatar size={30} />}
+                <div style={{
+                  maxWidth: '74%', padding: '12px 16px',
+                  borderRadius: m.from === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                  background: m.from === 'user'
+                    ? 'linear-gradient(135deg,#f97316,#ef4444)'
+                    : 'rgba(255,255,255,0.06)',
+                  border: m.from === 'user' ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                  color: m.from === 'user' ? '#ffffff' : '#cbd5e1',
+                  fontSize: '0.85rem', lineHeight: 1.7,
+                  boxShadow: m.from === 'user' ? '0 4px 16px rgba(249,115,22,0.3)' : 'none',
+                }}>
+                  {m.text}
                 </div>
               </div>
-            </div>
+            ))}
 
-            {/* Messages area */}
-            <div style={{
-              flex: 1, overflowY: 'auto', padding: '18px 16px',
-              display: 'flex', flexDirection: 'column', gap: '14px',
-              background: '#f8fafc',
-            }}>
-              {messages.map(m => (
-                <div key={m.id} style={{
-                  display: 'flex',
-                  justifyContent: m.from === 'user' ? 'flex-end' : 'flex-start',
-                  alignItems: 'flex-end', gap: '8px',
+            {typing && (
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px' }}>
+                <AriaAvatar size={30} />
+                <div style={{
+                  padding: '12px 16px',
+                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '18px 18px 18px 4px',
+                  display: 'flex', gap: '5px', alignItems: 'center',
                 }}>
-                  {m.from === 'aria' && <AriaAvatar size={28} />}
-                  <div style={{
-                    maxWidth: '74%', padding: '11px 15px',
-                    borderRadius: m.from === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                    background: m.from === 'user' ? 'linear-gradient(135deg,#f97316,#ef4444)' : '#ffffff',
-                    border: m.from === 'user' ? 'none' : '1px solid #e2e8f0',
-                    color: m.from === 'user' ? '#ffffff' : '#1e293b',
-                    fontSize: '0.84rem', lineHeight: 1.7,
-                    boxShadow: m.from === 'user' ? '0 2px 10px rgba(249,115,22,0.28)' : '0 1px 4px rgba(0,0,0,0.06)',
-                  }}>
-                    {m.text}
-                  </div>
+                  {[0, 1, 2].map(i => (
+                    <div key={i} style={{
+                      width: '6px', height: '6px', borderRadius: '50%', background: '#475569',
+                      animation: `typing-dot 1.2s ease-in-out ${i * 0.2}s infinite`,
+                    }} />
+                  ))}
                 </div>
-              ))}
-
-              {typing && (
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-                  <AriaAvatar size={28} />
-                  <div style={{
-                    padding: '11px 16px',
-                    background: '#ffffff', border: '1px solid #e2e8f0',
-                    borderRadius: '16px 16px 16px 4px',
-                    display: 'flex', gap: '5px', alignItems: 'center',
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-                  }}>
-                    {[0, 1, 2].map(i => (
-                      <div key={i} style={{
-                        width: '6px', height: '6px', borderRadius: '50%', background: '#94a3b8',
-                        animation: `typing-dot 1.2s ease-in-out ${i * 0.2}s infinite`,
-                      }} />
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div ref={bottomRef} />
-            </div>
-
-            {/* Quick replies */}
-            {messages.length === 1 && !typing && (
-              <div style={{
-                padding: '0 14px 12px',
-                display: 'flex', flexWrap: 'wrap', gap: '6px',
-                flexShrink: 0, background: '#f8fafc',
-              }}>
-                {QUICK_REPLIES.map(q => (
-                  <button key={q} onClick={() => send(q)} style={{
-                    background: '#f1f5f9', border: '1px solid #e2e8f0',
-                    borderRadius: '20px', padding: '6px 13px',
-                    cursor: 'pointer', color: '#374151',
-                    fontSize: '0.78rem', fontWeight: 500,
-                    transition: 'all .14s',
-                  }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#fef3c7'; e.currentTarget.style.borderColor = '#fcd34d'; e.currentTarget.style.color = '#92400e' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#374151' }}
-                  >
-                    {q}
-                  </button>
-                ))}
               </div>
             )}
+            <div ref={bottomRef} />
+          </div>
 
-            {/* Input bar */}
+          {/* Quick replies */}
+          {messages.length === 1 && !typing && (
             <div style={{
-              padding: '12px 14px', borderTop: '1px solid #f1f5f9',
-              display: 'flex', gap: '10px', flexShrink: 0,
-              alignItems: 'center', background: 'white',
+              padding: '0 14px 12px', display: 'flex', flexWrap: 'wrap', gap: '6px', flexShrink: 0,
             }}>
-              <input
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && send(input)}
-                placeholder="Ask ARIA anything..."
-                style={{
-                  flex: 1, background: '#f8fafc',
-                  border: '1px solid #e2e8f0', borderRadius: '10px',
-                  padding: '10px 14px', fontSize: '0.85rem',
-                  color: '#1e293b', fontFamily: 'inherit',
-                  outline: 'none', transition: 'border-color .14s',
+              {QUICK_REPLIES.map(q => (
+                <button key={q} onClick={() => send(q)} style={{
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '20px', padding: '6px 14px', cursor: 'pointer',
+                  color: '#94a3b8', fontSize: '0.78rem', fontWeight: 500, transition: 'all .14s',
                 }}
-                onFocus={e => (e.currentTarget.style.borderColor = '#a5b4fc')}
-                onBlur={e => (e.currentTarget.style.borderColor = '#e2e8f0')}
-              />
-              <button
-                onClick={() => send(input)}
-                disabled={!input.trim()}
-                style={{
-                  background: input.trim() ? 'linear-gradient(135deg,#f97316,#ef4444)' : '#f1f5f9',
-                  border: 'none', borderRadius: '10px', padding: '10px 20px',
-                  cursor: input.trim() ? 'pointer' : 'default',
-                  color: input.trim() ? 'white' : '#9ca3af',
-                  fontFamily: 'Orbitron,sans-serif', fontSize: '0.6rem',
-                  fontWeight: 800, letterSpacing: '0.05em',
-                  transition: 'all .14s',
-                  boxShadow: input.trim() ? '0 2px 10px rgba(249,115,22,0.3)' : 'none',
-                }}>
-                SEND
-              </button>
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.1)'; e.currentTarget.style.borderColor = 'rgba(245,158,11,0.3)'; e.currentTarget.style.color = '#fbbf24' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#94a3b8' }}
+                >
+                  {q}
+                </button>
+              ))}
             </div>
+          )}
+
+          {/* Input bar */}
+          <div style={{
+            padding: '12px 14px', borderTop: '1px solid rgba(255,255,255,0.07)',
+            display: 'flex', gap: '10px', flexShrink: 0, alignItems: 'center',
+          }}>
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && send(input)}
+              placeholder="Ask ARIA anything..."
+              style={{
+                flex: 1, background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px',
+                padding: '11px 15px', fontSize: '0.85rem',
+                color: '#e2e8f0', fontFamily: 'inherit',
+                outline: 'none', transition: 'border-color .14s',
+              }}
+              onFocus={e => (e.currentTarget.style.borderColor = 'rgba(124,58,237,0.4)')}
+              onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
+            />
+            <button
+              onClick={() => send(input)}
+              disabled={!input.trim()}
+              style={{
+                background: input.trim() ? 'linear-gradient(135deg,#f97316,#ef4444)' : 'rgba(255,255,255,0.05)',
+                border: input.trim() ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '10px', padding: '11px 22px',
+                cursor: input.trim() ? 'pointer' : 'default',
+                color: input.trim() ? 'white' : '#475569',
+                fontFamily: 'Orbitron,sans-serif', fontSize: '0.6rem',
+                fontWeight: 800, letterSpacing: '0.06em', transition: 'all .14s',
+                boxShadow: input.trim() ? '0 2px 12px rgba(249,115,22,0.35)' : 'none',
+              }}>
+              SEND
+            </button>
           </div>
         </div>
       </div>

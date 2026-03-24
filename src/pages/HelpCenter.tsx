@@ -1,28 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-
-function useLightTheme() {
-  useEffect(() => {
-    const prev = { bg: document.body.style.background, color: document.body.style.color }
-    const root = document.getElementById('root')
-    const prevRoot = root ? root.style.background : ''
-    document.body.style.background = '#f8fafc'
-    document.body.style.color = '#1e293b'
-    if (root) root.style.background = '#f8fafc'
-    return () => {
-      document.body.style.background = prev.bg
-      document.body.style.color = prev.color
-      if (root) root.style.background = prevRoot
-    }
-  }, [])
-}
 
 interface Article { title: string; answer: string }
 interface Category { name: string; icon: string; color: string; articles: Article[] }
 
 const CATEGORIES: Category[] = [
   {
-    name: 'Getting Started', icon: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5', color: '#3b82f6',
+    name: 'Getting Started', icon: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5', color: '#60a5fa',
     articles: [
       { title: 'How to connect your wallet', answer: 'Click Connect Wallet in the top right corner. Choose your provider from the list (MetaMask, WalletConnect, Coinbase Wallet). Approve the connection request in your wallet app. Make sure you are on Polygon Mainnet (Chain ID 137). If you are on the wrong network, the app will show a Switch Network button automatically.' },
       { title: 'How to play your first game', answer: 'From the home page, select a game using the tabs at the top of the card. Choose your entry fee from the selector. Click Play Now to enter the matchmaking queue, or Create Room to set up a private room and share the link with a friend. Confirm the USDT transfer in your wallet when prompted.' },
@@ -32,29 +16,29 @@ const CATEGORIES: Category[] = [
     ],
   },
   {
-    name: 'Deposits and Withdrawals', icon: 'M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6', color: '#10b981',
+    name: 'Deposits and Withdrawals', icon: 'M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6', color: '#34d399',
     articles: [
       { title: 'How deposits work', answer: 'There is no deposit page or deposit form. Your connected wallet balance is your playing balance. When you join a game, you approve a specific USDT amount to be transferred to the escrow smart contract. This approval step is shown in your wallet and requires your explicit confirmation. Nothing moves until you approve.' },
-      { title: 'How withdrawals work', answer: 'Withdrawals are automatic. When a game ends and the result is submitted to the smart contract by the server, the contract instantly sends the winning pot minus the platform fee to the winner\'s wallet. No button to click, no wait, no request to submit. It is on-chain and happens in seconds.' },
+      { title: 'How withdrawals work', answer: "Withdrawals are automatic. When a game ends and the result is submitted to the smart contract, the contract instantly sends the winning pot minus the platform fee to the winner's wallet. No button to click, no wait, no request to submit. It is on-chain and happens in seconds." },
       { title: 'Why did my transaction fail', answer: 'Common reasons: (1) Not enough MATIC for gas. Keep at least 0.1 MATIC in your wallet. (2) USDT approval rejected or set to zero. Retry the approval step. (3) Network congestion on Polygon. Wait 30 seconds and try again. (4) Insufficient USDT balance for the entry fee selected. Check your balance.' },
-      { title: 'How long do transactions take', answer: 'Polygon transactions confirm in 2 to 5 seconds under normal conditions. During occasional network congestion, it may take up to 30 seconds. If a transaction shows as pending for more than 5 minutes, you can increase the gas fee or cancel the transaction from MetaMask transaction settings.' },
+      { title: 'How long do transactions take', answer: 'Polygon transactions confirm in 2 to 5 seconds under normal conditions. During occasional network congestion, it may take up to 30 seconds. If a transaction shows as pending for more than 5 minutes, you can increase the gas fee or cancel from MetaMask transaction settings.' },
       { title: 'Can I cancel a pending transaction', answer: 'Yes. In MetaMask, go to Activity, find the pending transaction, click Speed Up or Cancel. Cancellation sends a zero-value transaction with higher gas to override the original. This works as long as the original has not yet been mined.' },
     ],
   },
   {
-    name: 'Games', icon: 'M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z', color: '#f59e0b',
+    name: 'Games', icon: 'M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z', color: '#fbbf24',
     articles: [
       { title: 'How Coin Flip works', answer: 'Two players each choose Heads or Tails before the flip. A verifiably random result is generated using a committed seed. The player who guessed correctly wins the round. Games are best of 5 rounds. The first player to win 3 rounds takes the pot minus the platform fee.' },
-      { title: "How Liar's Dice works", answer: "Each player starts with 5 dice. Dice are rolled secretly and hidden in your cup. Players take turns making bids, for example: \"I believe there are at least three 4s across all cups combined.\" Any player can call Liar on the current bid. If the bid was true, the challenger loses a die. If the bid was false, the bidder loses a die. The last player with dice wins the pot." },
+      { title: "How Liar's Dice works", answer: "Each player starts with 5 dice. Dice are rolled secretly and hidden in your cup. Players take turns making bids on the total count of a face value across all dice. Any player can call Liar on the current bid. If the bid was true, the challenger loses a die. If the bid was false, the bidder loses a die. The last player with dice wins the pot." },
       { title: 'How Pattern Memory works', answer: 'A grid of colored tiles is shown. The grid flashes a sequence of highlighted tiles. After the sequence ends, players must click the tiles in the exact order they were highlighted. Accuracy and speed are both scored. The player with the most correct sequences after the set number of rounds wins.' },
-      { title: 'How Math Arena works', answer: 'All players are shown the same math problem at the same moment. The first player to submit the correct answer wins the point. Problems range from basic arithmetic to more complex calculations depending on the round. The player with the most points after all rounds wins the pot.' },
-      { title: 'How Reaction Grid works', answer: 'A grid of cells is displayed. One cell lights up at a time. All players see the same highlight simultaneously. The first player to click the highlighted cell wins that round point. Speed and reaction time determine the winner. Most points after all rounds wins the pot.' },
-      { title: 'How Highest Unique works', answer: 'All players secretly pick a number from 1 to 20. After all players have submitted (or the timer runs out), all chosen numbers are revealed simultaneously. The player who chose the highest number that no other player also chose wins the pot. If there are no unique numbers, the round repeats.' },
+      { title: 'How Math Arena works', answer: 'All players are shown the same math problem at the same moment. The first player to submit the correct answer wins the point. Problems range from basic arithmetic to more complex calculations. The player with the most points after all rounds wins the pot.' },
+      { title: 'How Reaction Grid works', answer: 'A grid of cells is displayed. One cell lights up at a time. All players see the same highlight simultaneously. The first player to click the highlighted cell wins that round point. Most points after all rounds wins the pot.' },
+      { title: 'How Highest Unique works', answer: 'All players secretly pick a number from 1 to 20. After all players have submitted, all chosen numbers are revealed simultaneously. The player who chose the highest number that no other player also chose wins the pot. If there are no unique numbers, the round repeats.' },
       { title: 'How Lowest Unique works', answer: 'Same as Highest Unique, but the player who chose the lowest number that no one else also chose wins. This rewards contrarian thinking: picking 1 is bold but if anyone else also picks 1, both are disqualified from winning.' },
     ],
   },
   {
-    name: 'Account and Profile', icon: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z', color: '#8b5cf6',
+    name: 'Account and Profile', icon: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z', color: '#a78bfa',
     articles: [
       { title: 'How to view my game history', answer: 'Click Profile in the top navigation bar. The History section on your profile page shows all past games including the game type, entry fee, opponent, result (win or loss), and the amount paid out.' },
       { title: 'How to change my username', answer: 'Go to your Profile page. Click on your current username or the edit icon next to it. Type your new username and confirm. Usernames must be between 3 and 20 characters and can include letters, numbers, and underscores.' },
@@ -63,23 +47,23 @@ const CATEGORIES: Category[] = [
     ],
   },
   {
-    name: 'Bonuses and Quests', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z', color: '#f97316',
+    name: 'Bonuses and Quests', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z', color: '#fb923c',
     articles: [
-      { title: 'What are bonus credits', answer: 'Bonus credits are earned by completing quest milestones. A quest milestone is reaching a set number of matches played at a specific entry fee level within a calendar month. For example, playing 15 matches at $1 entry unlocks $1.20 in bonus credits. Bonus credits can be used as entry fees for future games but cannot be withdrawn.' },
+      { title: 'What are bonus credits', answer: 'Bonus credits are earned by completing quest milestones: reaching a set number of matches played at a specific entry fee level within a calendar month. For example, playing 15 matches at $1 entry unlocks $1.20 in bonus credits. Bonus credits can be used as entry fees but cannot be withdrawn.' },
       { title: 'How to claim a bonus', answer: 'Bonuses are credited automatically when you hit a tier milestone. You will see a notification in the Quest panel on the home page. The credits will be usable immediately for your next game entry.' },
       { title: 'When do bonuses expire', answer: 'Each bonus credit award expires 48 hours after it is unlocked. The expiry time is shown in your Quest panel. If you do not use the credits within 48 hours, they are forfeited. There is no extension.' },
       { title: 'Can I stack multiple bonuses', answer: 'No. Only one bonus tier per entry fee level can be active at a time. If you unlock the next tier before the current one expires, the system activates the new tier only after the current one is used or expires.' },
-      { title: 'What is a quest tier', answer: 'Each entry fee level (currently $1 and $5) has four quest tiers: Bronze (5 matches), Silver (15 matches), Gold (30 matches), and Elite (50 matches). The tier counts reset at the start of each calendar month. Reaching each tier unlocks a bonus credit reward for that entry level.' },
+      { title: 'What is a quest tier', answer: 'Each entry fee level (currently $1 and $5) has four quest tiers: Bronze (5 matches), Silver (15 matches), Gold (30 matches), and Elite (50 matches). The tier counts reset at the start of each calendar month.' },
     ],
   },
   {
-    name: 'Technical', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z', color: '#64748b',
+    name: 'Technical', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z', color: '#94a3b8',
     articles: [
       { title: 'Which network should I use', answer: 'Polygon Mainnet only. Chain ID: 137. RPC URL: https://polygon-rpc.com. If your wallet is connected to Ethereum mainnet or any other chain, the app will show a Switch Network button. Click it to switch automatically.' },
-      { title: 'MetaMask not connecting', answer: 'Try these steps: (1) Refresh the page and try again. (2) Make sure MetaMask is unlocked (not showing a password prompt). (3) Disable browser extensions that may intercept wallet connections. (4) Clear your browser cache and reconnect. (5) Try a different browser.' },
-      { title: 'WalletConnect not working', answer: 'Make sure your phone and the device you are browsing on are both connected to the internet. The WalletConnect QR code expires after 60 seconds. If it times out, click Try Again to generate a new code. Update your mobile wallet app to the latest version if problems persist.' },
+      { title: 'MetaMask not connecting', answer: 'Try these steps: (1) Refresh the page and try again. (2) Make sure MetaMask is unlocked. (3) Disable browser extensions that may intercept wallet connections. (4) Clear your browser cache and reconnect. (5) Try a different browser.' },
+      { title: 'WalletConnect not working', answer: 'Make sure your phone and the device you are browsing on are both connected to the internet. The WalletConnect QR code expires after 60 seconds. If it times out, click Try Again to generate a new code. Update your mobile wallet app if problems persist.' },
       { title: 'Transaction stuck or pending', answer: 'On Polygon this is rare. Wait 5 minutes. If still pending: in MetaMask, go to Settings, then Advanced, then click Reset Account (this only clears the pending transaction queue, it does not affect your funds). Then resubmit the transaction.' },
-      { title: 'Game result seems wrong', answer: 'Contact support at support@joinarena.space with your room code and wallet address. We retain signed game logs for 90 days and will review your dispute within 48 hours. Do not wait, disputes must be submitted within 90 days of the game date.' },
+      { title: 'Game result seems wrong', answer: 'Contact support at support@joinarena.space with your room code and wallet address. We retain signed game logs for 90 days and will review your dispute within 48 hours.' },
       { title: 'The page is loading slowly', answer: 'Arena Games connects to the Polygon network and a real-time WebSocket server. Slow loading can happen if the Polygon RPC is congested. Try refreshing. If the issue persists, check the Polygon network status at polygonscan.com.' },
     ],
   },
@@ -97,37 +81,36 @@ interface ArticleItemProps {
 function ArticleItem({ title, answer, isOpen, onToggle, badge, badgeColor }: ArticleItemProps) {
   return (
     <div style={{
-      background: '#ffffff',
-      border: `1px solid ${isOpen ? '#fcd34d' : '#e2e8f0'}`,
-      borderRadius: '12px',
-      overflow: 'hidden',
-      transition: 'border-color .15s',
-      boxShadow: isOpen ? '0 2px 16px rgba(245,158,11,0.1)' : '0 1px 3px rgba(0,0,0,0.04)',
+      background: isOpen ? 'rgba(245,158,11,0.04)' : 'rgba(255,255,255,0.03)',
+      border: `1px solid ${isOpen ? 'rgba(245,158,11,0.28)' : 'rgba(255,255,255,0.07)'}`,
+      borderRadius: '12px', overflow: 'hidden',
+      transition: 'all .18s',
+      boxShadow: isOpen ? '0 4px 24px rgba(245,158,11,0.07)' : 'none',
     }}>
       <button onClick={onToggle} style={{
         width: '100%', background: 'transparent', border: 'none',
-        cursor: 'pointer', padding: '16px 18px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        gap: '12px', textAlign: 'left',
+        cursor: 'pointer', padding: '16px 20px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', textAlign: 'left',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
           {badge && badgeColor && (
             <span style={{
-              background: `${badgeColor}16`, color: badgeColor,
+              background: `${badgeColor}14`, color: badgeColor,
               border: `1px solid ${badgeColor}28`,
-              fontSize: '0.6rem', fontWeight: 700,
-              padding: '2px 8px', borderRadius: '5px', whiteSpace: 'nowrap', flexShrink: 0,
+              fontSize: '0.58rem', fontWeight: 700,
+              padding: '2px 8px', borderRadius: '5px', whiteSpace: 'nowrap', flexShrink: 0, letterSpacing: '0.05em',
             }}>{badge}</span>
           )}
-          <span style={{ color: '#0f172a', fontSize: '0.88rem', fontWeight: 600, lineHeight: 1.45, fontFamily: 'system-ui,sans-serif' }}>{title}</span>
+          <span style={{ color: '#e2e8f0', fontSize: '0.87rem', fontWeight: 600, lineHeight: 1.45, fontFamily: 'system-ui,sans-serif' }}>{title}</span>
         </div>
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ flexShrink: 0, transition: 'transform .22s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-          <path d="M5 7.5l5 5 5-5" stroke={isOpen ? '#f59e0b' : '#94a3b8'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"
+          style={{ flexShrink: 0, transition: 'transform .22s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+          <path d="M5 7.5l5 5 5-5" stroke={isOpen ? '#f59e0b' : '#475569'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </button>
       {isOpen && (
-        <div style={{ padding: '0 18px 18px', borderTop: '1px solid #fef3c7', background: '#fffdf7' }}>
-          <p style={{ margin: '14px 0 0', color: '#475569', fontSize: '0.84rem', lineHeight: 1.85, fontFamily: 'system-ui,sans-serif' }}>{answer}</p>
+        <div style={{ padding: '0 20px 18px', borderTop: '1px solid rgba(245,158,11,0.1)' }}>
+          <p style={{ margin: '14px 0 0', color: '#94a3b8', fontSize: '0.85rem', lineHeight: 1.85, fontFamily: 'system-ui,sans-serif' }}>{answer}</p>
         </div>
       )}
     </div>
@@ -135,7 +118,6 @@ function ArticleItem({ title, answer, isOpen, onToggle, badge, badgeColor }: Art
 }
 
 export default function HelpCenter() {
-  useLightTheme()
   const nav = useNavigate()
   const [search, setSearch] = useState('')
   const [openKey, setOpenKey] = useState<string | null>(null)
@@ -147,89 +129,79 @@ export default function HelpCenter() {
     : []
 
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div style={{ minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
 
-      {/* Hero card */}
-      <div style={{ background: '#f8fafc', padding: '40px 20px 0' }}>
-        <div style={{ maxWidth: '780px', margin: '0 auto' }}>
+      {/* Hero */}
+      <div style={{
+        background: 'linear-gradient(135deg, #0f0820 0%, #080d1a 60%, #06060e 100%)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        padding: '48px 20px 56px',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        {/* Glow orbs */}
+        <div style={{ position: 'absolute', top: '-80px', left: '10%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(245,158,11,0.07) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: '-60px', right: '15%', width: '200px', height: '200px', background: 'radial-gradient(circle, rgba(99,102,241,0.07) 0%, transparent 70%)', pointerEvents: 'none' }} />
+
+        <div style={{ maxWidth: '780px', margin: '0 auto', position: 'relative' }}>
           <button onClick={() => nav(-1)} style={{
             display: 'inline-flex', alignItems: 'center', gap: '7px',
-            background: 'white', border: '1px solid #e2e8f0',
-            borderRadius: '10px', padding: '8px 16px',
-            cursor: 'pointer', color: '#64748b',
-            fontSize: '0.83rem', fontWeight: 600,
-            fontFamily: 'system-ui, sans-serif',
-            marginBottom: '28px',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-            transition: 'all .14s',
+            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '9px', padding: '8px 16px', cursor: 'pointer',
+            color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600, marginBottom: '32px', transition: 'all .14s',
           }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.color = '#1e293b' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#64748b' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.09)'; e.currentTarget.style.color = '#e2e8f0' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#94a3b8' }}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M10 12.5L5.5 8 10 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 12.5L5.5 8 10 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             Back
           </button>
 
-          {/* Title card */}
-          <div style={{
-            background: 'white', borderRadius: '20px',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
-            overflow: 'hidden', marginBottom: '32px',
-          }}>
-            <div style={{ height: '4px', background: 'linear-gradient(90deg, #f59e0b, #f97316)' }} />
-            <div style={{ padding: '32px 32px 28px' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px', flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: '200px' }}>
-                  <div style={{
-                    display: 'inline-block',
-                    background: 'rgba(245,158,11,0.08)',
-                    border: '1px solid rgba(245,158,11,0.2)',
-                    borderRadius: '8px', padding: '4px 12px',
-                    fontSize: '0.65rem', fontWeight: 800,
-                    letterSpacing: '0.1em', color: '#92400e',
-                    textTransform: 'uppercase', marginBottom: '14px',
-                  }}>Help Center</div>
-                  <h1 style={{
-                    fontFamily: 'Orbitron, sans-serif', fontWeight: 900,
-                    fontSize: 'clamp(1.3rem, 3.5vw, 1.8rem)',
-                    color: '#0f172a', margin: '0 0 10px',
-                    letterSpacing: '0.01em', lineHeight: 1.2,
-                  }}>Find answers fast.</h1>
-                  <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0, lineHeight: 1.6 }}>
-                    Browse by category or search across all articles below.
-                  </p>
-                </div>
-                {/* Search */}
-                <div style={{ position: 'relative', width: '100%', maxWidth: '340px' }}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-                    <circle cx="11" cy="11" r="8" stroke="#94a3b8" strokeWidth="2"/>
-                    <path d="M21 21l-4.35-4.35" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round"/>
-                  </svg>
-                  <input
-                    type="text" placeholder="Search articles..."
-                    value={search} onChange={e => setSearch(e.target.value)}
-                    style={{
-                      width: '100%', boxSizing: 'border-box',
-                      background: '#f8fafc', border: '1px solid #e2e8f0',
-                      borderRadius: '10px', padding: '11px 16px 11px 42px',
-                      fontSize: '0.88rem', color: '#1e293b',
-                      fontFamily: 'inherit', outline: 'none',
-                      transition: 'border-color .14s',
-                    }}
-                    onFocus={e => (e.currentTarget.style.borderColor = '#fcd34d')}
-                    onBlur={e => (e.currentTarget.style.borderColor = '#e2e8f0')}
-                  />
-                </div>
-              </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '28px' }}>
+            <div>
+              <div style={{
+                display: 'inline-block', background: 'rgba(245,158,11,0.1)',
+                border: '1px solid rgba(245,158,11,0.25)', borderRadius: '8px',
+                padding: '4px 14px', fontSize: '0.6rem', fontWeight: 800,
+                letterSpacing: '0.12em', color: '#fbbf24', textTransform: 'uppercase', marginBottom: '16px',
+              }}>Help Center</div>
+              <h1 style={{
+                fontFamily: 'Orbitron, sans-serif', fontWeight: 900,
+                fontSize: 'clamp(1.5rem, 4vw, 2.2rem)',
+                color: '#f1f5f9', margin: '0 0 10px', letterSpacing: '0.01em',
+              }}>Find answers fast.</h1>
+              <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0, lineHeight: 1.6 }}>
+                Browse by category or search across all {allArticles.length} articles.
+              </p>
+            </div>
+
+            {/* Search */}
+            <div style={{ position: 'relative', width: '100%', maxWidth: '340px' }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+                style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                <circle cx="11" cy="11" r="8" stroke="#475569" strokeWidth="2"/>
+                <path d="M21 21l-4.35-4.35" stroke="#475569" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+              <input
+                type="text" placeholder="Search articles..."
+                value={search} onChange={e => setSearch(e.target.value)}
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: '10px', padding: '12px 16px 12px 44px',
+                  fontSize: '0.88rem', color: '#e2e8f0',
+                  fontFamily: 'inherit', outline: 'none',
+                  transition: 'border-color .14s',
+                }}
+                onFocus={e => (e.currentTarget.style.borderColor = 'rgba(245,158,11,0.4)')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
+              />
             </div>
           </div>
         </div>
       </div>
 
-      <div style={{ maxWidth: '780px', margin: '0 auto', padding: '0 20px 80px' }}>
+      <div style={{ maxWidth: '780px', margin: '0 auto', padding: '40px 20px 80px' }}>
 
         {/* Search results */}
         {isSearching && (
@@ -255,13 +227,14 @@ export default function HelpCenter() {
 
         {/* Category list */}
         {!isSearching && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '36px' }}>
             {CATEGORIES.map(cat => (
               <div key={cat.name}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                {/* Category header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
                   <div style={{
-                    width: '30px', height: '30px', borderRadius: '8px',
-                    background: `${cat.color}12`, border: `1px solid ${cat.color}24`,
+                    width: '32px', height: '32px', borderRadius: '9px',
+                    background: `${cat.color}14`, border: `1px solid ${cat.color}28`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                   }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
@@ -269,15 +242,15 @@ export default function HelpCenter() {
                     </svg>
                   </div>
                   <h2 style={{
-                    margin: 0, color: '#0f172a',
+                    margin: 0, color: '#cbd5e1',
                     fontFamily: 'system-ui,sans-serif', fontWeight: 800,
-                    fontSize: '0.78rem', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1,
+                    fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase',
                   }}>{cat.name}</h2>
-                  <div style={{ height: '1px', flex: 1, background: '#e2e8f0' }} />
+                  <div style={{ height: '1px', flex: 1, background: 'rgba(255,255,255,0.06)' }} />
                   <span style={{
-                    background: '#f1f5f9', color: '#64748b',
-                    border: '1px solid #e2e8f0',
-                    fontSize: '0.72rem', borderRadius: '20px', padding: '2px 10px',
+                    background: 'rgba(255,255,255,0.06)', color: '#64748b',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    fontSize: '0.7rem', borderRadius: '20px', padding: '2px 10px',
                   }}>{cat.articles.length}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -297,42 +270,41 @@ export default function HelpCenter() {
 
         {/* Footer CTA */}
         <div style={{
-          marginTop: '48px', padding: '28px 28px',
-          background: 'white',
-          border: '1px solid #fde68a',
-          borderRadius: '16px',
-          boxShadow: '0 2px 12px rgba(245,158,11,0.08)',
+          marginTop: '56px',
+          background: 'linear-gradient(135deg, rgba(245,158,11,0.07) 0%, rgba(249,115,22,0.04) 100%)',
+          border: '1px solid rgba(245,158,11,0.2)',
+          borderRadius: '18px', padding: '32px',
           textAlign: 'center',
+          position: 'relative', overflow: 'hidden',
         }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, transparent, #f59e0b, transparent)' }} />
           <div style={{
-            width: '40px', height: '40px', borderRadius: '12px',
-            background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 14px',
+            width: '44px', height: '44px', borderRadius: '13px',
+            background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.25)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px',
           }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="#f59e0b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
           <div style={{
-            color: '#92400e', fontSize: '0.75rem', fontWeight: 800,
-            letterSpacing: '0.08em', textTransform: 'uppercase',
-            fontFamily: 'system-ui,sans-serif', marginBottom: '6px',
+            color: '#fbbf24', fontSize: '0.72rem', fontWeight: 800,
+            letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px',
           }}>Still need help?</div>
-          <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '18px', fontFamily: 'system-ui,sans-serif' }}>
+          <p style={{ color: '#64748b', fontSize: '0.87rem', marginBottom: '20px', lineHeight: 1.6 }}>
             ARIA can answer most questions instantly.
           </p>
           <button onClick={() => nav('/contact')} style={{
             background: 'linear-gradient(135deg,#f97316,#ef4444)',
             color: 'white', border: 'none', borderRadius: '10px',
-            padding: '11px 28px',
-            fontFamily: 'Orbitron, sans-serif', fontSize: '0.65rem',
-            fontWeight: 800, letterSpacing: '0.07em', cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(249,115,22,0.35)',
+            padding: '12px 32px',
+            fontFamily: 'Orbitron, sans-serif', fontSize: '0.62rem',
+            fontWeight: 800, letterSpacing: '0.08em', cursor: 'pointer',
+            boxShadow: '0 4px 20px rgba(249,115,22,0.4)',
             transition: 'transform .14s, box-shadow .14s',
           }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(249,115,22,0.45)' }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(249,115,22,0.35)' }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(249,115,22,0.5)' }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(249,115,22,0.4)' }}
           >
             Chat with ARIA
           </button>

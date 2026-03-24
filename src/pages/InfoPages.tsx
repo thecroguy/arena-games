@@ -1,41 +1,24 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 
-// ── Force light background while any info page is mounted ─────────────────────
-function useLightTheme() {
-  useEffect(() => {
-    const prev = { bg: document.body.style.background, color: document.body.style.color }
-    const root = document.getElementById('root')
-    const prevRoot = root ? root.style.background : ''
-    document.body.style.background = '#f8fafc'
-    document.body.style.color = '#1e293b'
-    if (root) root.style.background = '#f8fafc'
-    return () => {
-      document.body.style.background = prev.bg
-      document.body.style.color = prev.color
-      if (root) root.style.background = prevRoot
-    }
-  }, [])
-}
-
-// ── Shared components ─────────────────────────────────────────────────────────
+// ── Shared primitives ──────────────────────────────────────────────────────────
 
 function BackBtn() {
   const nav = useNavigate()
   return (
     <button onClick={() => nav(-1)} style={{
-      display: 'inline-flex', alignItems: 'center', gap: '7px',
-      background: 'white', border: '1px solid #e2e8f0',
-      borderRadius: '10px', padding: '8px 16px',
-      cursor: 'pointer', color: '#64748b',
-      fontSize: '0.83rem', fontWeight: 600,
+      display: 'inline-flex', alignItems: 'center', gap: '8px',
+      background: 'rgba(255,255,255,0.05)',
+      border: '1px solid rgba(255,255,255,0.1)',
+      borderRadius: '10px', padding: '9px 18px',
+      cursor: 'pointer', color: '#94a3b8',
+      fontSize: '0.82rem', fontWeight: 600,
       fontFamily: 'system-ui, sans-serif',
       marginBottom: '36px',
-      boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-      transition: 'all .14s',
+      transition: 'all .15s',
     }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.color = '#1e293b' }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#64748b' }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.09)'; e.currentTarget.style.color = '#e2e8f0' }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#94a3b8' }}
     >
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <path d="M10 12.5L5.5 8 10 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
@@ -47,12 +30,8 @@ function BackBtn() {
 
 function PageWrap({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{
-      background: '#f8fafc', minHeight: '100vh',
-      padding: '40px 20px 100px',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-    }}>
-      <div style={{ maxWidth: '760px', margin: '0 auto' }}>
+    <div style={{ minHeight: '100vh', padding: '44px 20px 100px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      <div style={{ maxWidth: '780px', margin: '0 auto' }}>
         {children}
       </div>
     </div>
@@ -62,28 +41,38 @@ function PageWrap({ children }: { children: React.ReactNode }) {
 function Hero({ badge, title, sub }: { badge: string; title: string; sub: string }) {
   return (
     <div style={{
-      background: 'white', borderRadius: '20px',
-      padding: '44px 48px', marginBottom: '48px',
-      border: '1px solid #e2e8f0',
-      boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
-      position: 'relative', overflow: 'hidden',
+      background: 'linear-gradient(135deg, #0f0820 0%, #080d1a 60%, #06060e 100%)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: '20px',
+      overflow: 'hidden',
+      marginBottom: '44px',
+      boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
+      position: 'relative',
     }}>
-      {/* Amber accent stripe */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(90deg, #f59e0b, #f97316, #ef4444)' }} />
-      <span style={{
-        display: 'inline-block', background: '#fef3c7',
-        color: '#b45309', border: '1px solid #fde68a',
-        borderRadius: '6px', padding: '4px 12px',
-        fontSize: '0.62rem', fontWeight: 800,
-        letterSpacing: '0.1em', textTransform: 'uppercase',
-        marginBottom: '18px',
-      }}>{badge}</span>
-      <h1 style={{
-        color: '#0f172a', fontSize: 'clamp(1.6rem, 3.5vw, 2.2rem)',
-        fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.15,
-        margin: '0 0 14px', fontFamily: 'system-ui, sans-serif',
-      }}>{title}</h1>
-      <p style={{ color: '#64748b', fontSize: '1rem', lineHeight: 1.7, margin: 0 }}>{sub}</p>
+      <div style={{ height: '3px', background: 'linear-gradient(90deg, #f59e0b, #f97316, #ef4444)' }} />
+      {/* Ambient glow */}
+      <div style={{ position: 'absolute', top: '-60px', right: '-60px', width: '200px', height: '200px', background: 'radial-gradient(circle, rgba(245,158,11,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
+      <div style={{ padding: '40px 44px 44px', position: 'relative' }}>
+        <div style={{
+          display: 'inline-block',
+          background: 'rgba(245,158,11,0.1)',
+          border: '1px solid rgba(245,158,11,0.25)',
+          borderRadius: '8px', padding: '4px 14px',
+          fontSize: '0.6rem', fontWeight: 800,
+          letterSpacing: '0.12em', color: '#fbbf24',
+          textTransform: 'uppercase', marginBottom: '20px',
+        }}>{badge}</div>
+        <h1 style={{
+          fontFamily: 'Orbitron, sans-serif',
+          fontWeight: 900,
+          fontSize: 'clamp(1.6rem, 4vw, 2.3rem)',
+          color: '#f1f5f9',
+          margin: '0 0 14px',
+          letterSpacing: '0.01em',
+          lineHeight: 1.15,
+        }}>{title}</h1>
+        <p style={{ color: '#64748b', fontSize: '0.92rem', margin: 0, lineHeight: 1.7, maxWidth: '560px' }}>{sub}</p>
+      </div>
     </div>
   )
 }
@@ -91,13 +80,14 @@ function Hero({ badge, title, sub }: { badge: string; title: string; sub: string
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: '40px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-        <div style={{ width: '4px', height: '24px', background: 'linear-gradient(180deg,#f59e0b,#f97316)', borderRadius: '2px', flexShrink: 0 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
+        <div style={{ width: '3px', height: '18px', background: 'linear-gradient(180deg,#f59e0b,#f97316)', borderRadius: '2px', flexShrink: 0 }} />
         <h2 style={{
-          color: '#0f172a', fontSize: '0.78rem', fontWeight: 800,
-          letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0,
+          color: '#94a3b8', fontSize: '0.7rem', fontWeight: 800,
+          letterSpacing: '0.12em', textTransform: 'uppercase', margin: 0,
           fontFamily: 'system-ui, sans-serif',
         }}>{title}</h2>
+        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.05)' }} />
       </div>
       {children}
     </div>
@@ -106,7 +96,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Body({ children }: { children: React.ReactNode }) {
   return (
-    <p style={{ color: '#475569', fontSize: '0.92rem', lineHeight: 1.9, margin: 0, fontFamily: 'system-ui, sans-serif' }}>
+    <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.9, margin: '0 0 14px', fontFamily: 'system-ui, sans-serif' }}>
       {children}
     </p>
   )
@@ -115,17 +105,16 @@ function Body({ children }: { children: React.ReactNode }) {
 function Card({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      background: 'white', border: '1px solid #e2e8f0', borderRadius: '14px',
-      padding: '20px 24px', marginBottom: '10px',
-      boxShadow: '0 1px 6px rgba(0,0,0,0.04)',
+      background: 'rgba(255,255,255,0.03)',
+      border: '1px solid rgba(255,255,255,0.07)',
+      borderRadius: '12px', padding: '18px 22px', marginBottom: '8px',
     }}>{children}</div>
   )
 }
 
-// ── About ─────────────────────────────────────────────────────────────────────
+// ── About ──────────────────────────────────────────────────────────────────────
 
 export function About() {
-  useLightTheme()
   return (
     <PageWrap>
       <BackBtn />
@@ -138,20 +127,20 @@ export function About() {
 
       <Section title="Our Games">
         {[
-          { name: 'Coin Flip',       desc: 'Best-of-5 rounds. Pick Heads or Tails before each flip. Verifiably random result each round. Fastest game on the platform.' },
-          { name: "Liar's Dice",     desc: "Classic bluffing game. Roll hidden dice, bid on totals across all cups, call Liar to challenge. Last player with dice wins." },
-          { name: 'Pattern Memory',  desc: 'A tile grid flashes a sequence. Recreate it faster and more accurately than your opponents to win each round.' },
-          { name: 'Math Arena',      desc: 'Mental arithmetic race. Same problem shown to all players simultaneously. First correct answer wins the point. Most points wins the pot.' },
-          { name: 'Reaction Grid',   desc: 'One cell lights up at a time on a grid. Click it before anyone else. Pure speed and reflexes.' },
-          { name: 'Highest Unique',  desc: 'Secretly pick the highest number that nobody else also picks. Strategy meets psychology.' },
-          { name: 'Lowest Unique',   desc: 'Pick the lowest unique number. Contrarian thinking wins. Rewards players who predict what others will avoid.' },
+          { name: 'Coin Flip',      desc: 'Best-of-5 rounds. Pick Heads or Tails before each flip. Verifiably random result each round. Fastest game on the platform.' },
+          { name: "Liar's Dice",    desc: "Classic bluffing game. Roll hidden dice, bid on totals across all cups, call Liar to challenge. Last player with dice wins." },
+          { name: 'Pattern Memory', desc: 'A tile grid flashes a sequence. Recreate it faster and more accurately than your opponents to win each round.' },
+          { name: 'Math Arena',     desc: 'Mental arithmetic race. Same problem shown to all players simultaneously. First correct answer wins the point.' },
+          { name: 'Reaction Grid',  desc: 'One cell lights up at a time on a grid. Click it before anyone else. Pure speed and reflexes.' },
+          { name: 'Highest Unique', desc: 'Secretly pick the highest number that nobody else also picks. Strategy meets psychology.' },
+          { name: 'Lowest Unique',  desc: 'Pick the lowest unique number. Contrarian thinking wins.' },
         ].map(g => (
           <Card key={g.name}>
             <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f59e0b', marginTop: '8px', flexShrink: 0 }} />
+              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f59e0b', marginTop: '7px', flexShrink: 0, boxShadow: '0 0 8px rgba(245,158,11,0.5)' }} />
               <div>
-                <div style={{ color: '#b45309', fontSize: '0.78rem', fontWeight: 700, marginBottom: '5px', fontFamily: 'system-ui,sans-serif' }}>{g.name}</div>
-                <div style={{ color: '#475569', fontSize: '0.88rem', lineHeight: 1.65, fontFamily: 'system-ui,sans-serif' }}>{g.desc}</div>
+                <div style={{ color: '#fbbf24', fontSize: '0.78rem', fontWeight: 700, marginBottom: '5px', fontFamily: 'system-ui,sans-serif', letterSpacing: '0.02em' }}>{g.name}</div>
+                <div style={{ color: '#94a3b8', fontSize: '0.87rem', lineHeight: 1.65, fontFamily: 'system-ui,sans-serif' }}>{g.desc}</div>
               </div>
             </div>
           </Card>
@@ -167,16 +156,15 @@ export function About() {
       </Section>
 
       <Section title="Contact">
-        <Body>Questions, disputes, or business inquiries: <strong>support@joinarena.space</strong> or through the <Link to="/contact" style={{ color: '#f59e0b', fontWeight: 600 }}>Contact page</Link>.</Body>
+        <Body>Questions, disputes, or business inquiries: <strong style={{ color: '#e2e8f0' }}>support@joinarena.space</strong> or through the <Link to="/contact" style={{ color: '#f59e0b', fontWeight: 600, textDecoration: 'none' }}>Contact page</Link>.</Body>
       </Section>
     </PageWrap>
   )
 }
 
-// ── Fairness ──────────────────────────────────────────────────────────────────
+// ── Fairness ───────────────────────────────────────────────────────────────────
 
 export function Fairness() {
-  useLightTheme()
   return (
     <PageWrap>
       <BackBtn />
@@ -189,16 +177,16 @@ export function Fairness() {
 
       <Section title="Per-Game Fairness">
         {[
-          { name: 'Coin Flip', detail: 'Results use a verifiable random seed committed before players pick and revealed after. Both players can verify the seed post-game by checking the signed server log.' },
-          { name: "Liar's Dice", detail: 'Each round uses a committed per-round seed for dice rolls. The seed is revealed at the end of each challenge. No one can alter dice values after the commitment.' },
-          { name: 'Pattern Memory', detail: 'The tile sequence comes from one server-side seed broadcast identically to all players at the same millisecond. No player has any timing advantage.' },
-          { name: 'Math Arena', detail: 'Questions are generated from a fixed seed determined before the round starts. All players see the same problem at the same time. Server timestamps decide who answered first.' },
-          { name: 'Reaction Grid', detail: 'Target positions come from a shared seed computed before the round. Server-side latency compensation is applied equally to all players.' },
-          { name: 'Highest and Lowest Unique', detail: "Picks are hashed and stored until all players submit or the timer closes. Numbers reveal simultaneously. No player can see another's choice before submitting." },
+          { name: 'Coin Flip',        detail: 'Results use a verifiable random seed committed before players pick and revealed after. Both players can verify the seed post-game by checking the signed server log.' },
+          { name: "Liar's Dice",      detail: 'Each round uses a committed per-round seed for dice rolls. The seed is revealed at the end of each challenge. No one can alter dice values after the commitment.' },
+          { name: 'Pattern Memory',   detail: 'The tile sequence comes from one server-side seed broadcast identically to all players at the same millisecond. No player has any timing advantage.' },
+          { name: 'Math Arena',       detail: 'Questions are generated from a fixed seed determined before the round starts. All players see the same problem at the same time. Server timestamps decide who answered first.' },
+          { name: 'Reaction Grid',    detail: 'Target positions come from a shared seed computed before the round. Server-side latency compensation is applied equally to all players.' },
+          { name: 'Highest / Lowest Unique', detail: "Picks are hashed and stored until all players submit or the timer closes. Numbers reveal simultaneously. No player can see another's choice before submitting." },
         ].map(g => (
           <Card key={g.name}>
-            <div style={{ color: '#b45309', fontSize: '0.78rem', fontWeight: 700, marginBottom: '8px', fontFamily: 'system-ui,sans-serif' }}>{g.name}</div>
-            <div style={{ color: '#475569', fontSize: '0.87rem', lineHeight: 1.75, fontFamily: 'system-ui,sans-serif' }}>{g.detail}</div>
+            <div style={{ color: '#fbbf24', fontSize: '0.78rem', fontWeight: 700, marginBottom: '8px', fontFamily: 'system-ui,sans-serif' }}>{g.name}</div>
+            <div style={{ color: '#94a3b8', fontSize: '0.87rem', lineHeight: 1.75, fontFamily: 'system-ui,sans-serif' }}>{g.detail}</div>
           </Card>
         ))}
       </Section>
@@ -214,91 +202,78 @@ export function Fairness() {
   )
 }
 
-// ── FAQ ───────────────────────────────────────────────────────────────────────
+// ── FAQ ────────────────────────────────────────────────────────────────────────
 
 const FAQS = [
-  { s: 'Getting Started',
-    items: [
-      { q: 'What do I need to play?', a: "A web3 wallet (MetaMask or WalletConnect-compatible), USDT on Polygon for entry fees, and a small amount of MATIC for gas (under $0.01 per game). No sign-up, no email, no KYC required." },
-      { q: 'Which network does Arena Games use?', a: 'Polygon Mainnet, Chain ID 137. If your wallet is on a different network, the app will prompt you to switch automatically.' },
-      { q: 'How do I connect my wallet?', a: 'Click Connect Wallet in the top right. Select your wallet provider. Approve the connection. If on the wrong network, click Switch Network when the app prompts you.' },
-      { q: 'Can I play on mobile?', a: 'Yes. Arena Games works on mobile browsers. Best experience in MetaMask Mobile or any WalletConnect-compatible browser on iOS or Android.' },
-      { q: 'How do I get USDT on Polygon?', a: 'Bridge from Ethereum using the official Polygon Bridge at wallet.polygon.technology, or withdraw directly to your Polygon wallet from exchanges like Binance, OKX, or Bybit that support Polygon withdrawals.' },
-    ],
-  },
-  { s: 'Deposits and Withdrawals',
-    items: [
-      { q: 'How do I deposit?', a: 'There is no deposit page. Your wallet balance is your balance. When you join a game, you approve a USDT transfer to the escrow contract. Funds only move when you confirm in your wallet.' },
-      { q: 'How do I withdraw my winnings?', a: 'Winnings go directly to your wallet the moment the game ends. The smart contract sends them automatically. No request, no button, no wait.' },
-      { q: 'Why did my transaction fail?', a: 'Most common reasons: not enough MATIC for gas (keep at least 0.1 MATIC), USDT approval was rejected, or network congestion. Try again after 30 seconds.' },
-      { q: 'How long do transactions take?', a: 'Polygon transactions confirm in 2 to 5 seconds normally. During rare congestion it can take up to 30 seconds. If stuck over 5 minutes, speed up or cancel from your wallet settings.' },
-    ],
-  },
-  { s: 'Games',
-    items: [
-      { q: 'What games are available?', a: "Coin Flip, Liar's Dice, Pattern Memory, Math Arena, Reaction Grid, Highest Unique, and Lowest Unique. Each supports different player counts and entry fee levels." },
-      { q: 'How does Coin Flip work?', a: 'Two players pick Heads or Tails. A verifiably random result decides each round. Best of 5 rounds. First to 3 wins takes the pot minus the platform fee.' },
-      { q: "How does Liar's Dice work?", a: "Each player has 5 hidden dice. Players take turns bidding on total face counts across all cups. Any player can call Liar. Correct bid: challenger loses a die. Wrong bid: bidder loses a die. Last player with dice wins." },
-      { q: 'How does Highest Unique work?', a: 'All players secretly pick a number 1 to 20. All picks reveal simultaneously. Highest number that nobody else also picked wins. No unique numbers: round repeats.' },
-      { q: 'What is the platform fee?', a: 'A percentage of the winning pot, always shown before you confirm entry. No hidden fees, ever.' },
-    ],
-  },
-  { s: 'Bonuses and Referrals',
-    items: [
-      { q: 'What is the bonus system?', a: 'Reach match milestones at a given entry fee level to unlock bonus credits. Example: 15 matches at $1 entry unlocks $1.20. Credits are usable as entry fees but cannot be withdrawn.' },
-      { q: 'When do bonuses expire?', a: '48 hours after being unlocked. The expiry time is shown in the Quest panel on the home page. Unused bonuses are forfeited.' },
-      { q: 'Can I stack bonuses?', a: 'No. One active tier per entry fee level at a time. The next tier activates once the current one is used or expires.' },
-      { q: 'How does the referral program work?', a: 'Copy your referral link from your Profile page. When friends join through your link and play matches, you earn bonus match credits. No cap on referrals.' },
-    ],
-  },
-  { s: 'Safety and Security',
-    items: [
-      { q: 'Are my funds safe?', a: 'Funds are in an audited smart contract on Polygon, not held by Arena Games. We cannot move your funds. The contract is publicly readable on Polygonscan.' },
-      { q: 'What happens if I disconnect mid-game?', a: 'Disconnect within the first 10 seconds: both players get a full refund. After 10 seconds: disconnect is treated as a forfeit.' },
-      { q: 'What if the game result seems wrong?', a: 'Email support@joinarena.space with your room code within 90 days. We keep signed logs for all games and respond within 48 hours.' },
-      { q: 'Is Arena Games legal in my country?', a: 'Arena Games is not available in the US, UK, France, Netherlands, or other jurisdictions where skill wagering is prohibited. Verify your local laws before playing.' },
-    ],
-  },
+  { s: 'Getting Started', items: [
+    { q: 'What do I need to play?', a: "A web3 wallet (MetaMask or WalletConnect-compatible), USDT on Polygon for entry fees, and a small amount of MATIC for gas (under $0.01 per game). No sign-up, no email, no KYC required." },
+    { q: 'Which network does Arena Games use?', a: 'Polygon Mainnet, Chain ID 137. If your wallet is on a different network, the app will prompt you to switch automatically.' },
+    { q: 'How do I connect my wallet?', a: 'Click Connect Wallet in the top right. Select your wallet provider. Approve the connection. If on the wrong network, click Switch Network when the app prompts you.' },
+    { q: 'Can I play on mobile?', a: 'Yes. Arena Games works on mobile browsers. Best experience in MetaMask Mobile or any WalletConnect-compatible browser on iOS or Android.' },
+    { q: 'How do I get USDT on Polygon?', a: 'Bridge from Ethereum using the official Polygon Bridge at wallet.polygon.technology, or withdraw directly from Binance, OKX, or Bybit with Polygon network selected.' },
+  ]},
+  { s: 'Deposits and Withdrawals', items: [
+    { q: 'How do I deposit?', a: 'There is no deposit page. Your wallet balance is your balance. When you join a game, you approve a USDT transfer to the escrow contract. Funds only move when you confirm in your wallet.' },
+    { q: 'How do I withdraw my winnings?', a: 'Winnings go directly to your wallet the moment the game ends. The smart contract sends them automatically. No request, no button, no wait.' },
+    { q: 'Why did my transaction fail?', a: 'Most common reasons: not enough MATIC for gas (keep at least 0.1 MATIC), USDT approval was rejected, or network congestion. Try again after 30 seconds.' },
+    { q: 'How long do transactions take?', a: 'Polygon transactions confirm in 2 to 5 seconds normally. During rare congestion it can take up to 30 seconds. If stuck over 5 minutes, speed up or cancel from your wallet settings.' },
+  ]},
+  { s: 'Games', items: [
+    { q: 'What games are available?', a: "Coin Flip, Liar's Dice, Pattern Memory, Math Arena, Reaction Grid, Highest Unique, and Lowest Unique. Each supports different player counts and entry fee levels." },
+    { q: 'How does Coin Flip work?', a: 'Two players pick Heads or Tails. A verifiably random result decides each round. Best of 5 rounds. First to 3 wins takes the pot minus the platform fee.' },
+    { q: "How does Liar's Dice work?", a: "Each player has 5 hidden dice. Players take turns bidding on total face counts. Any player can call Liar. Correct bid: challenger loses a die. Wrong bid: bidder loses a die. Last player with dice wins." },
+    { q: 'How does Highest Unique work?', a: 'All players secretly pick a number 1 to 20. All picks reveal simultaneously. Highest number that nobody else also picked wins. No unique numbers: round repeats.' },
+    { q: 'What is the platform fee?', a: 'A percentage of the winning pot, always shown before you confirm entry. No hidden fees.' },
+  ]},
+  { s: 'Bonuses and Referrals', items: [
+    { q: 'What is the bonus system?', a: 'Reach match milestones at a given entry fee level to unlock bonus credits. Example: 15 matches at $1 entry unlocks $1.20. Credits are usable as entry fees but cannot be withdrawn.' },
+    { q: 'When do bonuses expire?', a: '48 hours after being unlocked. The expiry time is shown in the Quest panel on the home page. Unused bonuses are forfeited.' },
+    { q: 'Can I stack bonuses?', a: 'No. One active tier per entry fee level at a time. The next tier activates once the current one is used or expires.' },
+    { q: 'How does the referral program work?', a: 'Copy your referral link from your Profile page. When friends join through your link and play matches, you earn bonus match credits. No cap on referrals.' },
+  ]},
+  { s: 'Safety and Security', items: [
+    { q: 'Are my funds safe?', a: 'Funds are in an audited smart contract on Polygon, not held by Arena Games. We cannot move your funds. The contract is publicly readable on Polygonscan.' },
+    { q: 'What happens if I disconnect mid-game?', a: 'Disconnect within the first 10 seconds: both players get a full refund. After 10 seconds: disconnect is treated as a forfeit.' },
+    { q: 'What if the game result seems wrong?', a: 'Email support@joinarena.space with your room code within 90 days. We keep signed logs for all games and respond within 48 hours.' },
+    { q: 'Is Arena Games legal in my country?', a: 'Arena Games is not available in the US, UK, France, Netherlands, or other jurisdictions where skill wagering is restricted. Verify your local laws before playing.' },
+  ]},
 ]
 
 export function FaqPage() {
-  useLightTheme()
   const [open, setOpen] = useState<string | null>(null)
-
   return (
     <PageWrap>
       <BackBtn />
       <Hero badge="FAQ" title="Frequently Asked Questions"
         sub="Everything you need to know about Arena Games, your funds, bonuses, and how games work." />
-
       {FAQS.map(sec => (
         <Section key={sec.s} title={sec.s}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {sec.items.map(item => {
               const key = `${sec.s}-${item.q}`
               const isOpen = open === key
               return (
                 <div key={key} style={{
-                  background: 'white', borderRadius: '14px', overflow: 'hidden',
-                  border: `1px solid ${isOpen ? '#fcd34d' : '#e2e8f0'}`,
-                  boxShadow: isOpen ? '0 4px 20px rgba(245,158,11,0.12)' : '0 1px 4px rgba(0,0,0,0.05)',
+                  background: isOpen ? 'rgba(245,158,11,0.05)' : 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${isOpen ? 'rgba(245,158,11,0.3)' : 'rgba(255,255,255,0.07)'}`,
+                  borderRadius: '12px', overflow: 'hidden',
                   transition: 'all .18s',
+                  boxShadow: isOpen ? '0 4px 24px rgba(245,158,11,0.08)' : 'none',
                 }}>
                   <button onClick={() => setOpen(isOpen ? null : key)} style={{
                     width: '100%', background: 'transparent', border: 'none',
                     cursor: 'pointer', padding: '18px 22px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px',
-                    textAlign: 'left',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', textAlign: 'left',
                   }}>
-                    <span style={{ color: '#0f172a', fontSize: '0.92rem', fontWeight: 600, lineHeight: 1.45, fontFamily: 'system-ui,sans-serif' }}>{item.q}</span>
-                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none"
+                    <span style={{ color: '#e2e8f0', fontSize: '0.9rem', fontWeight: 600, lineHeight: 1.45, fontFamily: 'system-ui,sans-serif' }}>{item.q}</span>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"
                       style={{ flexShrink: 0, transition: 'transform .22s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-                      <path d="M5.5 8.25l5.5 5.5 5.5-5.5" stroke={isOpen ? '#f59e0b' : '#94a3b8'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M5 7.5l5 5 5-5" stroke={isOpen ? '#f59e0b' : '#475569'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </button>
                   {isOpen && (
-                    <div style={{ padding: '0 22px 20px', borderTop: '1px solid #fef9ec', background: '#fffdf7' }}>
-                      <p style={{ color: '#475569', fontSize: '0.9rem', lineHeight: 1.85, margin: '16px 0 0', fontFamily: 'system-ui,sans-serif' }}>{item.a}</p>
+                    <div style={{ padding: '0 22px 20px', borderTop: '1px solid rgba(245,158,11,0.12)' }}>
+                      <p style={{ color: '#94a3b8', fontSize: '0.88rem', lineHeight: 1.85, margin: '16px 0 0', fontFamily: 'system-ui,sans-serif' }}>{item.a}</p>
                     </div>
                   )}
                 </div>
@@ -311,10 +286,9 @@ export function FaqPage() {
   )
 }
 
-// ── Privacy ───────────────────────────────────────────────────────────────────
+// ── Privacy ────────────────────────────────────────────────────────────────────
 
 export function Privacy() {
-  useLightTheme()
   return (
     <PageWrap>
       <BackBtn />
@@ -325,15 +299,14 @@ export function Privacy() {
       <Section title="Cookies and Local Storage"><Body>We use localStorage to cache your wallet authentication signature so you do not need to sign on every game. We use sessionStorage to track referral links. We do not use tracking cookies, advertising cookies, or third-party analytics.</Body></Section>
       <Section title="Data Retention"><Body>Signed game logs are retained for 90 days for dispute resolution. Off-chain profile data is kept while your wallet is active on the platform. You may request deletion of off-chain data at any time. On-chain records cannot be deleted.</Body></Section>
       <Section title="Your Rights"><Body>Request a copy or deletion of your off-chain data by emailing support@joinarena.space with your wallet address. We process requests within 30 days.</Body></Section>
-      <Section title="Contact"><Body>Privacy questions: <strong>support@joinarena.space</strong>. Include your wallet address and a description of your request.</Body></Section>
+      <Section title="Contact"><Body>Privacy questions: <strong style={{ color: '#e2e8f0' }}>support@joinarena.space</strong>. Include your wallet address and a description of your request.</Body></Section>
     </PageWrap>
   )
 }
 
-// ── Terms ─────────────────────────────────────────────────────────────────────
+// ── Terms ──────────────────────────────────────────────────────────────────────
 
 export function Terms() {
-  useLightTheme()
   return (
     <PageWrap>
       <BackBtn />
@@ -351,10 +324,9 @@ export function Terms() {
   )
 }
 
-// ── AML ───────────────────────────────────────────────────────────────────────
+// ── AML ────────────────────────────────────────────────────────────────────────
 
 export function AmlPolicy() {
-  useLightTheme()
   return (
     <PageWrap>
       <BackBtn />
@@ -362,9 +334,9 @@ export function AmlPolicy() {
       <Section title="Purpose"><Body>This policy outlines how Arena Games prevents its platform from being used for money laundering, terrorist financing, or other illegal financial activity. We cooperate fully with relevant regulatory authorities.</Body></Section>
       <Section title="Restricted Jurisdictions">
         <Body>Arena Games does not serve users in the following jurisdictions:</Body>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '14px', marginBottom: '14px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', margin: '14px 0' }}>
           {['United States','United Kingdom','France','Netherlands','Germany','Spain','Singapore','Iran','North Korea','Syria','Cuba','Sudan','Myanmar'].map(j => (
-            <span key={j} style={{ background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '8px', padding: '5px 12px', fontSize: '0.82rem', color: '#9f1239', fontWeight: 600, fontFamily: 'system-ui,sans-serif' }}>{j}</span>
+            <span key={j} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', padding: '5px 12px', fontSize: '0.8rem', color: '#fca5a5', fontWeight: 600, fontFamily: 'system-ui,sans-serif' }}>{j}</span>
           ))}
         </div>
         <Body>Accessing the platform from any of these jurisdictions violates these terms and may violate local law.</Body>
@@ -372,7 +344,7 @@ export function AmlPolicy() {
       <Section title="No Fiat Deposits"><Body>Arena Games does not accept fiat currency. All transactions are on the Polygon blockchain using USDT. Every transaction is publicly auditable on Polygonscan.</Body></Section>
       <Section title="Wallet Screening"><Body>Wallet addresses may be screened against OFAC SDN, EU Consolidated Sanctions, and other recognized databases. Flagged wallets will be blocked from games and funds may be held pending compliance review.</Body></Section>
       <Section title="Suspicious Activity"><Body>We monitor for patterns consistent with money laundering including rapid fund cycling, unusual win/loss patterns, and wallets linked to known illicit activity. Suspicious activity will be reported to relevant authorities.</Body></Section>
-      <Section title="Contact"><Body>Compliance inquiries: <strong>support@joinarena.space</strong>. Include your wallet address and a description of your inquiry.</Body></Section>
+      <Section title="Contact"><Body>Compliance inquiries: <strong style={{ color: '#e2e8f0' }}>support@joinarena.space</strong>. Include your wallet address and a description of your inquiry.</Body></Section>
     </PageWrap>
   )
 }
