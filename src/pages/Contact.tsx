@@ -32,6 +32,8 @@ const RULES: { keywords: string[]; response: string }[] = [
     response: 'Entry fees range from $0.50 to $50 USDT per game. You choose the fee when creating a room, or match with someone at their listed fee. Arena takes a small platform fee from winnings, always shown before you confirm.' },
   { keywords: ['safe', 'secure', 'hack', 'trust', 'legit', 'scam'],
     response: 'Funds are held in an audited smart contract on Polygon. Arena Games never has custody of your USDT. The contract code is publicly readable on Polygonscan. We cannot move your funds. You confirm every transaction in your own wallet.' },
+  { keywords: ['failed', 'fail', 'transaction', 'pending', 'stuck', 'gas', 'rejected'],
+    response: 'Common reasons for transaction failures: (1) Not enough MATIC for gas — keep at least 0.1 MATIC in your wallet. (2) USDT approval was rejected — retry the approval step. (3) Network congestion on Polygon — wait 30 seconds and try again. (4) Insufficient USDT balance for the selected entry fee. If a transaction is stuck as pending, go to MetaMask Settings, Advanced, then Reset Account to clear the queue.' },
   { keywords: ['dispute', 'wrong', 'result', 'incorrect', 'error', 'bug'],
     response: 'If you believe a game result is incorrect, email support@joinarena.space with your room code and wallet address. We keep signed game logs for 90 days and will investigate within 48 hours.' },
   { keywords: ['hello', 'hi', 'hey', 'help', 'start'],
