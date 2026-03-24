@@ -229,7 +229,7 @@ const FAQS = [
     { q: 'What is the bonus system?', a: 'Reach match milestones at a given entry fee level to unlock bonus credits. Example: 15 matches at $1 entry unlocks $1.20. Credits are usable as entry fees but cannot be withdrawn.' },
     { q: 'When do bonuses expire?', a: '48 hours after being unlocked. The expiry time is shown in the Quest panel on the home page. Unused bonuses are forfeited.' },
     { q: 'Can I stack bonuses?', a: 'No. One active tier per entry fee level at a time. The next tier activates once the current one is used or expires.' },
-    { q: 'How does the referral program work?', a: 'Copy your referral link from your Profile page. When friends join through your link and play matches, you earn bonus match credits. No cap on referrals.' },
+    { q: 'How does the referral program work?', a: 'Copy your referral link from your Profile page. When someone joins through your link and completes their first paid match, you earn real USDT credited to your referral balance. You can withdraw it directly to your wallet at any time. Referral earnings are not quest credits — they are real money with no expiry and no restrictions. No cap on referrals.' },
   ]},
   { s: 'Safety and Security', items: [
     { q: 'Are my funds safe?', a: 'Funds are in an audited smart contract on Polygon, not held by Arena Games. We cannot move your funds. The contract is publicly readable on Polygonscan.' },

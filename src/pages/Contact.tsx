@@ -14,7 +14,7 @@ const RULES: { keywords: string[]; response: string; article?: { label: string; 
     response: 'Bonuses are earned by hitting match milestones at a given entry fee. For example: 15 matches at $1 entry unlocks $1.20 in bonus credits. These credits can be used as entry fees but cannot be withdrawn. They expire 48 hours after unlocking.',
     article: { label: 'Bonuses and Quests guide', path: '/help' } },
   { keywords: ['referral', 'refer', 'invite', 'friend'],
-    response: 'Go to your Profile page and copy your unique referral link. Share it with friends. When someone plays their first match through your link, you earn bonus match credits. There is no limit on referrals.',
+    response: 'Go to your Profile page and copy your unique referral link. Share it with friends. When someone plays their first paid match through your link, you earn real USDT added to your referral balance. You can withdraw it to your wallet at any time — referral earnings are not credits, they are real money. There is no cap on referrals.',
     article: { label: 'How the referral program works', path: '/help' } },
   { keywords: ['coin flip', 'coinflip'],
     response: 'Coin Flip is a best-of-5 game. Two players each pick Heads or Tails before the flip. A verifiably random result determines the winner of each round. First to win 3 rounds takes the pot minus the platform fee.',
