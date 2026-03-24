@@ -1,5 +1,21 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+
+function useLightTheme() {
+  useEffect(() => {
+    const prev = { bg: document.body.style.background, color: document.body.style.color }
+    const root = document.getElementById('root')
+    const prevRoot = root ? root.style.background : ''
+    document.body.style.background = '#f8fafc'
+    document.body.style.color = '#1e293b'
+    if (root) root.style.background = '#f8fafc'
+    return () => {
+      document.body.style.background = prev.bg
+      document.body.style.color = prev.color
+      if (root) root.style.background = prevRoot
+    }
+  }, [])
+}
 
 interface Article { title: string; answer: string }
 interface Category { name: string; icon: string; color: string; articles: Article[] }
@@ -49,7 +65,7 @@ const CATEGORIES: Category[] = [
   {
     name: 'Bonuses and Quests', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z', color: '#f97316',
     articles: [
-      { title: 'What are bonus credits', answer: 'Bonus credits are earned by completing quest milestones. A quest milestone is reaching a set number of matches played at a specific entry fee level within a calendar month. For example, playing 15 matches at $1 entry unlocks $1.20 in bonus credits. Bonus credits can be used as entry fees but cannot be withdrawn.' },
+      { title: 'What are bonus credits', answer: 'Bonus credits are earned by completing quest milestones. A quest milestone is reaching a set number of matches played at a specific entry fee level within a calendar month. For example, playing 15 matches at $1 entry unlocks $1.20 in bonus credits. Bonus credits can be used as entry fees for future games but cannot be withdrawn.' },
       { title: 'How to claim a bonus', answer: 'Bonuses are credited automatically when you hit a tier milestone. You will see a notification in the Quest panel on the home page. The credits will be usable immediately for your next game entry.' },
       { title: 'When do bonuses expire', answer: 'Each bonus credit award expires 48 hours after it is unlocked. The expiry time is shown in your Quest panel. If you do not use the credits within 48 hours, they are forfeited. There is no extension.' },
       { title: 'Can I stack multiple bonuses', answer: 'No. Only one bonus tier per entry fee level can be active at a time. If you unlock the next tier before the current one expires, the system activates the new tier only after the current one is used or expires.' },
@@ -80,45 +96,46 @@ interface ArticleItemProps {
 
 function ArticleItem({ title, answer, isOpen, onToggle, badge, badgeColor }: ArticleItemProps) {
   return (
-    <div className={`hc-card ${isOpen ? 'hc-card-open' : ''}`}
-      style={{ boxShadow: isOpen ? '0 2px 12px rgba(245,158,11,0.1)' : '0 1px 3px rgba(0,0,0,0.04)' }}>
-      <button onClick={onToggle} style={{ width:'100%', background:'transparent', border:'none', cursor:'pointer', padding:'15px 18px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px', textAlign:'left' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:'10px', flex:1, minWidth:0 }}>
+    <div style={{
+      background: '#ffffff',
+      border: `1px solid ${isOpen ? '#fcd34d' : '#e2e8f0'}`,
+      borderRadius: '12px',
+      overflow: 'hidden',
+      transition: 'border-color .15s',
+      boxShadow: isOpen ? '0 2px 16px rgba(245,158,11,0.1)' : '0 1px 3px rgba(0,0,0,0.04)',
+    }}>
+      <button onClick={onToggle} style={{
+        width: '100%', background: 'transparent', border: 'none',
+        cursor: 'pointer', padding: '16px 18px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        gap: '12px', textAlign: 'left',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
           {badge && badgeColor && (
-            <span className="hc-badge" style={{ background:`${badgeColor}16`, color:badgeColor, border:`1px solid ${badgeColor}28`, whiteSpace:'nowrap', flexShrink:0 }}>{badge}</span>
+            <span style={{
+              background: `${badgeColor}16`, color: badgeColor,
+              border: `1px solid ${badgeColor}28`,
+              fontSize: '0.6rem', fontWeight: 700,
+              padding: '2px 8px', borderRadius: '5px', whiteSpace: 'nowrap', flexShrink: 0,
+            }}>{badge}</span>
           )}
-          <span className="hc-q">{title}</span>
+          <span style={{ color: '#0f172a', fontSize: '0.88rem', fontWeight: 600, lineHeight: 1.45, fontFamily: 'system-ui,sans-serif' }}>{title}</span>
         </div>
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ flexShrink:0, transition:'transform .22s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ flexShrink: 0, transition: 'transform .22s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
           <path d="M5 7.5l5 5 5-5" stroke={isOpen ? '#f59e0b' : '#94a3b8'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </button>
       {isOpen && (
-        <div style={{ padding:'0 18px 18px', borderTop:'1px solid #fef3c7', background:'#fafafa' }}>
-          <p className="hc-a" style={{ margin:'14px 0 0' }}>{answer}</p>
+        <div style={{ padding: '0 18px 18px', borderTop: '1px solid #fef3c7', background: '#fffdf7' }}>
+          <p style={{ margin: '14px 0 0', color: '#475569', fontSize: '0.84rem', lineHeight: 1.85, fontFamily: 'system-ui,sans-serif' }}>{answer}</p>
         </div>
       )}
     </div>
   )
 }
 
-const HC_CSS = `
-  .hc-page, .hc-page * { box-sizing: border-box; }
-  .hc-page { background: #f8fafc !important; }
-  .hc-card { background: #ffffff !important; border: 1px solid #e2e8f0 !important; border-radius: 12px !important; overflow: hidden !important; transition: border-color .15s !important; }
-  .hc-card-open { border-color: #fcd34d !important; box-shadow: 0 2px 16px rgba(245,158,11,0.12) !important; }
-  .hc-q { color: #0f172a !important; font-size: 0.88rem !important; font-weight: 600 !important; line-height: 1.45 !important; font-family: system-ui,sans-serif !important; }
-  .hc-a { color: #475569 !important; font-size: 0.84rem !important; line-height: 1.85 !important; font-family: system-ui,sans-serif !important; }
-  .hc-badge { font-size: 0.6rem !important; font-weight: 700 !important; padding: 2px 8px !important; border-radius: 5px !important; }
-  .hc-cat-label { color: #0f172a !important; font-family: system-ui,sans-serif !important; font-weight: 800 !important; font-size: 0.8rem !important; letter-spacing: 0.08em !important; text-transform: uppercase !important; }
-  .hc-count { background: #f1f5f9 !important; color: #64748b !important; border: 1px solid #e2e8f0 !important; font-size: 0.72rem !important; border-radius: 20px !important; padding: 2px 10px !important; }
-  .hc-search { background: rgba(255,255,255,0.1) !important; border: 1px solid rgba(255,255,255,0.18) !important; color: #f8fafc !important; outline: none !important; }
-  .hc-search::placeholder { color: rgba(248,250,252,0.45) !important; }
-  .hc-cta-title { color: #92400e !important; font-size: 0.8rem !important; font-weight: 800 !important; letter-spacing: 0.08em !important; text-transform: uppercase !important; font-family: system-ui,sans-serif !important; }
-  .hc-cta-sub { color: #6b7280 !important; font-size: 0.85rem !important; font-family: system-ui,sans-serif !important; }
-`
-
 export default function HelpCenter() {
+  useLightTheme()
   const nav = useNavigate()
   const [search, setSearch] = useState('')
   const [openKey, setOpenKey] = useState<string | null>(null)
@@ -130,47 +147,107 @@ export default function HelpCenter() {
     : []
 
   return (
-    <div className="hc-page" style={{ minHeight: '100vh', fontFamily: 'system-ui, sans-serif' }}>
-      <style>{HC_CSS}</style>
+    <div style={{ background: '#f8fafc', minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
 
-      {/* Hero */}
-      <div style={{ background: 'linear-gradient(135deg, #1a0a2e 0%, #0a1628 50%, #06060e 100%)', padding: '48px 20px 56px' }}>
-        <div style={{ maxWidth: '680px', margin: '0 auto', textAlign: 'center' }}>
-          <button onClick={() => nav(-1)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '6px 14px', cursor: 'pointer', color: '#94a3b8', fontSize: '0.8rem', marginBottom: '28px', transition: 'all .14s' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+      {/* Hero card */}
+      <div style={{ background: '#f8fafc', padding: '40px 20px 0' }}>
+        <div style={{ maxWidth: '780px', margin: '0 auto' }}>
+          <button onClick={() => nav(-1)} style={{
+            display: 'inline-flex', alignItems: 'center', gap: '7px',
+            background: 'white', border: '1px solid #e2e8f0',
+            borderRadius: '10px', padding: '8px 16px',
+            cursor: 'pointer', color: '#64748b',
+            fontSize: '0.83rem', fontWeight: 600,
+            fontFamily: 'system-ui, sans-serif',
+            marginBottom: '28px',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+            transition: 'all .14s',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.color = '#1e293b' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#64748b' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M10 12.5L5.5 8 10 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
             Back
           </button>
-          <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 900, fontSize: 'clamp(1.4rem, 4vw, 2rem)', color: '#ffffff', letterSpacing: '0.02em', marginBottom: '12px' }}>Help Center</h1>
-          <p style={{ color: '#94a3b8', fontSize: '0.95rem', marginBottom: '28px' }}>Search for answers or browse by category</p>
 
-          {/* Search */}
-          <div style={{ position: 'relative', maxWidth: '500px', margin: '0 auto' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-              <circle cx="11" cy="11" r="8" stroke="#64748b" strokeWidth="2"/>
-              <path d="M21 21l-4.35-4.35" stroke="#64748b" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-            <input type="text" placeholder="Search for help..." value={search}
-              onChange={e => setSearch(e.target.value)} className="hc-search"
-              style={{ width:'100%', borderRadius:'12px', padding:'14px 20px 14px 48px', fontSize:'0.95rem', boxSizing:'border-box', fontFamily:'inherit' }}
-            />
+          {/* Title card */}
+          <div style={{
+            background: 'white', borderRadius: '20px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
+            overflow: 'hidden', marginBottom: '32px',
+          }}>
+            <div style={{ height: '4px', background: 'linear-gradient(90deg, #f59e0b, #f97316)' }} />
+            <div style={{ padding: '32px 32px 28px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: '200px' }}>
+                  <div style={{
+                    display: 'inline-block',
+                    background: 'rgba(245,158,11,0.08)',
+                    border: '1px solid rgba(245,158,11,0.2)',
+                    borderRadius: '8px', padding: '4px 12px',
+                    fontSize: '0.65rem', fontWeight: 800,
+                    letterSpacing: '0.1em', color: '#92400e',
+                    textTransform: 'uppercase', marginBottom: '14px',
+                  }}>Help Center</div>
+                  <h1 style={{
+                    fontFamily: 'Orbitron, sans-serif', fontWeight: 900,
+                    fontSize: 'clamp(1.3rem, 3.5vw, 1.8rem)',
+                    color: '#0f172a', margin: '0 0 10px',
+                    letterSpacing: '0.01em', lineHeight: 1.2,
+                  }}>Find answers fast.</h1>
+                  <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0, lineHeight: 1.6 }}>
+                    Browse by category or search across all articles below.
+                  </p>
+                </div>
+                {/* Search */}
+                <div style={{ position: 'relative', width: '100%', maxWidth: '340px' }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                    <circle cx="11" cy="11" r="8" stroke="#94a3b8" strokeWidth="2"/>
+                    <path d="M21 21l-4.35-4.35" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                  <input
+                    type="text" placeholder="Search articles..."
+                    value={search} onChange={e => setSearch(e.target.value)}
+                    style={{
+                      width: '100%', boxSizing: 'border-box',
+                      background: '#f8fafc', border: '1px solid #e2e8f0',
+                      borderRadius: '10px', padding: '11px 16px 11px 42px',
+                      fontSize: '0.88rem', color: '#1e293b',
+                      fontFamily: 'inherit', outline: 'none',
+                      transition: 'border-color .14s',
+                    }}
+                    onFocus={e => (e.currentTarget.style.borderColor = '#fcd34d')}
+                    onBlur={e => (e.currentTarget.style.borderColor = '#e2e8f0')}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div style={{ maxWidth: '780px', margin: '0 auto', padding: '40px 20px 80px' }}>
+      <div style={{ maxWidth: '780px', margin: '0 auto', padding: '0 20px 80px' }}>
 
         {/* Search results */}
         {isSearching && (
           <div>
-            <p style={{ color: '#6b7280', fontSize: '0.82rem', marginBottom: '14px' }}>
-              {filtered.length === 0 ? 'No results found. Try different keywords.' : `${filtered.length} result${filtered.length !== 1 ? 's' : ''} for "${search}"`}
+            <p style={{ color: '#64748b', fontSize: '0.82rem', marginBottom: '14px', fontWeight: 500 }}>
+              {filtered.length === 0
+                ? 'No results found. Try different keywords.'
+                : `${filtered.length} result${filtered.length !== 1 ? 's' : ''} for "${search}"`}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {filtered.map(a => {
                 const k = `search-${a.title}`
-                return <ArticleItem key={k} title={a.title} answer={a.answer} badge={a.category} badgeColor={a.color} isOpen={openKey === k} onToggle={() => setOpenKey(openKey === k ? null : k)} />
+                return (
+                  <ArticleItem key={k} title={a.title} answer={a.answer}
+                    badge={a.category} badgeColor={a.color}
+                    isOpen={openKey === k}
+                    onToggle={() => setOpenKey(openKey === k ? null : k)} />
+                )
               })}
             </div>
           </div>
@@ -178,23 +255,39 @@ export default function HelpCenter() {
 
         {/* Category list */}
         {!isSearching && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '36px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
             {CATEGORIES.map(cat => (
               <div key={cat.name}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-                  <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: `${cat.color}16`, border: `1px solid ${cat.color}28`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                  <div style={{
+                    width: '30px', height: '30px', borderRadius: '8px',
+                    background: `${cat.color}12`, border: `1px solid ${cat.color}24`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
                       <path d={cat.icon} stroke={cat.color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </div>
-                  <h2 className="hc-cat-label" style={{ margin:0, flex:1 }}>{cat.name}</h2>
-                  <div style={{ height:'1px', flex:1, background:'#e2e8f0' }} />
-                  <span className="hc-count">{cat.articles.length}</span>
+                  <h2 style={{
+                    margin: 0, color: '#0f172a',
+                    fontFamily: 'system-ui,sans-serif', fontWeight: 800,
+                    fontSize: '0.78rem', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1,
+                  }}>{cat.name}</h2>
+                  <div style={{ height: '1px', flex: 1, background: '#e2e8f0' }} />
+                  <span style={{
+                    background: '#f1f5f9', color: '#64748b',
+                    border: '1px solid #e2e8f0',
+                    fontSize: '0.72rem', borderRadius: '20px', padding: '2px 10px',
+                  }}>{cat.articles.length}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {cat.articles.map(a => {
                     const k = `${cat.name}-${a.title}`
-                    return <ArticleItem key={k} title={a.title} answer={a.answer} isOpen={openKey === k} onToggle={() => setOpenKey(openKey === k ? null : k)} />
+                    return (
+                      <ArticleItem key={k} title={a.title} answer={a.answer}
+                        isOpen={openKey === k}
+                        onToggle={() => setOpenKey(openKey === k ? null : k)} />
+                    )
                   })}
                 </div>
               </div>
@@ -203,11 +296,45 @@ export default function HelpCenter() {
         )}
 
         {/* Footer CTA */}
-        <div style={{ marginTop: '48px', padding: '24px', background: 'linear-gradient(135deg, #fffbeb, #fff7ed)', border: '1px solid #fde68a', borderRadius: '14px', textAlign: 'center' }}>
-          <div className="hc-cta-title" style={{ marginBottom:'8px' }}>STILL NEED HELP?</div>
-          <p className="hc-cta-sub" style={{ marginBottom:'16px' }}>Our ARIA assistant can answer most questions instantly.</p>
-          <button onClick={() => nav('/contact')} style={{ background: 'linear-gradient(135deg,#f97316,#ef4444)', color: 'white', border: 'none', borderRadius: '9px', padding: '10px 24px', fontFamily: 'Orbitron, sans-serif', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.06em', cursor: 'pointer', boxShadow: '0 4px 14px rgba(249,115,22,0.35)' }}>
-            Contact Support
+        <div style={{
+          marginTop: '48px', padding: '28px 28px',
+          background: 'white',
+          border: '1px solid #fde68a',
+          borderRadius: '16px',
+          boxShadow: '0 2px 12px rgba(245,158,11,0.08)',
+          textAlign: 'center',
+        }}>
+          <div style={{
+            width: '40px', height: '40px', borderRadius: '12px',
+            background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 14px',
+          }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="#f59e0b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <div style={{
+            color: '#92400e', fontSize: '0.75rem', fontWeight: 800,
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            fontFamily: 'system-ui,sans-serif', marginBottom: '6px',
+          }}>Still need help?</div>
+          <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '18px', fontFamily: 'system-ui,sans-serif' }}>
+            ARIA can answer most questions instantly.
+          </p>
+          <button onClick={() => nav('/contact')} style={{
+            background: 'linear-gradient(135deg,#f97316,#ef4444)',
+            color: 'white', border: 'none', borderRadius: '10px',
+            padding: '11px 28px',
+            fontFamily: 'Orbitron, sans-serif', fontSize: '0.65rem',
+            fontWeight: 800, letterSpacing: '0.07em', cursor: 'pointer',
+            boxShadow: '0 4px 14px rgba(249,115,22,0.35)',
+            transition: 'transform .14s, box-shadow .14s',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(249,115,22,0.45)' }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(249,115,22,0.35)' }}
+          >
+            Chat with ARIA
           </button>
         </div>
       </div>
